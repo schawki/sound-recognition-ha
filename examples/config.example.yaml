@@ -1,0 +1,70 @@
+# Example configuration (single source of truth; the HA UI reads and writes the same structure).
+# Class keys accept an AudioSet mid ("/m/...") or the official AudioSet name; mids are canonical.
+# Resolution order, strongest first:
+#   source x class  >  class (user)  >  source (offset / gate / schedule / clips)  >  defaults  >  catalog suggestion
+language: en                      # fallback only; the HA user's language decides what the UI shows
+timezone: null                    # IANA name (e.g. Africa/Casablanca) used for schedules; null = system time zone
+api: {host: 0.0.0.0, port: 8765}  # a token is generated on first start and written here
+analysis: {hop_s: 0.48, context_boost: 0.15, hold_s: 2.0}   # window step; threshold raise when a context class is active; "active" hold time
+storage: {clips_dir: /data/clips, db_path: /data/events.sqlite, ring_seconds: 30, events_retention_days: 30}
+
+defaults:
+  min_volume_dbfs: -60            # gate on the loudness of the 0.96 s window; null disables the gate
+  schedule: {mode: continuous}    # continuous = listen 24/7 (the explicit "continuous monitoring" option)
+  clips: {allowed: true, max_retention_days: 30}
+
+classes:                          # user choices, valid on every source unless a source overrides them
+  "Smoke detector, smoke alarm": {enabled: true, schedule: {mode: continuous}}   # stays 24/7 even on scheduled sources
+  "Fire alarm":                  {enabled: true, schedule: {mode: continuous}}
+  "Baby cry, infant cry":        {enabled: true}
+  "Screaming":                   {enabled: true}
+  "Bark":                        {enabled: true, threshold: 0.5}
+  "Doorbell":                    {enabled: true}
+  "Knock":                       {enabled: true, min_volume_dbfs: -35}           # ignore faint taps
+  "Shatter":                     {enabled: true}
+  "Speech":                      {enabled: true}                                 # context only; catalog forbids clips
+  "Television":                  {enabled: true}                                 # context: raises other thresholds
+
+# Advice and warnings: change the level of a catalog advice, or hide it.
+# Levels: default | info | warning | danger | ignore.  A source can override the global value.
+# Hiding an advice about a safety sound (fire, baby, security) needs {level: ignore, confirm: true}.
+advice:
+  speech_target: info                # no Repairs issue for a single speech class
+  # water_leak: ignore
+
+sources:
+  - id: kitchen_esp32
+    name: Kitchen
+    type: esphome                 # esphome | go2rtc | rtsp | alsa_rpi
+    url: tcp://192.168.1.50:6055  # placeholder: stream exposed by the device
+    threshold_offset: 0.05        # added to every class threshold of this source (noisy room)
+    min_volume_dbfs: -55
+    schedule:                     # scheduled mode: only these windows are listened to
+      mode: scheduled
+      windows:
+        - {days: [mon, tue, wed, thu, fri], from: "07:00", to: "23:00"}
+    classes:
+      "Screaming": {enabled: false}
+
+  - id: garden_cam
+    name: Garden camera
+    type: go2rtc
+    url: rtsp://homeassistant.local:8554/garden_cam
+    threshold_offset: 0.05
+    clips: {allowed: true, max_retention_days: 14}
+    classes:
+      "Bark":    {threshold: 0.7, min_volume_dbfs: -45}     # absolute value: ignores the offset
+      "Shatter": {min_volume_dbfs: -30}                     # deliberately high: triggers the volume_gate_safety warning
+
+  - id: nursery_esp32
+    name: Nursery
+    type: esphome
+    url: tcp://192.168.1.51:6055
+    schedule: {mode: continuous}
+    clips: {allowed: false}       # no audio is ever stored from this room
+
+  - id: old_pi
+    name: Old Raspberry Pi
+    type: alsa_rpi
+    url: rtsp://pi3.local:8554/mic
+    enabled: false

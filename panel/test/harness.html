@@ -1,0 +1,82 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { --primary-color:#03a9f4; --primary-background-color:#fafafa; --card-background-color:#fff; --primary-text-color:#212121; --secondary-text-color:#727272; --divider-color:#e0e0e0; --secondary-background-color:#e5e5e5; --text-primary-color:#fff; --success-color:#43a047; --error-color:#db4437; --warning-color:#ffa600; }
+  @media (prefers-color-scheme: dark) { :root { --primary-background-color:#111; --card-background-color:#1c1c1c; --primary-text-color:#e1e1e1; --secondary-text-color:#9b9b9b; --divider-color:#333; --secondary-background-color:#2c2c2c; } }
+  body { margin: 0; }
+</style></head>
+<body>
+<script type="module" src="/panel.js"></script>
+<script type="module">
+  // Stand-in for Home Assistant: answers the WebSocket commands with fixtures and lets the test push live messages.
+  const q = new URLSearchParams(location.search);
+  const state = window.__state = { fail: q.get("fail"), listeners: [] };
+  const sources = [
+    { id: "kitchen", name: "Kitchen", type: "rtsp", enabled: true, connected: true, error: null, level_dbfs: -38.2, below_gate: false, active_classes: [], windows: 10, inferences: 10 },
+    { id: "garden", name: "Garden camera", type: "go2rtc", enabled: true, connected: true, error: null, level_dbfs: -71, below_gate: true, active_classes: [], windows: 10, inferences: 10 },
+    { id: "nursery", name: "Nursery", type: "rtsp", enabled: true, connected: false, error: "starting", level_dbfs: null, below_gate: false, active_classes: [], windows: 0, inferences: 0 },
+    { id: "old_pi", name: "Old Pi", type: "alsa_rpi", enabled: false, connected: false, error: null, level_dbfs: null, below_gate: false, active_classes: [], windows: 0, inferences: 0 },
+  ];
+  const now = Date.now() / 1000;
+  const lang = q.get("lang") || "en";
+  const fullCatalog = await (await fetch("/catalog_" + (lang === "fr" ? "fr" : "en") + ".json")).json();
+  const SMOKE = fullCatalog.classes.find((c) => c.audioset_name === "Smoke detector, smoke alarm").mid;
+  state.config = {
+    api: { token: "***" }, classes: { Bark: { enabled: true } },
+    sources: [
+      { id: "kitchen", name: "Kitchen", type: "rtsp", url: "rtsp://x/k", classes: { "Smoke detector, smoke alarm": { enabled: true } }, schedule: { mode: "scheduled", windows: [{ days: ["mon", "tue", "wed", "thu", "fri"], from: "08:00", to: "18:10" }] }, clips: { max_retention_days: 7 } },
+      { id: "garden", name: "Garden camera", type: "go2rtc", url: "rtsp://x/g", threshold_offset: 0.1 },
+    ],
+  };
+  state.saves = [];
+  const rawAdvice = [
+    { rule: "fire_only", kind: "rule", level: "danger", source: "kitchen", classes: [SMOKE], safety: true, message: "Add the beeps class too." },
+    { rule: "speech_target", kind: "rule", level: "warning", source: "kitchen", classes: ["/m/09x0r"], safety: false, message: "Speech classes detect conversations." },
+    { rule: "speech_target", kind: "rule", level: "warning", source: "garden", classes: ["/m/09x0r"], safety: false, message: "Speech classes detect conversations." },
+    { rule: "generic_class", kind: "auto", level: "info", source: "garden", classes: ["/m/05tny_"], safety: false, message: "Bark is generic." },
+  ];
+  const validate = (cfg) => {
+    const errors = [];
+    for (const s of cfg.sources || []) if (!s.url) errors.push(`sources(${s.id}): url is required`);
+    const warnings = [];
+    if (!errors.length) {
+      warnings.push({ rule: "schedule_gap_safety", kind: "auto", level: "warning", source: (cfg.sources || []).slice(-1)[0]?.id, classes: [], message: "Gap in the schedule" });
+      const smokeOn = (cfg.classes || {})["Smoke detector, smoke alarm"]?.enabled;
+      if (smokeOn) warnings.push({ rule: "fire_only", kind: "rule", level: "danger", source: "kitchen", classes: [SMOKE], message: "Add the beeps class too" });
+    }
+    return { errors, warnings };
+  };
+  const calls = {
+    "sound_recognition/overview": () => ({ entry_id: "e", entries: [], version: "0.1.0", language: q.get("lang") || "en", sources,
+      warnings: [{ rule: "r", kind: "rule", level: "warning", source: "kitchen", classes: [], message: "m" }], config: {} }),
+    "sound_recognition/catalog": () => fullCatalog,
+    "sound_recognition/config": () => JSON.parse(JSON.stringify(state.config)),
+    "sound_recognition/config_validate": (m) => validate(m.config),
+    "sound_recognition/config_save": (m) => { const v = validate(m.config); if (v.errors.length) throw { code: "invalid_config", message: v.errors.join("; ") }; state.config = m.config; state.saves.push(m.config); return { ok: true }; },
+    "sound_recognition/warnings": (m) => ({ warnings: m.overrides === false ? rawAdvice : rawAdvice.filter((w) => {
+      const own = ((state.config.sources.find((s) => s.id === w.source) || {}).advice || {})[w.rule];
+      const e = own !== undefined ? own : (state.config.advice || {})[w.rule];
+      const level = typeof e === "string" ? e : e && e.level; const confirm = e && typeof e === "object" && e.confirm;
+      return !(level === "ignore" && (!w.safety || confirm));
+    }) }),
+    "sound_recognition/events": () => ({ events: [
+      { id: "e1", ts: now - 125, source: "garden", mid: "/m/05tny_", class: "Bark", score: 0.91, clip: "garden/e1.wav", clip_url: "/clip.wav", clip_expires: new Date(Date.now() + 5 * 86400000).toISOString() },
+      { id: "e3", ts: now - 900, source: "kitchen", mid: SMOKE, class: "Smoke", score: 0.7, clip: "kitchen/e3.wav", clip_url: "/clip.wav", clip_expires: new Date(Date.now() + 86400000).toISOString() },
+      { id: "e2", ts: now - 7200, source: "kitchen", mid: "/m/01b82r", class: "Smoke", score: 0.64, clip: null },
+    ] }),
+  };
+  window.hass = {
+    language: q.get("lang") || "en",
+    async callWS(msg) {
+      if (state.fail === "unreachable") throw { code: "service_error" };
+      if (state.fail === "not_loaded") throw { code: "not_loaded" };
+      return calls[msg.type](msg);
+    },
+    connection: { async subscribeMessage(cb) { state.listeners.push(cb); return () => { state.listeners = state.listeners.filter((x) => x !== cb); }; } },
+  };
+  await customElements.whenDefined("sound-recognition-panel");
+  const el = document.createElement("sound-recognition-panel");
+  el.hass = window.hass; el.narrow = q.get("narrow") === "1";
+  document.body.appendChild(el);
+  window.__push = (m) => state.listeners.forEach((cb) => cb(m));
+</script></body></html>

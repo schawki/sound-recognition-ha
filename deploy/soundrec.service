@@ -1,0 +1,26 @@
+[Unit]
+Description=Sound recognition service (YAMNet) for Home Assistant
+Documentation=https://github.com/schawki/sound-recognition-ha
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=soundrec
+Group=soundrec
+Environment=SOUNDREC_CONFIG=/etc/soundrec/config.yaml
+Environment=SOUNDREC_MODEL=/opt/soundrec/models/yamnet.tflite
+Environment=SOUNDREC_CATALOG=/opt/soundrec/catalog
+ExecStart=/opt/soundrec/venv/bin/python -m soundrec
+Restart=on-failure
+RestartSec=5
+
+# Sandboxing. If the container does not allow mount namespaces, install.sh detects it and drops these lines.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/etc/soundrec /var/lib/soundrec
+
+[Install]
+WantedBy=multi-user.target

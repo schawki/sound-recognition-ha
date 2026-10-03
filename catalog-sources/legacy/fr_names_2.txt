@@ -1,0 +1,244 @@
+Wind|Vent
+Rustling leaves|Feuilles qui bruissent
+Wind noise (microphone)|Bruit de vent (dans le micro)
+Thunderstorm|Orage
+Thunder|Tonnerre
+Water|Eau
+Rain|Pluie
+Raindrop|Goutte de pluie
+Rain on surface|Pluie sur une surface
+Stream|Ruisseau
+Waterfall|Cascade
+Ocean|Océan
+Waves, surf|Vagues
+Steam|Vapeur
+Gurgling|Gargouillis (eau)
+Fire|Feu
+Crackle|Crépitement
+Vehicle|Véhicule
+Boat, Water vehicle|Bateau
+Sailboat, sailing ship|Voilier
+Rowboat, canoe, kayak|Barque, canoë, kayak
+Motorboat, speedboat|Bateau à moteur
+Ship|Navire
+Motor vehicle (road)|Véhicule à moteur (route)
+Car|Voiture
+Vehicle horn, car horn, honking|Klaxon
+Toot|Coup de klaxon bref
+Car alarm|Alarme de voiture
+Power windows, electric windows|Lève-vitres électriques
+Skidding|Dérapage
+Tire squeal|Crissement de pneus
+Car passing by|Voiture qui passe
+Race car, auto racing|Voiture de course
+Truck|Camion
+Air brake|Frein pneumatique
+Air horn, truck horn|Avertisseur pneumatique
+Reversing beeps|Bip de marche arrière
+Ice cream truck, ice cream van|Camion de glaces
+Bus|Bus
+Emergency vehicle|Véhicule d'urgence
+Police car (siren)|Voiture de police (sirène)
+Ambulance (siren)|Ambulance (sirène)
+Fire engine, fire truck (siren)|Camion de pompiers (sirène)
+Motorcycle|Moto
+Traffic noise, roadway noise|Bruit de circulation
+Rail transport|Transport ferroviaire
+Train|Train
+Train whistle|Sifflet de train
+Train horn|Klaxon de train
+Railroad car, train wagon|Wagon
+Train wheels squealing|Crissement de roues de train
+Subway, metro, underground|Métro
+Aircraft|Aéronef
+Aircraft engine|Moteur d'avion
+Jet engine|Réacteur
+Propeller, airscrew|Hélice
+Helicopter|Hélicoptère
+Fixed-wing aircraft, airplane|Avion
+Bicycle|Vélo
+Skateboard|Skateboard
+Engine|Moteur
+Light engine (high frequency)|Petit moteur (aigu)
+Dental drill, dentist's drill|Fraise de dentiste
+Lawn mower|Tondeuse
+Chainsaw|Tronçonneuse
+Medium engine (mid frequency)|Moteur moyen (médium)
+Heavy engine (low frequency)|Gros moteur (grave)
+Engine knocking|Cognement moteur
+Engine starting|Démarrage moteur
+Idling|Moteur au ralenti
+Accelerating, revving, vroom|Accélération moteur
+Door|Porte
+Doorbell|Sonnette de porte
+Ding-dong|Ding-dong
+Sliding door|Porte coulissante
+Slam|Claquement de porte
+Knock|Coups à la porte
+Tap|Tapotement
+Squeak|Grincement aigu
+Cupboard open or close|Placard (ouverture, fermeture)
+Drawer open or close|Tiroir (ouverture, fermeture)
+Dishes, pots, and pans|Vaisselle, casseroles
+Cutlery, silverware|Couverts
+Chopping (food)|Hacher (cuisine)
+Frying (food)|Friture
+Microwave oven|Four à micro-ondes
+Blender|Mixeur
+Water tap, faucet|Robinet
+Sink (filling or washing)|Évier
+Bathtub (filling or washing)|Baignoire
+Hair dryer|Sèche-cheveux
+Toilet flush|Chasse d'eau
+Toothbrush|Brosse à dents
+Electric toothbrush|Brosse à dents électrique
+Vacuum cleaner|Aspirateur
+Zipper (clothing)|Fermeture éclair
+Keys jangling|Cliquetis de clés
+Coin (dropping)|Pièce qui tombe
+Scissors|Ciseaux
+Electric shaver, electric razor|Rasoir électrique
+Shuffling cards|Mélange de cartes
+Typing|Frappe au clavier
+Typewriter|Machine à écrire
+Computer keyboard|Clavier d'ordinateur
+Writing|Écriture
+Alarm|Alarme
+Telephone|Téléphone
+Telephone bell ringing|Sonnerie de téléphone
+Ringtone|Sonnerie de mobile
+Telephone dialing, DTMF|Numérotation (DTMF)
+Dial tone|Tonalité
+Busy signal|Tonalité occupé
+Alarm clock|Réveil
+Siren|Sirène
+Civil defense siren|Sirène de défense civile
+Buzzer|Buzzer
+Smoke detector, smoke alarm|Détecteur de fumée
+Fire alarm|Alarme incendie
+Foghorn|Corne de brume
+Whistle|Sifflet
+Steam whistle|Sifflet à vapeur
+Mechanisms|Mécanismes
+Ratchet, pawl|Cliquet
+Clock|Horloge
+Tick|Tic
+Tick-tock|Tic-tac
+Gears|Engrenages
+Pulleys|Poulies
+Sewing machine|Machine à coudre
+Mechanical fan|Ventilateur mécanique
+Air conditioning|Climatisation
+Cash register|Caisse enregistreuse
+Printer|Imprimante
+Camera|Appareil photo
+Single-lens reflex camera|Appareil reflex
+Tools|Outils
+Hammer|Marteau
+Jackhammer|Marteau-piqueur
+Sawing|Sciage
+Filing (rasp)|Limage (râpe)
+Sanding|Ponçage
+Power tool|Outil électrique
+Drill|Perceuse
+Explosion|Explosion
+Gunshot, gunfire|Coup de feu
+Machine gun|Mitrailleuse
+Fusillade|Fusillade
+Artillery fire|Tir d'artillerie
+Cap gun|Pistolet à amorces
+Fireworks|Feux d'artifice
+Firecracker|Pétard
+Burst, pop|Éclatement
+Eruption|Éruption
+Boom|Détonation sourde
+Wood|Bois
+Chop|Fendre du bois
+Splinter|Éclat de bois
+Crack|Craquement sec
+Glass|Verre
+Chink, clink|Tintement de verre
+Shatter|Verre brisé
+Liquid|Liquide
+Splash, splatter|Éclaboussure
+Slosh|Clapotis
+Squish|Écrasement mou
+Drip|Goutte à goutte
+Pour|Verser
+Trickle, dribble|Filet d'eau
+Gush|Jaillissement
+Fill (with liquid)|Remplissage (liquide)
+Spray|Pulvérisation
+Pump (liquid)|Pompe (liquide)
+Stir|Remuer
+Boiling|Ébullition
+Sonar|Sonar
+Arrow|Flèche
+Whoosh, swoosh, swish|Souffle d'air (whoosh)
+Thump, thud|Bruit sourd
+Thunk|Choc sourd
+Electronic tuner|Accordeur électronique
+Effects unit|Unité d'effets
+Chorus effect|Effet chorus
+Basketball bounce|Rebond de ballon de basket
+Bang|Coup sec (bang)
+Slap, smack|Gifle, claque
+Whack, thwack|Frappe sèche
+Smash, crash|Fracas
+Breaking|Casse
+Bouncing|Rebond
+Whip|Fouet
+Flap|Battement (claquement)
+Scratch|Grattement
+Scrape|Raclement
+Rub|Frottement
+Roll|Roulement
+Crushing|Écrasement
+Crumpling, crinkling|Froissement
+Tearing|Déchirement
+Beep, bleep|Bip
+Ping|Ping
+Ding|Ding
+Clang|Choc métallique (clang)
+Squeal|Cri strident (mécanique)
+Creak|Grincement
+Rustle|Bruissement
+Whir|Vrombissement
+Clatter|Fracas (cliquetis)
+Sizzle|Grésillement
+Clicking|Cliquetis
+Clickety-clack|Clic-clac
+Rumble|Grondement sourd
+Plop|Plouf
+Jingle, tinkle|Tintement
+Hum|Bourdonnement (hum)
+Zing|Sifflement vif (zing)
+Boing|Boing
+Crunch|Craquement (croquant)
+Silence|Silence
+Sine wave|Onde sinusoïdale
+Harmonic|Harmonique
+Chirp tone|Tonalité glissante
+Sound effect|Effet sonore
+Pulse|Impulsion
+Inside, small room|Intérieur, petite pièce
+Inside, large room or hall|Intérieur, grande salle
+Inside, public space|Intérieur, espace public
+Outside, urban or manmade|Extérieur, urbain
+Outside, rural or natural|Extérieur, rural ou nature
+Reverberation|Réverbération
+Echo|Écho
+Noise|Bruit
+Environmental noise|Bruit ambiant
+Static|Parasites (statique)
+Mains hum|Ronflement du secteur (50/60 Hz)
+Distortion|Distorsion
+Sidetone|Effet local (sidetone)
+Cacophony|Cacophonie
+White noise|Bruit blanc
+Pink noise|Bruit rose
+Throbbing|Pulsation
+Vibration|Vibration
+Television|Télévision
+Radio|Radio
+Field recording|Enregistrement de terrain

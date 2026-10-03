@@ -1,0 +1,13 @@
+{
+  "domain": "sound_recognition",
+  "name": "Sound Recognition",
+  "codeowners": ["@schawki"],
+  "config_flow": true,
+  "dependencies": ["frontend", "http", "panel_custom", "repairs", "websocket_api"],
+  "documentation": "https://github.com/schawki/sound-recognition-ha",
+  "integration_type": "service",
+  "iot_class": "local_push",
+  "issue_tracker": "https://github.com/schawki/sound-recognition-ha/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}

@@ -1,0 +1,972 @@
+language: fr
+classes:
+  /m/09x0r: Parole
+  /m/0ytgt: Parole d'enfant
+  /m/01h8n0: Conversation
+  /m/02qldy: Narration, monologue
+  /m/0261r1: Babillage
+  /m/0brhx: Synthèse vocale
+  /m/07p6fty: Cri
+  /m/07q4ntr: Beuglement (voix)
+  /m/07rwj3x: Cri de joie
+  /m/07sr1lc: Appel crié
+  /t/dd00135: Enfants qui crient
+  /m/03qc9zr: Hurlements stridents
+  /m/02rtxlg: Chuchotement
+  /m/01j3sz: Rire
+  /t/dd00001: Rire de bébé
+  /m/07r660_: Gloussement
+  /m/07s04w4: Ricanement
+  /m/07sq110: Fou rire
+  /m/07rgt08: Petit rire
+  /m/0463cq4: Pleurs, sanglots
+  /t/dd00002: Pleurs de bébé
+  /m/07qz6j3: Gémissement plaintif
+  /m/07qw_06: Lamentation, gémissement
+  /m/07plz5l: Soupir
+  /m/015lz1: Chant
+  /m/0l14jd: Chorale
+  /m/01swy6: Yodel
+  /m/02bk07: Psalmodie
+  /m/01c194: Mantra
+  /t/dd00005: Chant d'enfant
+  /t/dd00006: Chant synthétique
+  /m/06bxc: Rap (voix)
+  /m/02fxyj: Fredonnement
+  /m/07s2xch: Gémissement sourd
+  /m/07r4k75: Grognement (voix)
+  /m/01w250: Sifflement (bouche)
+  /m/0lyf6: Respiration
+  /m/07mzm6: Respiration sifflante
+  /m/01d3sd: Ronflement
+  /m/07s0dtb: Souffle coupé
+  /m/07pyy8b: Halètement
+  /m/07q0yl5: Ébrouement
+  /m/01b_21: Toux
+  /m/0dl9sf8: Raclement de gorge
+  /m/01hsr_: Éternuement
+  /m/07ppn3j: Reniflement
+  /m/06h7j: Course (pas)
+  /m/07qv_x_: Pas traînants
+  /m/07pbtc8: Marche, pas
+  /m/03cczk: Mastication
+  /m/07pdhp0: Croquer
+  /m/0939n_: Gargarisme
+  /m/01g90h: Gargouillis d'estomac
+  /m/03q5_w: Rot
+  /m/02p3nc: Hoquet
+  /m/02_nn: Pet
+  /m/0k65p: Bruits de mains
+  /m/025_jnm: Claquement de doigts
+  /m/0l15bq: Claquements de mains
+  /m/01jg02: Battements de cœur
+  /m/01jg1z: Souffle au cœur
+  /m/053hz1: Acclamations
+  /m/028ght: Applaudissements
+  /m/07rkbfh: Bavardage
+  /m/03qtwd: Foule
+  /m/07qfr4h: Brouhaha
+  /t/dd00013: Enfants qui jouent
+  /m/0jbk: Animal
+  /m/068hy: Animaux domestiques
+  /m/0bt9lr: Chien
+  /m/05tny_: Aboiement
+  /m/07r_k2n: Jappement
+  /m/07qf0zm: Hurlement de chien ou de loup
+  /m/07rc7d9: Ouaf
+  /m/0ghcn6: Grondement
+  /t/dd00136: Gémissement de chien
+  /m/01yrx: Chat
+  /m/02yds9: Ronronnement
+  /m/07qrkrw: Miaulement
+  /m/07rjwbb: Feulement
+  /m/07r81j2: Miaulements de bagarre
+  /m/0ch8v: Animaux de ferme
+  /m/03k3r: Cheval
+  /m/07rv9rh: Sabots (clip-clop)
+  /m/07q5rw0: Hennissement
+  /m/01xq0k1: Bovins
+  /m/07rpkh9: Meuglement
+  /m/0239kh: Cloche de vache
+  /m/068zj: Cochon
+  /t/dd00018: Grognement de cochon
+  /m/03fwl: Chèvre
+  /m/07q0h5t: Bêlement
+  /m/07bgp: Mouton
+  /m/025rv6n: Volaille
+  /m/09b5t: Poule, coq
+  /m/07st89h: Caquètement
+  /m/07qn5dc: Chant du coq
+  /m/01rd7k: Dinde
+  /m/07svc2k: Glouglou de dinde
+  /m/09ddx: Canard
+  /m/07qdb04: Coin-coin
+  /m/0dbvp: Oie
+  /m/07qwf61: Cri d'oie
+  /m/01280g: Animaux sauvages
+  /m/0cdnk: Grands félins (rugissements)
+  /m/04cvmfc: Rugissement
+  /m/015p6: Oiseau
+  /m/020bb7: Chant d'oiseau
+  /m/07pggtn: Pépiement
+  /m/07sx8x_: Criaillement
+  /m/0h0rv: Pigeon, colombe
+  /m/07r_25d: Roucoulement
+  /m/04s8yn: Corbeau, corneille
+  /m/07r5c2p: Croassement
+  /m/09d5_: Hibou, chouette
+  /m/07r_80w: Hululement
+  /m/05_wcq: Battements d'ailes
+  /m/01z5f: Canidés (chiens, loups)
+  /m/06hps: Rongeurs (rats, souris)
+  /m/04rmv: Souris
+  /m/07r4gkf: Trottinement
+  /m/03vt0: Insecte
+  /m/09xqv: Grillon
+  /m/09f96: Moustique
+  /m/0h2mp: Mouche
+  /m/07pjwq1: Bourdonnement d'insecte
+  /m/01h3n: Abeille, guêpe
+  /m/09ld4: Grenouille
+  /m/07st88b: Coassement
+  /m/078jl: Serpent
+  /m/07qn4z3: Cliquetis de crécelle
+  /m/032n05: Chant de baleine
+  /m/04rlf: Musique
+  /m/04szw: Instrument de musique
+  /m/0fx80y: Instrument à cordes pincées
+  /m/0342h: Guitare
+  /m/02sgy: Guitare électrique
+  /m/018vs: Guitare basse
+  /m/042v_gx: Guitare acoustique
+  /m/06w87: Guitare slide (steel)
+  /m/01glhc: Tapping (guitare)
+  /m/07s0s5r: Grattement d'accords
+  /m/018j2: Banjo
+  /m/0jtg0: Sitar
+  /m/04rzd: Mandoline
+  /m/01bns_: Cithare
+  /m/07xzm: Ukulélé
+  /m/05148p4: Clavier (musical)
+  /m/05r5c: Piano
+  /m/01s0ps: Piano électrique
+  /m/013y1f: Orgue
+  /m/03xq_f: Orgue électronique
+  /m/03gvt: Orgue Hammond
+  /m/0l14qv: Synthétiseur
+  /m/01v1d8: Échantillonneur
+  /m/03q5t: Clavecin
+  /m/0l14md: Percussions
+  /m/02hnl: Batterie
+  /m/0cfdd: Boîte à rythmes
+  /m/026t6: Tambour
+  /m/06rvn: Caisse claire
+  /m/03t3fj: Rimshot
+  /m/02k_mr: Roulement de tambour
+  /m/0bm02: Grosse caisse
+  /m/011k_j: Timbales d'orchestre
+  /m/01p970: Tabla
+  /m/01qbl: Cymbale
+  /m/03qtq: Charleston
+  /m/01sm1g: Wood-block
+  /m/07brj: Tambourin
+  /m/05r5wn: Hochet (instrument)
+  /m/0xzly: Maracas
+  /m/0mbct: Gong
+  /m/016622: Cloches tubulaires
+  /m/0j45pbj: Percussions à maillets
+  /m/0dwsp: Marimba, xylophone
+  /m/0dwtp: Glockenspiel
+  /m/0dwt5: Vibraphone
+  /m/0l156b: Steel drum
+  /m/05pd6: Orchestre
+  /m/01kcd: Cuivres
+  /m/0319l: Cor d'harmonie
+  /m/07gql: Trompette
+  /m/07c6l: Trombone
+  /m/0l14_3: Instrument à archet
+  /m/02qmj0d: Section de cordes
+  /m/07y_7: Violon
+  /m/0d8_n: Pizzicato
+  /m/01xqw: Violoncelle
+  /m/02fsn: Contrebasse
+  /m/085jw: Instrument à vent (bois)
+  /m/0l14j_: Flûte
+  /m/06ncr: Saxophone
+  /m/01wy6: Clarinette
+  /m/03m5k: Harpe
+  /m/0395lw: Cloche
+  /m/03w41f: Cloche d'église
+  /m/027m70_: Grelot
+  /m/0gy1t2s: Sonnette de vélo
+  /m/07n_g: Diapason
+  /m/0f8s22: Carillon
+  /m/026fgl: Carillon à vent
+  /m/0150b9: Sonnerie de cloches en volée
+  /m/03qjg: Harmonica
+  /m/0mkg: Accordéon
+  /m/0192l: Cornemuse
+  /m/02bxd: Didgeridoo
+  /m/0l14l2: Shofar
+  /m/07kc_: Thérémine
+  /m/0l14t7: Bol chantant
+  /m/01hgjl: Scratch (DJ)
+  /m/064t9: Musique pop
+  /m/0glt670: Hip-hop
+  /m/02cz_7: Beatbox
+  /m/06by7: Rock
+  /m/03lty: Heavy metal
+  /m/05r6t: Punk rock
+  /m/0dls3: Grunge
+  /m/0dl5d: Rock progressif
+  /m/07sbbz2: Rock and roll
+  /m/05w3f: Rock psychédélique
+  /m/06j6l: Rhythm and blues
+  /m/0gywn: Soul
+  /m/06cqb: Reggae
+  /m/01lyv: Country
+  /m/015y_n: Swing
+  /m/0gg8l: Bluegrass
+  /m/02x8m: Funk
+  /m/02w4v: Musique folk
+  /m/06j64v: Musique du Moyen-Orient
+  /m/03_d0: Jazz
+  /m/026z9: Disco
+  /m/0ggq0m: Musique classique
+  /m/05lls: Opéra
+  /m/02lkt: Musique électronique
+  /m/03mb9: House
+  /m/07gxw: Techno
+  /m/07s72n: Dubstep
+  /m/0283d: Drum and bass
+  /m/0m0jc: Électronica
+  /m/08cyft: Musique de danse électronique
+  /m/0fd3y: Musique d'ambiance (ambient)
+  /m/07lnk: Trance
+  /m/0g293: Musique d'Amérique latine
+  /m/0ln16: Salsa
+  /m/0326g: Flamenco
+  /m/0155w: Blues
+  /m/05fw6t: Musique pour enfants
+  /m/02v2lh: New age
+  /m/0y4f8: Musique vocale
+  /m/0z9c: A cappella
+  /m/0164x2: Musique d'Afrique
+  /m/0145m: Afrobeat
+  /m/02mscn: Musique chrétienne
+  /m/016cjb: Gospel
+  /m/028sqc: Musique d'Asie
+  /m/015vgc: Musique carnatique
+  /m/0dq0md: Musique de Bollywood
+  /m/06rqw: Ska
+  /m/02p0sh1: Musique traditionnelle
+  /m/05rwpb: Musique indépendante
+  /m/074ft: Chanson
+  /m/025td0t: Musique de fond
+  /m/02cjck: Thème musical
+  /m/03r5q_: Jingle (musique)
+  /m/0l14gg: Bande originale
+  /m/07pkxdp: Berceuse
+  /m/01z7dr: Musique de jeu vidéo
+  /m/0140xf: Musique de Noël
+  /m/0ggx5q: Musique de danse
+  /m/04wptg: Musique de mariage
+  /t/dd00031: Musique joyeuse
+  /t/dd00033: Musique triste
+  /t/dd00034: Musique douce
+  /t/dd00035: Musique entraînante
+  /t/dd00036: Musique agressive
+  /t/dd00037: Musique effrayante
+  /m/03m9d0z: Vent
+  /m/09t49: Feuilles qui bruissent
+  /t/dd00092: Bruit de vent (dans le micro)
+  /m/0jb2l: Orage
+  /m/0ngt1: Tonnerre
+  /m/0838f: Eau
+  /m/06mb1: Pluie
+  /m/07r10fb: Goutte de pluie
+  /t/dd00038: Pluie sur une surface
+  /m/0j6m2: Ruisseau
+  /m/0j2kx: Cascade
+  /m/05kq4: Océan
+  /m/034srq: Vagues
+  /m/06wzb: Vapeur
+  /m/07swgks: Gargouillis (eau)
+  /m/02_41: Feu
+  /m/07pzfmf: Crépitement
+  /m/07yv9: Véhicule
+  /m/019jd: Bateau
+  /m/0hsrw: Voilier
+  /m/056ks2: Barque, canoë, kayak
+  /m/02rlv9: Bateau à moteur
+  /m/06q74: Navire
+  /m/012f08: Véhicule à moteur (route)
+  /m/0k4j: Voiture
+  /m/0912c9: Klaxon
+  /m/07qv_d5: Coup de klaxon bref
+  /m/02mfyn: Alarme de voiture
+  /m/04gxbd: Lève-vitres électriques
+  /m/07rknqz: Dérapage
+  /m/0h9mv: Crissement de pneus
+  /t/dd00134: Voiture qui passe
+  /m/0ltv: Voiture de course
+  /m/07r04: Camion
+  /m/0gvgw0: Frein pneumatique
+  /m/05x_td: Avertisseur pneumatique
+  /m/02rhddq: Bip de marche arrière
+  /m/03cl9h: Camion de glaces
+  /m/01bjv: Bus
+  /m/03j1ly: Véhicule d'urgence
+  /m/04qvtq: Voiture de police (sirène)
+  /m/012n7d: Ambulance (sirène)
+  /m/012ndj: Camion de pompiers (sirène)
+  /m/04_sv: Moto
+  /m/0btp2: Bruit de circulation
+  /m/06d_3: Transport ferroviaire
+  /m/07jdr: Train
+  /m/04zmvq: Sifflet de train
+  /m/0284vy3: Klaxon de train
+  /m/01g50p: Wagon
+  /t/dd00048: Crissement de roues de train
+  /m/0195fx: Métro
+  /m/0k5j: Aéronef
+  /m/014yck: Moteur d'avion
+  /m/04229: Réacteur
+  /m/02l6bg: Hélice
+  /m/09ct_: Hélicoptère
+  /m/0cmf2: Avion
+  /m/0199g: Vélo
+  /m/06_fw: Skateboard
+  /m/02mk9: Moteur
+  /t/dd00065: Petit moteur (aigu)
+  /m/08j51y: Fraise de dentiste
+  /m/01yg9g: Tondeuse
+  /m/01j4z9: Tronçonneuse
+  /t/dd00066: Moteur moyen (médium)
+  /t/dd00067: Gros moteur (grave)
+  /m/01h82_: Cognement moteur
+  /t/dd00130: Démarrage moteur
+  /m/07pb8fc: Moteur au ralenti
+  /m/07q2z82: Accélération moteur
+  /m/02dgv: Porte
+  /m/03wwcy: Sonnette de porte
+  /m/07r67yg: Ding-dong
+  /m/02y_763: Porte coulissante
+  /m/07rjzl8: Claquement de porte
+  /m/07r4wb8: Coups à la porte
+  /m/07qcpgn: Tapotement
+  /m/07q6cd_: Grincement aigu
+  /m/0642b4: Placard (ouverture, fermeture)
+  /m/0fqfqc: Tiroir (ouverture, fermeture)
+  /m/04brg2: Vaisselle, casseroles
+  /m/023pjk: Couverts
+  /m/07pn_8q: Hacher (cuisine)
+  /m/0dxrf: Friture
+  /m/0fx9l: Four à micro-ondes
+  /m/02pjr4: Mixeur
+  /m/02jz0l: Robinet
+  /m/0130jx: Évier
+  /m/03dnzn: Baignoire
+  /m/03wvsk: Sèche-cheveux
+  /m/01jt3m: Chasse d'eau
+  /m/012xff: Brosse à dents
+  /m/04fgwm: Brosse à dents électrique
+  /m/0d31p: Aspirateur
+  /m/01s0vc: Fermeture éclair
+  /m/03v3yw: Cliquetis de clés
+  /m/0242l: Pièce qui tombe
+  /m/01lsmm: Ciseaux
+  /m/02g901: Rasoir électrique
+  /m/05rj2: Mélange de cartes
+  /m/0316dw: Frappe au clavier
+  /m/0c2wf: Machine à écrire
+  /m/01m2v: Clavier d'ordinateur
+  /m/081rb: Écriture
+  /m/07pp_mv: Alarme
+  /m/07cx4: Téléphone
+  /m/07pp8cl: Sonnerie de téléphone
+  /m/01hnzm: Sonnerie de mobile
+  /m/02c8p: Numérotation (DTMF)
+  /m/015jpf: Tonalité
+  /m/01z47d: Tonalité occupé
+  /m/046dlr: Réveil
+  /m/03kmc9: Sirène
+  /m/0dgbq: Sirène de défense civile
+  /m/030rvx: Buzzer
+  /m/01y3hg: Détecteur de fumée
+  /m/0c3f7m: Alarme incendie
+  /m/04fq5q: Corne de brume
+  /m/0l156k: Sifflet
+  /m/06hck5: Sifflet à vapeur
+  /t/dd00077: Mécanismes
+  /m/02bm9n: Cliquet
+  /m/01x3z: Horloge
+  /m/07qjznt: Tic
+  /m/07qjznl: Tic-tac
+  /m/0l7xg: Engrenages
+  /m/05zc1: Poulies
+  /m/0llzx: Machine à coudre
+  /m/02x984l: Ventilateur mécanique
+  /m/025wky1: Climatisation
+  /m/024dl: Caisse enregistreuse
+  /m/01m4t: Imprimante
+  /m/0dv5r: Appareil photo
+  /m/07bjf: Appareil reflex
+  /m/07k1x: Outils
+  /m/03l9g: Marteau
+  /m/03p19w: Marteau-piqueur
+  /m/01b82r: Sciage
+  /m/02p01q: Limage (râpe)
+  /m/023vsd: Ponçage
+  /m/0_ksk: Outil électrique
+  /m/01d380: Perceuse
+  /m/014zdl: Explosion
+  /m/032s66: Coup de feu
+  /m/04zjc: Mitrailleuse
+  /m/02z32qm: Fusillade
+  /m/0_1c: Tir d'artillerie
+  /m/073cg4: Pistolet à amorces
+  /m/0g6b5: Feux d'artifice
+  /g/122z_qxw: Pétard
+  /m/07qsvvw: Éclatement
+  /m/07pxg6y: Éruption
+  /m/07qqyl4: Détonation sourde
+  /m/083vt: Bois
+  /m/07pczhz: Fendre du bois
+  /m/07pl1bw: Éclat de bois
+  /m/07qs1cx: Craquement sec
+  /m/039jq: Verre
+  /m/07q7njn: Tintement de verre
+  /m/07rn7sz: Verre brisé
+  /m/04k94: Liquide
+  /m/07rrlb6: Éclaboussure
+  /m/07p6mqd: Clapotis
+  /m/07qlwh6: Écrasement mou
+  /m/07r5v4s: Goutte à goutte
+  /m/07prgkl: Verser
+  /m/07pqc89: Filet d'eau
+  /t/dd00088: Jaillissement
+  /m/07p7b8y: Remplissage (liquide)
+  /m/07qlf79: Pulvérisation
+  /m/07ptzwd: Pompe (liquide)
+  /m/07ptfmf: Remuer
+  /m/0dv3j: Ébullition
+  /m/0790c: Sonar
+  /m/0dl83: Flèche
+  /m/07rqsjt: Souffle d'air (whoosh)
+  /m/07qnq_y: Bruit sourd
+  /m/07rrh0c: Choc sourd
+  /m/0b_fwt: Accordeur électronique
+  /m/02rr_: Unité d'effets
+  /m/07m2kt: Effet chorus
+  /m/018w8: Rebond de ballon de basket
+  /m/07pws3f: Coup sec (bang)
+  /m/07ryjzk: Gifle, claque
+  /m/07rdhzs: Frappe sèche
+  /m/07pjjrj: Fracas
+  /m/07pc8lb: Casse
+  /m/07pqn27: Rebond
+  /m/07rbp7_: Fouet
+  /m/07pyf11: Battement (claquement)
+  /m/07qb_dv: Grattement
+  /m/07qv4k0: Raclement
+  /m/07pdjhy: Frottement
+  /m/07s8j8t: Roulement
+  /m/07plct2: Écrasement
+  /t/dd00112: Froissement
+  /m/07qcx4z: Déchirement
+  /m/02fs_r: Bip
+  /m/07qwdck: Ping
+  /m/07phxs1: Ding
+  /m/07rv4dm: Choc métallique (clang)
+  /m/07s02z0: Cri strident (mécanique)
+  /m/07qh7jl: Grincement
+  /m/07qwyj0: Bruissement
+  /m/07s34ls: Vrombissement
+  /m/07qmpdm: Fracas (cliquetis)
+  /m/07p9k1k: Grésillement
+  /m/07qc9xj: Cliquetis
+  /m/07rwm0c: Clic-clac
+  /m/07phhsh: Grondement sourd
+  /m/07qyrcz: Plouf
+  /m/07qfgpx: Tintement
+  /m/07rcgpl: Bourdonnement (hum)
+  /m/07p78v5: Sifflement vif (zing)
+  /t/dd00121: Boing
+  /m/07s12q4: Craquement (croquant)
+  /m/028v0c: Silence
+  /m/01v_m0: Onde sinusoïdale
+  /m/0b9m1: Harmonique
+  /m/0hdsk: Tonalité glissante
+  /m/0c1dj: Effet sonore
+  /m/07pt_g0: Impulsion
+  /t/dd00125: Intérieur, petite pièce
+  /t/dd00126: Intérieur, grande salle
+  /t/dd00127: Intérieur, espace public
+  /t/dd00128: Extérieur, urbain
+  /t/dd00129: Extérieur, rural ou nature
+  /m/01b9nn: Réverbération
+  /m/01jnbd: Écho
+  /m/096m7z: Bruit
+  /m/06_y0by: Bruit ambiant
+  /m/07rgkc5: Parasites (statique)
+  /m/06xkwv: Ronflement du secteur (50/60 Hz)
+  /m/0g12c5: Distorsion
+  /m/08p9q4: Effet local (sidetone)
+  /m/07szfh9: Cacophonie
+  /m/0chx_: Bruit blanc
+  /m/0cj0r: Bruit rose
+  /m/07p_0gm: Pulsation
+  /m/01jwx6: Vibration
+  /m/07c52: Télévision
+  /m/06bz3: Radio
+  /m/07hvw1: Enregistrement de terrain
+notes:
+  speech: 'Parole : aucun clip ne doit être conservé. Utile uniquement comme contexte (« quelqu''un parle ») pour
+    relever les seuils des autres classes.'
+  child_speech_kid_speaking_shared: 'Mêmes précautions que « Parole » : aucun clip, contexte seulement.'
+  speech_synthesizer: Voix de synthèse (assistant vocal, annonces). Peut servir à ignorer les sons produits par
+    vos propres assistants.
+  shout: 'Cri : classe parente de « Appel crié », « Cri de joie », « Beuglement (voix) » et « Enfants qui crient
+    ». Choisir « Hurlements stridents » comme alerte principale, et ne garder « Cri » qu''en option.'
+  yell: 'Appel crié : sous-classe de « Cri ». Doublon si « Cri » est choisi ; très sensible à la télévision et aux
+    enfants.'
+  children_shouting: Presque toujours un son normal. Peu utile pour une alerte.
+  screaming: 'Cris stridents : le plus utile pour la sécurité mais aussi le plus sujet aux fausses alertes (films,
+    jeux, enfants qui s''amusent). À confirmer par un second signal (présence, porte, caméra) avant toute action.'
+  whispering: 'Chuchotement : confidentiel, très peu fiable. Ne pas conserver de clip.'
+  laughter_shared: Pas d'intérêt pour une alerte ; sensible côté vie privée.
+  crying_sobbing: Pleurs d'enfant ou d'adulte. Redondant avec « Pleurs de bébé » pour surveiller un enfant en bas
+    âge.
+  baby_cry_infant_cry: 'Pleurs de bébé : cas d''usage très demandé. Se confond parfois avec les miaulements (voir
+    « Pleurs et cris aigus »). Exiger au moins 2 secondes de détection continue réduit les fausses alertes.'
+  whimper: 'Gémissement plaintif : proche des pleurs faibles et de « Gémissement de chien ». Très flou.'
+  wail_moan: 'Lamentation, gémissement : intéressant en théorie pour une détresse, mais trop peu fiable pour déclencher
+    seul une alerte.'
+  singing: 'Chant : intéressant surtout comme contexte (activité musicale). Une voix chantée diffusée par haut-parleur
+    (appel à la prière, annonces) peut aussi le déclencher.'
+  chant: '« Psalmodie » : une psalmodie ou un appel à la prière diffusé à l''extérieur peut déclencher cette classe,
+    ainsi que « Parole » et « Musique du Moyen-Orient ».'
+  groan: Gémissement sourd. À ne pas utiliser seul pour une détection de chute ou de détresse.
+  whistling: 'Sifflement de la bouche. Proche du sifflet (bouilloire, sifflet à vapeur) : voir « Sifflets ».'
+  snoring: 'Ronflement : indique qu''une personne dort dans la pièce ; sensible, ne pas conserver de clip.'
+  cough: 'Toux : donnée de santé potentielle, donc sensible. Ne pas conserver de clip.'
+  run_shared: 'Pas : complète un capteur de présence mais ne le remplace pas ; dépend beaucoup du revêtement et
+    du micro.'
+  finger_snapping: Peut servir de commande sans voix (claquement de doigts), à tester.
+  clapping: 'Claquements de mains : peut servir de commande sans voix. Confusion avec les applaudissements et certains
+    chocs secs.'
+  heart_sounds_heartbeat_shared: 'Peu pertinent en pratique : se confond avec des basses ou des battements.'
+  crowd: 'Foule : souvent la télévision ou la rue. À utiliser seulement comme contexte.'
+  hubbub_speech_noise_speech_babble: 'Brouhaha : plusieurs voix en même temps. Contexte seulement.'
+  children_playing: 'Enfants qui jouent : normal dans la plupart des cas. Peut servir à calmer d''autres classes
+    (cris).'
+  animal: 'Classe racine : à ne pas choisir directement.'
+  domestic_animals_pets: 'Classe parente : ne pas choisir seule.'
+  dog: 'Classe parente : englobe aboiement, hurlement, grondement, etc. Choisir plutôt les classes précises.'
+  bark: 'Aboiement : la classe la plus utile pour les chiens. Préférer « Aboiement » seul plutôt que « Chien » +
+    « Aboiement » (doublon).'
+  yip_shared: 'Sous-classe de « Chien » : redondant si « Aboiement » est déjà surveillé.'
+  cat: 'Classe parente : englobe miaulement, ronronnement, feulement.'
+  meow: 'Miaulement : se confond parfois avec des pleurs de bébé.'
+  hiss: 'Feulement : proche d''un jet d''air ou de vapeur (« Vapeur », « Pulvérisation »).'
+  caterwaul: 'Miaulements de bagarre : forts, proches de cris ou de pleurs.'
+  livestock_farm_animals_working_animals: Classe parente.
+  crowing_cock_a_doodle_doo: 'Chant du coq : utile seulement si vous en élevez ; sinon source de bruit extérieur.'
+  wild_animals: 'Classe parente : à ne pas choisir directement.'
+  bird: 'Oiseaux en général : sert d''indicateur d''ambiance extérieure (micro proche d''une fenêtre ouverte).'
+  canidae_dogs_wolves: 'Classe regroupant chiens et loups : ne contient que « Grondement » et « Hurlement de chien
+    ou de loup » (pas « Aboiement »). Redondante avec « Chien » et plus bruyante.'
+  mouse: 'Souris : possible en grenier ou cave, mais très flou ; à tester avant d''en tirer une alerte.'
+  patter: 'Trottinement : confusion fréquente avec la pluie fine ou des pas légers.'
+  insect_shared: 'Insectes : peu fiable en intérieur ; se confond avec des bourdonnements d''appareils.'
+  whale_vocalization: Sans intérêt domestique ; déclenche surtout sur des sons tonals graves.
+  music: 'Classe la plus utile du groupe musique : un seul signal « de la musique joue » pour relever les seuils
+    des autres classes. Les 140+ autres classes musicales (instruments, genres) sont ignorées par défaut.'
+  bell: Classe parente des cloches (église, vélo, grelot, carillon, diapason, cloche de vache). Ne contient pas
+    « Sonnette de porte » mais s'en approche à l'oreille.
+  church_bell: 'Cloche d''église : sons extérieurs ; proche d''une sonnette selon le micro.'
+  middle_eastern_music: Peut se déclencher sur un appel à la prière ou une psalmodie diffusés par haut-parleur.
+  lullaby: 'Berceuse : sans intérêt pour la détection ; fait partie de l''ensemble « Musique ».'
+  wind: 'Vent : sert à relativiser les autres détections extérieures.'
+  wind_noise_microphone: 'Vent dans le micro : indique que le micro est exposé à un courant d''air (fenêtre ouverte,
+    ventilation). À utiliser pour déplacer le micro.'
+  thunderstorm: 'Orage : peut servir à des automatisations (fermer les stores, protéger du matériel). Se confond
+    avec de lourds travaux.'
+  thunder: 'Tonnerre : se confond avec des détonations sourdes.'
+  water: 'Classe parente de l''eau : ne pas choisir directement.'
+  rain_shared: 'Pluie : utile comme contexte (fenêtre restée ouverte, linge dehors) et pour relever les seuils des
+    autres classes. Confusion avec bruit blanc et friture.'
+  steam: 'Vapeur : se confond avec les jets d''air et le bruit blanc.'
+  fire: 'Feu : à ne PAS utiliser comme alerte incendie fiable (crépitement très proche d''une friture ou d''une
+    pluie). Réserver au contexte.'
+  crackle: 'Crépitement : se confond avec la pluie, la friture et les parasites.'
+  vehicle: 'Classe racine des véhicules : à ne pas choisir.'
+  vehicle_horn_car_horn_honking_shared: 'Klaxons : sons de rue, sans intérêt pour la maison.'
+  car_alarm: 'Alarme de voiture : utile seulement si le véhicule est à portée d''écoute. Se répète dans la rue,
+    donc beaucoup d''alertes sans importance.'
+  reversing_beeps: 'Bip de recul : se confond avec d''autres bips.'
+  traffic_noise_roadway_noise: 'Circulation : indique l''ambiance extérieure ; utile pour relever les seuils près
+    d''une fenêtre.'
+  engine: 'Classe parente des moteurs : très large.'
+  engine_starting: 'Démarrage moteur : possible pour un garage ou une voiture proche (arrivée, départ).'
+  idling: 'Moteur au ralenti : par exemple une voiture qui tourne dans un garage fermé. Détecte le bruit, pas le
+    monoxyde.'
+  door: 'Classe parente de « Sonnette de porte », « Coups à la porte », « Claquement de porte » : à ne pas choisir
+    en même temps que ses enfants.'
+  doorbell: 'Sonnette de porte : utile pour notifier et pour déclencher une caméra. Les sonnettes électroniques
+    à mélodie sont mieux détectées que les simples bips.'
+  ding_dong: 'Sous-classe de « Sonnette de porte » : doublon si celle-ci est déjà surveillée. Utile en complément
+    pour les sonnettes à deux tons.'
+  slam: 'Claquement de porte : confusion avec détonations (pétards) et chutes d''objets.'
+  knock: 'Coups à la porte : utile pour notifier une visite quand la sonnette est absente ou en panne.'
+  tap: 'Tapotement : trop général (clavier, doigts, table).'
+  microwave_oven: 'Micro-ondes (surtout ses bips de fin). Source de FAUSSES alertes sur « Détecteur de fumée » :
+    voir les règles de combinaison.'
+  water_tap_faucet_shared: 'Eau qui coule : à relier à une durée (robinet resté ouvert). Se confond avec la douche
+    et le bruit blanc.'
+  toilet_flush: 'Chasse d''eau : une chasse qui coule en continu est détectable avec une durée.'
+  vacuum_cleaner: 'Aspirateur : très reconnaissable. Utile pour ignorer les autres détections pendant le ménage.'
+  keys_jangling: 'Cliquetis de clés : indice d''arrivée à la porte, mais peu fiable seul.'
+  typing: 'Frappe au clavier : indique une présence ; sensible.'
+  alarm: 'Classe parente de presque tous les signaux d''alarme : très large, donc très bruyante. Préférer les classes
+    précises.'
+  telephone: Classe parente de toutes les sonneries de téléphone.
+  telephone_bell_ringing: Sonnerie de téléphone fixe. Confusion avec la sonnette de porte.
+  ringtone: 'Sonnerie de mobile : intéressant pour retrouver un téléphone ou savoir qu''il sonne seul, mais très
+    variable (mélodies).'
+  alarm_clock: 'Réveil qui sonne : peut servir à vérifier qu''un réveil a bien sonné ; se confond avec d''autres
+    bips.'
+  siren: 'Sirène en général : classe parente des sirènes de véhicules. Surtout un indicateur de ce qui se passe
+    dans la rue.'
+  buzzer: 'Buzzer : interphone, ouverture de porte d''immeuble, minuteries. Très proche des bips d''appareils.'
+  smoke_detector_smoke_alarm: 'Le cas d''usage le plus utile. Exiger une détection soutenue d''au moins 3 secondes
+    : un bip isolé ne doit pas déclencher. Ce n''est PAS un remplacement d''un vrai détecteur de fumée : c''est
+    une redondance qui entend un détecteur existant.'
+  fire_alarm: 'Alarme incendie (sirène d''immeuble par exemple). Proche de « Détecteur de fumée » : en choisir un
+    seul comme alerte principale, l''autre en confirmation.'
+  whistle: 'Sifflet : peut détecter une bouilloire à sifflet, mais se confond avec un sifflement de bouche.'
+  steam_whistle: 'Sifflet à vapeur : bouilloire ou cocotte-minute. À tester.'
+  air_conditioning: 'Climatisation : bruit continu. Sert surtout à comprendre pourquoi un micro capte du bruit de
+    fond constant.'
+  hammer_shared: 'Outils et travaux : plutôt des bruits de voisinage que des événements utiles.'
+  explosion: 'Explosion : classe parente large de détonations. Bruyante et peu spécifique.'
+  gunshot_gunfire: 'Coup de feu : ne jamais déclencher d''action automatique lourde sur cette seule classe. Dans
+    les régions où les pétards ou les feux d''artifice sont courants, attendre beaucoup de fausses alertes.'
+  fireworks: 'Feux d''artifice : à utiliser comme contexte pour relever les seuils de « Coup de feu », « Explosion
+    » et « Éclatement » pendant les fêtes.'
+  firecracker: 'Pétard : idem « Feux d''artifice » ; confusion fréquente avec un coup de feu.'
+  glass: 'Classe parente de « Verre brisé » et « Tintement de verre » : choisir plutôt « Verre brisé ».'
+  chink_clink: 'Tintement de verre : repas, verres qui s''entrechoquent. Très fréquent, peu utile.'
+  shatter: 'Verre brisé : utile pour la sécurité (vitre cassée). À confirmer avec un capteur de fenêtre ou une caméra
+    : les chutes de vaisselle sont fréquentes.'
+  liquid: 'Classe parente large : ne pas choisir directement.'
+  drip: 'Goutte à goutte : peut signaler un robinet ou une fuite, à condition d''avoir un micro proche et un environnement
+    calme.'
+  gush: 'Jaillissement : possible indice d''une fuite importante. Détecte le bruit, pas la fuite : à doubler d''un
+    capteur d''eau.'
+  fill_with_liquid: 'Remplissage : utile pour une baignoire ou un seau qui se remplit. Combiner avec une durée (par
+    exemple plus de 10 minutes).'
+  boiling: 'Ébullition : peut signaler une casserole ou une bouilloire qui bout. Ne remplace pas une sécurité cuisinière.'
+  thump_thud: 'Bruit sourd : chute d''un objet ou d''une personne, meubles, voisins. Ne pas utiliser seul pour une
+    détection de chute.'
+  breaking: 'Casse en général (pas seulement du verre) : plus large, donc plus de fausses alertes.'
+  beep_bleep: Bips d'appareils (fin de cycle). Très répandus, donc à regrouper avec « Four à micro-ondes » ; ne
+    pas en faire une alerte incendie.
+  ding: 'Ding : se confond avec la sonnette de porte et les minuteurs.'
+  clatter: Fracas d'objets qui tombent ou s'entrechoquent.
+  sizzle: 'Grésillement : cuisson à la poêle. Détecte un bruit de cuisson, pas un danger.'
+  silence: 'Silence : si cette classe est constante alors qu''il y a de l''activité, le micro est probablement muet
+    ou mal branché.'
+  inside_small_room_shared: 'Décrit l''acoustique du lieu (pièce, extérieur) plutôt qu''un événement : utile seulement
+    pour comprendre l''environnement du micro.'
+  static_shared: 'Indicateur de qualité du micro : une valeur élevée en continu signale souvent un micro bruyant
+    ou saturé.'
+  mains_hum: 'Ronflement du secteur (50/60 Hz) : s''il est élevé en permanence, le micro capte un bruit électrique
+    (alimentation, boucle de masse). À corriger côté câblage.'
+  television: La télévision est la première cause de fausses alertes. Comme classe de CONTEXTE, elle permet de relever
+    les seuils de cris, coups de feu, aboiements et sonnettes quand elle tourne.
+  radio: 'Même usage que « Télévision » : signale qu''un son vient d''un haut-parleur, pas de la pièce.'
+categories:
+  voice: Voix humaine
+  body: Corps et activités
+  crowd: Foule et groupes
+  pets: Animaux domestiques
+  farm_animals: Animaux de ferme
+  wildlife: Animaux sauvages, oiseaux, insectes
+  music: Musique
+  alarms: Alarmes, sonnettes et signaux
+  nature: Vent, orage et feu
+  water: Eau et liquides
+  vehicles: Véhicules et moteurs
+  home: Sons de la maison
+  tools_mechanisms: Outils et mécanismes
+  impacts_explosions: Chocs, casse et détonations
+  onomatopoeia: Sons génériques (onomatopées)
+  noise_ambience: Bruit, acoustique et diagnostic du micro
+  reproduced_sound: Sons reproduits (télévision, radio)
+  misc: Divers
+causes:
+  television: télévision
+  radio: radio
+  music: musique
+  broadcast_voice: voix diffusée par haut-parleur (appel à la prière, annonces)
+  voice_assistant: assistant vocal
+  smart_speakers: enceintes connectées
+  street: rue
+  video_calls: visioconférence
+  fireworks: feux d'artifice et pétards
+  children_playing: enfants qui jouent
+  schoolyard: cour d'école voisine
+  neighbors: voisinage
+  works: travaux
+  animals: animaux
+  neighbor_dogs: chiens des voisins
+  cat_meows: miaulements de chat
+  door_slam: porte qui claque
+  impacts: chocs
+  gps: GPS
+  frying: cuisson (friture)
+  fireplace: cheminée
+  neighbor_alarms: alarmes de voisinage
+  building_alarm_drill: alarme d'immeuble voisin ou exercice
+  other_device_alarms: alarmes d'autres appareils
+  tv_doorbells: sonnettes de télévision
+  phones: téléphones
+  neighbor_doorbells: sonnettes de voisins
+  doorbells: sonnette
+  chimes: carillons
+  furniture: meubles
+  emergency_sirens: ambulances et police dans la rue
+  appliance_beeps: bips d'appareils (micro-ondes, four, lave-linge)
+  microwave: micro-ondes
+  washing_machines: lave-linge et lave-vaisselle
+  dropped_dishes: vaisselle ou bouteille qui tombe
+  thunder: tonnerre
+  detectors: détecteurs
+groups:
+  dogs:
+    name: Chiens
+    risk: '« Chien » contient « Aboiement », « Jappement », « Ouaf », « Grondement », « Hurlement de chien ou de
+      loup » et « Gémissement de chien » : un aboiement active souvent « Chien » en même temps. « Canidés (chiens,
+      loups) » (chiens et loups) ne contient que « Grondement » et « Hurlement de chien ou de loup ».'
+    advice: Surveiller « Aboiement » seul. Ajouter « Hurlement de chien ou de loup » seulement si les hurlements
+      vous intéressent.
+  cats:
+    name: Chats
+    risk: « Chat » englobe les autres. Les miaulements stridents ressemblent à des pleurs de bébé.
+    advice: Choisir « Miaulement » seul ; ne pas combiner avec une alerte « pleurs de bébé » sans règle de confirmation.
+  cries_and_screams:
+    name: Pleurs et cris aigus
+    risk: Sons aigus et plaintifs qui se confondent entre eux (bébé, chat, cri humain, grincement).
+    advice: 'Si vous surveillez un bébé : « Pleurs de bébé » avec au moins 2 secondes de détection continue ; ignorez
+      les autres.'
+  shouts:
+    name: Cris et appels
+    risk: Les enfants qui jouent, les matchs à la télévision et les films déclenchent souvent ces classes.
+    advice: Garder « Hurlements stridents » (et éventuellement « Cri ») avec un seuil élevé ; utiliser « Télévision
+      » comme contexte.
+  speech:
+    name: Parole, voix et contexte vocal
+    risk: 'Vie privée : ces classes détectent des conversations. Se confondent avec la télévision et la radio.'
+    advice: Ne jamais conserver de clip. Les utiliser comme contexte (« quelqu'un parle ») plutôt que comme alerte.
+  sung_voice:
+    name: Voix chantée, psalmodie et prière diffusée
+    risk: Une voix chantée ou psalmodiée diffusée par haut-parleur (appel à la prière, annonces) active plusieurs
+      de ces classes, ainsi que « Parole ».
+    advice: Ne pas en faire des alertes. Si ces sons sont fréquents chez vous, relever les seuils des autres classes
+      vocales à ces moments.
+  detonations:
+    name: Détonations et chocs secs
+    risk: Pétards, feux d'artifice, portes qui claquent et tonnerre sont facilement pris pour un coup de feu.
+    advice: Ne jamais déclencher d'action lourde sur ces classes seules. Utiliser « Feux d'artifice » et « Pétard
+      » comme contexte inhibiteur.
+  glass_breaking:
+    name: Verre et casse
+    risk: La vaisselle qui tombe ou s'entrechoque ressemble à un verre brisé.
+    advice: Garder « Verre brisé » seul pour la sécurité ; « Casse » et « Fracas » en option. Confirmer avec un
+      capteur d'ouverture ou une caméra.
+  fire_alarms_and_beeps:
+    name: Alarmes incendie et bips d'appareils
+    risk: Un bip isolé de micro-ondes ou de lave-linge peut ressembler à un détecteur de fumée.
+    advice: 'Pour l''alerte incendie : « Détecteur de fumée » et « Alarme incendie » avec au moins 3 secondes de
+      détection soutenue. Ne pas ajouter « Bip » comme alerte.'
+  doorbells_and_bells:
+    name: Sonnettes, sonneries et cloches
+    risk: Les sonneries de téléphone, de télévision et les cloches sont proches d'une sonnette de porte.
+    advice: 'Pour la porte : « Sonnette de porte » seul. Les sonneries de téléphone et les cloches restent hors
+      alerte.'
+  sirens_and_horns:
+    name: Sirènes et avertisseurs
+    risk: Sons de rue très fréquents, qui se confondent entre eux et avec la télévision.
+    advice: Utile seulement comme indicateur extérieur ; ne pas déclencher d'alerte maison.
+  whistles:
+    name: Sifflets
+    risk: Une bouilloire à sifflet, un sifflement de bouche ou une fuite de vapeur sont proches.
+    advice: À tester avec votre cuisine avant d'en faire une automatisation.
+  doors_and_knocks:
+    name: Portes, coups et frappes
+    risk: Coups à la porte, tiroirs et meubles se confondent. « Porte » englobe plusieurs sons.
+    advice: Choisir « Coups à la porte » pour une visite, « Claquement de porte » pour les claquements ; éviter
+      « Porte » et « Tapotement ».
+  running_water:
+    name: Eau qui coule, fuites
+    risk: 'Un robinet, la douche, la pluie et le bruit blanc se ressemblent. Aucune de ces classes ne détecte l''eau
+      : seulement son bruit.'
+    advice: Toujours accompagner d'une durée et d'un vrai capteur d'eau pour les fuites.
+  continuous_motors:
+    name: Moteurs et appareils continus
+    risk: Bruits continus qui se confondent entre eux et masquent les autres sons.
+    advice: 'Les traiter comme contexte : ils indiquent surtout pourquoi les autres classes sont moins sensibles.'
+  footsteps_presence:
+    name: Pas et présence
+    risk: Un capteur de présence fait mieux. Les pas dépendent du revêtement de sol, du micro et des voisins.
+    advice: À utiliser en complément d'un capteur de présence, pas à sa place.
+  coughs_and_breathing:
+    name: Toux, éternuements et respiration
+    risk: Sons proches entre eux ; ils relèvent de la santé donc sensibles.
+    advice: Ne pas conserver de clip. À réserver à des usages de présence discrète.
+  insects_rodents:
+    name: Insectes et rongeurs
+    risk: Très faibles et très proches de bruits d'appareils ou de tuyauterie.
+    advice: Peu fiables ; à n'essayer qu'avec un micro proche (grenier, cave).
+  birds:
+    name: Oiseaux
+    risk: « Oiseau » englobe presque toutes les autres classes de ce groupe.
+    advice: Utile seulement comme indicateur d'ambiance extérieure.
+  street_vehicles:
+    name: Véhicules dans la rue
+    risk: Sons de rue omniprésents ; le micro près d'une fenêtre les capte en continu.
+    advice: Les utiliser comme contexte extérieur ; ignorer leurs événements.
+  fire_crackle:
+    name: Feu, crépitement et cuisson
+    risk: Le feu, la friture, la pluie et les parasites se ressemblent beaucoup.
+    advice: Ne pas utiliser « Feu » comme alerte incendie. Se fier à un vrai détecteur de fumée.
+  mic_diagnostics:
+    name: Diagnostic de la qualité du micro
+    risk: Ces classes ne décrivent pas un événement de la maison, mais l'état du micro et de son câblage.
+    advice: 'À surveiller pendant la mise en place : un « Ronflement du secteur (50/60 Hz) » constant, du vent ou
+      de la distorsion indiquent un problème matériel.'
+  music_general:
+    name: Musique
+    risk: Une musique de fond active de nombreuses classes (voix, instruments, cloches).
+    advice: Garder « Musique » comme contexte ; ignorer instruments et genres.
+rules:
+  fire_double: '« Détecteur de fumée » et « Alarme incendie » sont très proches : un même événement peut déclencher
+    les deux. Utilisez la même action pour les deux et ne comptez qu''une alerte (délai de ré-armement).'
+  fire_beeps: '« Bip » se déclenche aussi sur micro-ondes et lave-linge : ne l''utilisez pas comme alerte incendie,
+    et exigez une détection soutenue d''au moins 3 secondes pour « Détecteur de fumée ».'
+  fire_only: '« Feu » et « Crépitement » se confondent avec la friture et la pluie : ne les utilisez pas comme alerte
+    incendie.'
+  detonations_fireworks: Feux d'artifice et pétards se confondent avec des coups de feu. Utilisez « Feux d'artifice
+    » et « Pétard » en contexte inhibiteur, pas comme événements, et ne déclenchez pas d'action lourde sur « Coup
+    de feu » seul.
+  doorbell_duplicates: Plusieurs classes de sonnette/cloche se déclenchent en même temps. Gardez « Sonnette de porte
+    » comme alerte principale.
+  doorbell_phone: Les sonneries de téléphone peuvent déclencher « Sonnette de porte ». Mesurez les confusions chez
+    vous avant d'automatiser.
+  baby_cat: 'Les miaulements (surtout les cris de chats) sont parfois classés comme pleurs de bébé : exigez une
+    détection soutenue d''au moins 2 secondes et un seuil adapté.'
+  multiple_shouts: 'Ces classes sont voisines : choisissez-en une comme alerte principale (par exemple « Hurlements
+    stridents »). Les autres produiront des alertes en double.'
+  glass_duplicates: '« Verre » est le parent de « Verre brisé » : choisissez « Verre brisé » seul, et « Casse »
+    ou « Fracas » en option avec un seuil plus élevé.'
+  dog_duplicates: '« Chien » contient « Aboiement » (et « Jappement », « Ouaf », « Grondement », « Hurlement de
+    chien ou de loup ») : un aboiement déclenche les deux. Gardez « Aboiement ». « Canidés (chiens, loups) » est
+    redondant et plus bruyant.'
+  speech_target: 'Classes de parole : elles détectent des conversations. Aucun clip ne doit être conservé ; utilisez-les
+    seulement comme contexte.'
+  water_leak: Ces classes détectent le bruit de l'eau, pas l'eau. Pour une fuite, ajoutez un vrai capteur d'eau
+    et une durée minimale (par exemple 5 à 10 minutes).
+  music_classes: Quand la musique joue, de nombreuses classes (voix, instruments, cloches) s'activent. Surveillez
+    « Musique » comme contexte plutôt que ses sous-classes.
+  context_recommended: Ces classes sont sensibles à la télévision et à la radio. Ajoutez « Télévision » et « Radio
+    » comme contexte pour relever automatiquement les seuils.
+auto_rules:
+  parent_child:
+    condition: une classe sélectionnée est un ancêtre (ancestors / descendants) d'une autre classe sélectionnée
+    message: '« {parent} » contient « {child} » : un même son déclenchera les deux. Gardez la plus précise, ou la
+      plus large, mais pas les deux avec des règles différentes (rétention, seuil, action).'
+  clip_forbidden:
+    condition: clip_retention_days > 0 sur une classe dont clip_forbidden vaut vrai
+    message: '« {class} » détecte des conversations : aucun clip ne doit être conservé. La rétention est forcée
+      à 0.'
+  low_threshold_high_fp:
+    condition: seuil inférieur au seuil suggéré sur une classe dont false_positives.level vaut high
+    message: « {class} » est souvent déclenchée à tort ; un seuil aussi bas multipliera les fausses alertes. Ajoutez
+      un contexte inhibiteur (télévision, radio, musique).
+  generic_class:
+    condition: role vaut generic
+    message: '« {class} » est une classe parente large : préférez ses sous-classes ({examples}).'
+  missing_context:
+    condition: classe avec inhibiting_contexts non vide, sans aucune classe de contexte sélectionnée
+    message: '« {class} » est sensible à la télévision, à la radio ou à la musique : sélectionnez-les comme classes
+      de contexte pour relever automatiquement les seuils.'
+  schedule_gap_safety:
+    condition: la source a un planning avec des trous et une classe de sécurité n'a pas de planning propre
+    message: '« {class} » est une classe de sécurité, mais le planning de « {source} » laisse des trous : elle ne
+      sera pas écoutée à ces heures. Donnez à la classe son propre planning continu pour qu''elle reste active en
+      permanence.'
+  volume_gate_safety:
+    condition: volume minimum effectif supérieur à -40 dBFS sur une classe de sécurité
+    message: 'Le volume minimum de « {source} » ({gate} dBFS) est élevé pour « {class} » : une alarme lointaine
+      ou étouffée peut passer sous ce seuil et être manquée. Baissez le seuil de volume ou fixez-en un plus bas
+      pour cette classe.'
+  clip_source_disallowed:
+    condition: clips désactivés sur la source alors que la classe autorise la conservation
+    message: 'Les clips sont désactivés sur « {source} » : la conservation de « {class} » y est forcée à 0.'
+enum_help:
+  interest:
+    monitor: classe recommandée comme alerte pour une maison
+    optional: classe utile selon votre situation ; à activer en connaissance de cause
+    context: 'ne sert pas d''alerte : sert à relever les seuils des autres classes (télévision, musique, parole…)'
+    ignore: peu utile ou trop peu fiable pour une maison ; désactivée par défaut
+  role:
+    event: un événement que l'on peut signaler
+    context: décrit l'ambiance (télévision, foule, vent…) plutôt qu'un événement
+    diagnostic: indique l'état du micro (ronflement du secteur, vent, distorsion…)
+    generic: 'classe parente large : choisir plutôt ses sous-classes'
+  sound_type:
+    impulsive: bref (verre qui casse, coup à la porte)
+    repeated: se répète (pleurs, pas, bips)
+    tonal: ton soutenu (sirène, détecteur de fumée, sonnette)
+    continuous: dure longtemps (eau qui coule, moteur, pluie)
+    variable: durée très variable
+  false_positive_level:
+    low: rarement déclenchée à tort
+    medium: parfois
+    high: souvent (télévision, voisinage…)
+  privacy:
+    normal: pas de souci particulier
+    sensitive: peut révéler des informations personnelles ; clips à garder très courts
+    confidential: 'conversations : aucun clip ne doit être conservé (clip_interdit = true)'
+setting_help:
+  threshold: score minimum (0 à 1) à partir duquel la détection compte ; à ajuster, les scores de YAMNet ne sont
+    pas calibrés
+  min_duration_s: durée minimale de détection soutenue avant de signaler
+  cooldown_s: délai avant de pouvoir signaler à nouveau le même son
+  pre_roll_s: secondes d'audio conservées avant le déclenchement dans un clip
+  post_roll_s: secondes d'audio conservées après le déclenchement
+  clip_retention_days: durée de conservation des clips ; 0 = aucun clip
+ui:
+  catalog_title: Catalogue des classes de sons (YAMNet)
+  language_name: Français
+usages:
+  security: Sécurité
+  fire: Incendie
+  door: Porte et visiteurs
+  baby: Bébé
+  animals: Animaux
+  leaks: Eau et fuites
+  kitchen: Cuisine
+  presence: Présence
+  voiceless_command: Commande sans voix
+  outdoor: Extérieur
+  weather: Météo
+  garage: Garage et voiture
+  pests: Nuisibles
+  comfort: Confort
+  ambience: Ambiance
+  context: Contexte
+  diagnostic: Diagnostic du micro
+  other: Autres usages

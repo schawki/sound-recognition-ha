@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  service:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install the service and its tests
+        run: pip install ./service pytest pytest-asyncio
+      - name: Service tests
+        run: python -m pytest service/tests -q
+
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install Home Assistant test tooling
+        run: |
+          pip install pytest-homeassistant-custom-component
+          pip install --no-deps home-assistant-frontend
+      - name: Integration tests
+        run: python -m pytest tests -q
+
+  panel:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Type-check and build the panel
+        working-directory: panel
+        run: |
+          npm ci
+          npm run typecheck
+          npm run build
+      - name: The committed bundle must match the sources
+        run: git diff --exit-code -- custom_components/sound_recognition/frontend
+      - name: Schedule unit tests
+        working-directory: panel
+        run: node --test test/schedule.test.mjs
+
+  deploy-scripts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck
+        run: shellcheck deploy/install.sh deploy/create-lxc.sh
+
+  hacs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hacs/action@main
+        with:
+          category: integration
+
+  hassfest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: home-assistant/actions/hassfest@master

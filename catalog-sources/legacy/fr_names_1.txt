@@ -1,0 +1,277 @@
+Speech|Parole
+Child speech, kid speaking|Parole d'enfant
+Conversation|Conversation
+Narration, monologue|Narration, monologue
+Babbling|Babillage
+Speech synthesizer|Synthèse vocale
+Shout|Cri
+Bellow|Beuglement (voix)
+Whoop|Cri de joie
+Yell|Appel crié
+Children shouting|Enfants qui crient
+Screaming|Hurlements stridents
+Whispering|Chuchotement
+Laughter|Rire
+Baby laughter|Rire de bébé
+Giggle|Gloussement
+Snicker|Ricanement
+Belly laugh|Fou rire
+Chuckle, chortle|Petit rire
+Crying, sobbing|Pleurs, sanglots
+Baby cry, infant cry|Pleurs de bébé
+Whimper|Gémissement plaintif
+Wail, moan|Lamentation, gémissement
+Sigh|Soupir
+Singing|Chant
+Choir|Chorale
+Yodeling|Yodel
+Chant|Psalmodie
+Mantra|Mantra
+Child singing|Chant d'enfant
+Synthetic singing|Chant synthétique
+Rapping|Rap (voix)
+Humming|Fredonnement
+Groan|Gémissement sourd
+Grunt|Grognement (voix)
+Whistling|Sifflement (bouche)
+Breathing|Respiration
+Wheeze|Respiration sifflante
+Snoring|Ronflement
+Gasp|Souffle coupé
+Pant|Halètement
+Snort|Ébrouement
+Cough|Toux
+Throat clearing|Raclement de gorge
+Sneeze|Éternuement
+Sniff|Reniflement
+Run|Course (pas)
+Shuffle|Pas traînants
+Walk, footsteps|Marche, pas
+Chewing, mastication|Mastication
+Biting|Croquer
+Gargling|Gargarisme
+Stomach rumble|Gargouillis d'estomac
+Burping, eructation|Rot
+Hiccup|Hoquet
+Fart|Pet
+Hands|Bruits de mains
+Finger snapping|Claquement de doigts
+Clapping|Claquements de mains
+Heart sounds, heartbeat|Battements de cœur
+Heart murmur|Souffle au cœur
+Cheering|Acclamations
+Applause|Applaudissements
+Chatter|Bavardage
+Crowd|Foule
+Hubbub, speech noise, speech babble|Brouhaha
+Children playing|Enfants qui jouent
+Animal|Animal
+Domestic animals, pets|Animaux domestiques
+Dog|Chien
+Bark|Aboiement
+Yip|Jappement
+Howl|Hurlement de chien ou de loup
+Bow-wow|Ouaf
+Growling|Grondement
+Whimper (dog)|Gémissement de chien
+Cat|Chat
+Purr|Ronronnement
+Meow|Miaulement
+Hiss|Feulement
+Caterwaul|Miaulements de bagarre
+Livestock, farm animals, working animals|Animaux de ferme
+Horse|Cheval
+Clip-clop|Sabots (clip-clop)
+Neigh, whinny|Hennissement
+Cattle, bovinae|Bovins
+Moo|Meuglement
+Cowbell|Cloche de vache
+Pig|Cochon
+Oink|Grognement de cochon
+Goat|Chèvre
+Bleat|Bêlement
+Sheep|Mouton
+Fowl|Volaille
+Chicken, rooster|Poule, coq
+Cluck|Caquètement
+Crowing, cock-a-doodle-doo|Chant du coq
+Turkey|Dinde
+Gobble|Glouglou de dinde
+Duck|Canard
+Quack|Coin-coin
+Goose|Oie
+Honk|Cri d'oie
+Wild animals|Animaux sauvages
+Roaring cats (lions, tigers)|Grands félins (rugissements)
+Roar|Rugissement
+Bird|Oiseau
+Bird vocalization, bird call, bird song|Chant d'oiseau
+Chirp, tweet|Pépiement
+Squawk|Criaillement
+Pigeon, dove|Pigeon, colombe
+Coo|Roucoulement
+Crow|Corbeau, corneille
+Caw|Croassement
+Owl|Hibou, chouette
+Hoot|Hululement
+Bird flight, flapping wings|Battements d'ailes
+Canidae, dogs, wolves|Canidés (chiens, loups)
+Rodents, rats, mice|Rongeurs (rats, souris)
+Mouse|Souris
+Patter|Trottinement
+Insect|Insecte
+Cricket|Grillon
+Mosquito|Moustique
+Fly, housefly|Mouche
+Buzz|Bourdonnement d'insecte
+Bee, wasp, etc.|Abeille, guêpe
+Frog|Grenouille
+Croak|Coassement
+Snake|Serpent
+Rattle|Cliquetis de crécelle
+Whale vocalization|Chant de baleine
+Music|Musique
+Musical instrument|Instrument de musique
+Plucked string instrument|Instrument à cordes pincées
+Guitar|Guitare
+Electric guitar|Guitare électrique
+Bass guitar|Guitare basse
+Acoustic guitar|Guitare acoustique
+Steel guitar, slide guitar|Guitare slide (steel)
+Tapping (guitar technique)|Tapping (guitare)
+Strum|Grattement d'accords
+Banjo|Banjo
+Sitar|Sitar
+Mandolin|Mandoline
+Zither|Cithare
+Ukulele|Ukulélé
+Keyboard (musical)|Clavier (musical)
+Piano|Piano
+Electric piano|Piano électrique
+Organ|Orgue
+Electronic organ|Orgue électronique
+Hammond organ|Orgue Hammond
+Synthesizer|Synthétiseur
+Sampler|Échantillonneur
+Harpsichord|Clavecin
+Percussion|Percussions
+Drum kit|Batterie
+Drum machine|Boîte à rythmes
+Drum|Tambour
+Snare drum|Caisse claire
+Rimshot|Rimshot
+Drum roll|Roulement de tambour
+Bass drum|Grosse caisse
+Timpani|Timbales d'orchestre
+Tabla|Tabla
+Cymbal|Cymbale
+Hi-hat|Charleston
+Wood block|Wood-block
+Tambourine|Tambourin
+Rattle (instrument)|Hochet (instrument)
+Maraca|Maracas
+Gong|Gong
+Tubular bells|Cloches tubulaires
+Mallet percussion|Percussions à maillets
+Marimba, xylophone|Marimba, xylophone
+Glockenspiel|Glockenspiel
+Vibraphone|Vibraphone
+Steelpan|Steel drum
+Orchestra|Orchestre
+Brass instrument|Cuivres
+French horn|Cor d'harmonie
+Trumpet|Trompette
+Trombone|Trombone
+Bowed string instrument|Instrument à archet
+String section|Section de cordes
+Violin, fiddle|Violon
+Pizzicato|Pizzicato
+Cello|Violoncelle
+Double bass|Contrebasse
+Wind instrument, woodwind instrument|Instrument à vent (bois)
+Flute|Flûte
+Saxophone|Saxophone
+Clarinet|Clarinette
+Harp|Harpe
+Bell|Cloche
+Church bell|Cloche d'église
+Jingle bell|Grelot
+Bicycle bell|Sonnette de vélo
+Tuning fork|Diapason
+Chime|Carillon
+Wind chime|Carillon à vent
+Change ringing (campanology)|Sonnerie de cloches en volée
+Harmonica|Harmonica
+Accordion|Accordéon
+Bagpipes|Cornemuse
+Didgeridoo|Didgeridoo
+Shofar|Shofar
+Theremin|Thérémine
+Singing bowl|Bol chantant
+Scratching (performance technique)|Scratch (DJ)
+Pop music|Musique pop
+Hip hop music|Hip-hop
+Beatboxing|Beatbox
+Rock music|Rock
+Heavy metal|Heavy metal
+Punk rock|Punk rock
+Grunge|Grunge
+Progressive rock|Rock progressif
+Rock and roll|Rock and roll
+Psychedelic rock|Rock psychédélique
+Rhythm and blues|Rhythm and blues
+Soul music|Soul
+Reggae|Reggae
+Country|Country
+Swing music|Swing
+Bluegrass|Bluegrass
+Funk|Funk
+Folk music|Musique folk
+Middle Eastern music|Musique du Moyen-Orient
+Jazz|Jazz
+Disco|Disco
+Classical music|Musique classique
+Opera|Opéra
+Electronic music|Musique électronique
+House music|House
+Techno|Techno
+Dubstep|Dubstep
+Drum and bass|Drum and bass
+Electronica|Électronica
+Electronic dance music|Musique de danse électronique
+Ambient music|Musique d'ambiance (ambient)
+Trance music|Trance
+Music of Latin America|Musique d'Amérique latine
+Salsa music|Salsa
+Flamenco|Flamenco
+Blues|Blues
+Music for children|Musique pour enfants
+New-age music|New age
+Vocal music|Musique vocale
+A capella|A cappella
+Music of Africa|Musique d'Afrique
+Afrobeat|Afrobeat
+Christian music|Musique chrétienne
+Gospel music|Gospel
+Music of Asia|Musique d'Asie
+Carnatic music|Musique carnatique
+Music of Bollywood|Musique de Bollywood
+Ska|Ska
+Traditional music|Musique traditionnelle
+Independent music|Musique indépendante
+Song|Chanson
+Background music|Musique de fond
+Theme music|Thème musical
+Jingle (music)|Jingle (musique)
+Soundtrack music|Bande originale
+Lullaby|Berceuse
+Video game music|Musique de jeu vidéo
+Christmas music|Musique de Noël
+Dance music|Musique de danse
+Wedding music|Musique de mariage
+Happy music|Musique joyeuse
+Sad music|Musique triste
+Tender music|Musique douce
+Exciting music|Musique entraînante
+Angry music|Musique agressive
+Scary music|Musique effrayante

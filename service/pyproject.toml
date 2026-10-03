@@ -1,0 +1,20 @@
+[project]
+name = "soundrec"
+version = "0.1.0"
+description = "Sound recognition service for Home Assistant: classifies audio streams with YAMNet and serves detections over a local API"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = ["numpy>=1.26", "pyyaml>=6", "aiohttp>=3.9", "ai-edge-litert>=1.0"]
+
+[project.optional-dependencies]
+test = ["pytest>=8", "pytest-asyncio>=0.23"]
+
+[project.scripts]
+soundrec = "soundrec.main:main"
+
+[tool.setuptools]
+packages = ["soundrec"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
