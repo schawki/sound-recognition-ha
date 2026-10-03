@@ -4,21 +4,20 @@ Recette courte pour faire tourner le service dans son propre conteneur Debian 13
 
 ## 1. Sur l'hôte Proxmox
 
-Copiez le dépôt (par ex. `sound-recognition-ha.zip`) sur le nœud, décompressez-le puis lancez le script en root :
+Téléchargez le script et lancez-le en root (il clone le dépôt GitHub dans le conteneur) :
 
 ```bash
-python3 -m zipfile -e sound-recognition-ha.zip /root/     # ou : unzip sound-recognition-ha.zip -d /root
-cd /root/sound-recognition-ha
-bash deploy/create-lxc.sh
+curl -fsSLO https://raw.githubusercontent.com/schawki/sound-recognition-ha/main/deploy/create-lxc.sh
+bash create-lxc.sh
 ```
 
-Il demande confirmation, crée le conteneur (2 vCPU, 1 Go de RAM, 8 Go de disque, démarrage automatique), installe ffmpeg, le service et le modèle YAMNet, puis le démarre. Les valeurs par défaut se changent par variables d'environnement, par exemple :
+Il demande confirmation, crée le conteneur (2 vCPU, 1 Go de RAM, 8 Go de disque, démarrage automatique), installe git et ffmpeg, clone le projet, installe le service et le modèle YAMNet, puis le démarre. Les valeurs par défaut se changent par variables d'environnement, par exemple :
 
 ```bash
-CTID=210 STORAGE=local-zfs BRIDGE=vmbr0 IP=192.168.1.50/24 GATEWAY=192.168.1.1 bash deploy/create-lxc.sh
+CTID=210 STORAGE=local-zfs BRIDGE=vmbr0 IP=192.168.1.50/24 GATEWAY=192.168.1.1 bash create-lxc.sh
 ```
 
-(toutes les variables sont listées en tête de `deploy/create-lxc.sh`). À la fin, il affiche l'adresse du conteneur et le jeton d'API.
+(toutes les variables sont listées en tête du script, dont `REPO_URL`/`REF` pour installer une autre branche ou un fork). Sans accès à GitHub, copiez le dépôt sur le nœud et lancez `SOURCE=local bash deploy/create-lxc.sh` depuis celui-ci. À la fin, le script affiche l'adresse du conteneur et le jeton d'API.
 
 ## 2. Vérifier
 
@@ -29,7 +28,7 @@ pct exec <CTID> -- journalctl -u soundrec -f       # journaux
 
 ## 3. Home Assistant
 
-Installez l'intégration via HACS (dépôt personnalisé, catégorie *Intégration*) ou en copiant `custom_components/sound_recognition` dans `/config/custom_components/`, redémarrez HA, puis *Paramètres → Appareils et services → Ajouter une intégration → Sound recognition* avec l'adresse du conteneur (port 8765) et le jeton. Une entrée *Sound recognition* apparaît dans la barre latérale (administrateurs uniquement).
+Installez l'intégration via HACS (trois points → *Dépôts personnalisés* → `https://github.com/schawki/sound-recognition-ha`, catégorie *Intégration*) ou en copiant `custom_components/sound_recognition` dans `/config/custom_components/`, redémarrez HA, puis *Paramètres → Appareils et services → Ajouter une intégration → Sound recognition* avec l'adresse du conteneur (port 8765) et le jeton. Une entrée *Sound recognition* apparaît dans la barre latérale (administrateurs uniquement).
 
 ## Où se trouvent les choses dans le conteneur
 
@@ -40,7 +39,13 @@ Installez l'intégration via HACS (dépôt personnalisé, catégorie *Intégrati
 | Extraits et base d'événements | `/var/lib/soundrec/` |
 | Service | `systemctl status soundrec` |
 
-Mise à jour : copiez la nouvelle version dans le conteneur et relancez `bash deploy/install.sh` (config et données conservées).
+Mise à jour (le projet est cloné dans `/opt/sound-recognition-ha` ; config et données conservées) :
+
+```bash
+pct exec <CTID> -- bash -c 'git -C /opt/sound-recognition-ha pull && bash /opt/sound-recognition-ha/deploy/install.sh'
+```
+
+
 Redémarrage après modification manuelle du YAML : `systemctl restart soundrec`.
 
 ## Dépannage

@@ -8,6 +8,8 @@
 #   BRIDGE      network bridge (vmbr0)                     IP  "dhcp" (default) or e.g. 192.168.1.50/24
 #   GATEWAY     gateway, only with a static IP             DNS  (container default = host's)
 #   CORES (2)   MEMORY in MB (1024)   DISK in GB (8)       VLAN  optional vlan tag
+#   REPO_URL    git repository to install from (https://github.com/schawki/sound-recognition-ha.git)   REF  branch or tag (main)
+#   SOURCE=local  copy this folder into the container instead of cloning from GitHub (offline / unpublished changes)
 #   YES=1       skip the confirmation question
 set -euo pipefail
 
@@ -21,15 +23,20 @@ IP="${IP:-dhcp}"
 CORES="${CORES:-2}"
 MEMORY="${MEMORY:-1024}"
 DISK="${DISK:-8}"
+REPO_URL="${REPO_URL:-https://github.com/schawki/sound-recognition-ha.git}"
+REF="${REF:-main}"
+SOURCE="${SOURCE:-git}"
 
 say() { printf '\n\033[1m==> %s\033[0m\n' "$*"; }
 die() { printf '\033[31mERROR: %s\033[0m\n' "$*" >&2; exit 1; }
 
 [ "$(id -u)" -eq 0 ] || die "run this script as root on the Proxmox host"
 { command -v pct && command -v pveam; } >/dev/null || die "pct/pveam not found: this script must run on a Proxmox VE node"
-for d in service/soundrec catalog; do
-  [ -d "$REPO/$d" ] || die "cannot find service/ and catalog/ in $REPO"
-done
+if [ "$SOURCE" = "local" ]; then
+  for d in service/soundrec catalog; do
+    [ -d "$REPO/$d" ] || die "cannot find service/ and catalog/ in $REPO"
+  done
+fi
 if [ "$IP" != "dhcp" ] && [ -z "${GATEWAY:-}" ]; then die "a static IP needs GATEWAY=..."; fi
 
 CTID="${CTID:-$(pvesh get /cluster/nextid)}"
@@ -80,18 +87,26 @@ done
 pct exec "$CTID" -- sh -c 'getent hosts deb.debian.org >/dev/null 2>&1' || die "the container has no network/DNS (check BRIDGE, IP, GATEWAY, DNS)"
 
 # ---- install
-say "Copying the project into the container"
-TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
-tar -C "$REPO" --exclude=node_modules --exclude=__pycache__ --exclude=.pytest_cache --exclude=.git --exclude='panel/test/out' \
-    -czf "$TMP/src.tar.gz" service catalog deploy
-pct push "$CTID" "$TMP/src.tar.gz" /root/soundrec-src.tar.gz
-pct exec "$CTID" -- bash -c 'rm -rf /root/soundrec-src && mkdir /root/soundrec-src && tar -xzf /root/soundrec-src.tar.gz -C /root/soundrec-src'
+SRC_DIR=/opt/sound-recognition-ha
+if [ "$SOURCE" = "local" ]; then
+  say "Copying the project into the container"
+  TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+  tar -C "$REPO" --exclude=node_modules --exclude=__pycache__ --exclude=.pytest_cache --exclude=.git --exclude='panel/test/out' \
+      -czf "$TMP/src.tar.gz" service catalog deploy
+  pct push "$CTID" "$TMP/src.tar.gz" /root/soundrec-src.tar.gz
+  pct exec "$CTID" -- bash -c "rm -rf $SRC_DIR && mkdir -p $SRC_DIR && tar -xzf /root/soundrec-src.tar.gz -C $SRC_DIR"
+else
+  say "Cloning $REPO_URL ($REF) into the container"
+  pct exec "$CTID" -- bash -c 'export DEBIAN_FRONTEND=noninteractive; apt-get update -qq && apt-get install -y -qq --no-install-recommends git ca-certificates >/dev/null'
+  pct exec "$CTID" -- git clone --depth 1 --branch "$REF" "$REPO_URL" "$SRC_DIR"
+fi
 
 say "Installing the service"
 TZ_HOST="$(cat /etc/timezone 2>/dev/null || true)"
-pct exec "$CTID" -- env SOUNDREC_TZ="${SOUNDREC_TZ:-$TZ_HOST}" bash /root/soundrec-src/deploy/install.sh
+pct exec "$CTID" -- env SOUNDREC_TZ="${SOUNDREC_TZ:-$TZ_HOST}" bash "$SRC_DIR/deploy/install.sh"
 
 IPADDR="$(pct exec "$CTID" -- hostname -I 2>/dev/null | awk '{print $1}')"
 say "Done"
 echo "Container $CTID is running. Service address: http://${IPADDR:-<container ip>}:8765"
 echo "Open a shell in it with: pct enter $CTID    Logs: pct exec $CTID -- journalctl -u soundrec -f"
+echo "Update later (git mode): pct exec $CTID -- bash -c 'git -C $SRC_DIR pull && bash $SRC_DIR/deploy/install.sh'"
