@@ -27,7 +27,9 @@ die() { printf '\033[31mERROR: %s\033[0m\n' "$*" >&2; exit 1; }
 
 [ "$(id -u)" -eq 0 ] || die "run this script as root on the Proxmox host"
 { command -v pct && command -v pveam; } >/dev/null || die "pct/pveam not found: this script must run on a Proxmox VE node"
-[ -d "$REPO/service/soundrec" ] && [ -d "$REPO/catalog" ] || die "cannot find service/ and catalog/ in $REPO"
+for d in service/soundrec catalog; do
+  [ -d "$REPO/$d" ] || die "cannot find service/ and catalog/ in $REPO"
+done
 if [ "$IP" != "dhcp" ] && [ -z "${GATEWAY:-}" ]; then die "a static IP needs GATEWAY=..."; fi
 
 CTID="${CTID:-$(pvesh get /cluster/nextid)}"

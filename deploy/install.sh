@@ -23,7 +23,9 @@ say() { printf '\n\033[1m==> %s\033[0m\n' "$*"; }
 die() { printf '\033[31mERROR: %s\033[0m\n' "$*" >&2; exit 1; }
 
 [ "$(id -u)" -eq 0 ] || die "run this script as root"
-[ -d "$REPO/service/soundrec" ] && [ -d "$REPO/catalog" ] || die "cannot find service/ and catalog/ in $REPO (run the script from a copy of the repository)"
+for d in service/soundrec catalog; do
+  [ -d "$REPO/$d" ] || die "cannot find service/ and catalog/ in $REPO (run the script from a copy of the repository)"
+done
 
 # ------------------------------------------------------------------------------------------------ packages
 if [ "${SKIP_APT:-0}" != "1" ]; then
