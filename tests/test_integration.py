@@ -339,12 +339,16 @@ async def test_go2rtc_fetch_against_a_real_server(socket_enabled):
 
 
 async def test_panel_survives_reload_and_goes_with_the_last_entry(hass):
+    from custom_components.sound_recognition import frontend
+
     entry = await setup_entry(hass)
-    panels = lambda: hass.data["frontend_panels"]
-    assert "sound-recognition" in panels()
-    assert await hass.config_entries.async_reload(entry.entry_id)       # every saved change reloads the entry
-    await hass.async_block_till_done()
-    assert "sound-recognition" in panels()                              # not removed, or the browser is sent to the home page
-    assert await hass.config_entries.async_remove(entry.entry_id)
-    await hass.async_block_till_done()
-    assert "sound-recognition" not in panels()
+    assert "sound-recognition" in hass.data["frontend_panels"]
+    with patch.object(frontend, "async_remove_panel", wraps=frontend.async_remove_panel) as removed:
+        assert await hass.config_entries.async_reload(entry.entry_id)    # every saved change reloads the entry
+        await hass.async_block_till_done()
+        removed.assert_not_called()                                      # removing it, even briefly, sends the browser to the home page
+        assert "sound-recognition" in hass.data["frontend_panels"]
+        assert await hass.config_entries.async_remove(entry.entry_id)
+        await hass.async_block_till_done()
+        removed.assert_called_once()
+    assert "sound-recognition" not in hass.data["frontend_panels"]
