@@ -3,7 +3,7 @@ import { property, state } from "lit/decorators.js";
 import type { PanelApi } from "./api";
 import type { T } from "./i18n";
 import { cellsToWindows, hoursPerWeek, windowsToCells } from "./schedule";
-import type { Advice, ServiceConfig, SourceCfg } from "./types";
+import type { Advice, Go2rtcStreams, ServiceConfig, SourceCfg } from "./types";
 import "./schedule-grid";
 
 const TYPES: [string, "typeRtsp" | "typeGo2rtc" | "typeAlsa" | "typeEsphome" | "typeFile"][] = [
@@ -29,6 +29,7 @@ export class SourcesView extends LitElement {
   @state() private confirming: string | null = null;
   @state() private busy = false;
   @state() private loadError = false;
+  @state() private g2: { url: string; streams: Go2rtcStreams["streams"]; loading: boolean; error: string; tried: boolean } = { url: "", streams: [], loading: false, error: "", tried: false };
 
   connectedCallback(): void {
     super.connectedCallback();
@@ -42,6 +43,28 @@ export class SourcesView extends LitElement {
     } catch {
       this.loadError = true;
     }
+  }
+
+  protected willUpdate(): void {
+    if (this.form?.type === "go2rtc" && !this.g2.tried && !this.g2.loading) void this.loadStreams();
+  }
+
+  /** Without `url`, reads the streams of the address Home Assistant remembers; with it, tries that address. */
+  private async loadStreams(url?: string): Promise<void> {
+    this.g2 = { ...this.g2, tried: true, loading: true, error: "" };
+    try {
+      const r = await this.api.go2rtcStreams(url);
+      this.g2 = { url: r.url || this.g2.url, streams: r.streams, loading: false, error: "", tried: true };
+    } catch (e) {
+      const msg = (e as { message?: string })?.message ?? "";
+      this.g2 = { ...this.g2, streams: [], loading: false, error: this.t("go2rtcFailed", { e: msg }), tried: true };
+    }
+  }
+
+  private pickStream(rtsp: string): void {
+    const stream = this.g2.streams.find((x) => x.url === rtsp);
+    if (!stream || !this.form) return;
+    this.form = { ...this.form, url: stream.url, name: this.form.name.trim() ? this.form.name : stream.name };
   }
 
   private get sources(): SourceCfg[] {
@@ -195,6 +218,23 @@ export class SourcesView extends LitElement {
     return html`<div class="errors" role="alert"><strong>${this.t("errorsTitle")}</strong><ul>${this.errors.map((e) => html`<li>${e}</li>`)}</ul></div>`;
   }
 
+  private renderGo2rtc(f: Form) {
+    const t = this.t, g = this.g2;
+    const used = new Set(this.sources.filter((x) => x.id !== f.id).map((x) => x.url));
+    return html`<fieldset class="g2"><legend>${t("go2rtcServer")}</legend>
+      <label>${t("go2rtcAddress")}
+        <span class="row"><input name="g2url" placeholder="192.168.1.5" .value=${g.url} @input=${(e: Event) => (this.g2 = { ...this.g2, url: (e.target as HTMLInputElement).value })}
+          @keydown=${(e: KeyboardEvent) => { if (e.key === "Enter") { e.preventDefault(); void this.loadStreams(this.g2.url); } }} />
+        <button type="button" data-action="g2-load" ?disabled=${g.loading || !g.url.trim()} @click=${() => void this.loadStreams(this.g2.url)}>${t("go2rtcLoad")}</button></span>
+        <small>${t("go2rtcAddressHelp")}</small></label>
+      ${g.error ? html`<p class="note error" data-g2-error>${g.error}</p>` : nothing}
+      ${g.streams.length ? html`<label>${t("go2rtcStream")}
+        <select name="g2stream" @change=${(e: Event) => { this.pickStream((e.target as HTMLSelectElement).value); (e.target as HTMLSelectElement).value = ""; }}>
+          <option value="" selected>${t("go2rtcPick")}</option>
+          ${g.streams.map((x) => html`<option value=${x.url}>${x.name}${used.has(x.url) ? ` (${t("alreadyAdded")})` : ""}</option>`)}</select></label>` : g.tried && !g.loading && !g.error && g.url ? html`<p class="note">${t("go2rtcNone")}</p>` : nothing}
+    </fieldset>`;
+  }
+
   private renderForm(f: Form) {
     const t = this.t;
     return html`
@@ -204,6 +244,7 @@ export class SourcesView extends LitElement {
         <label>${t("name")}<input name="name" required .value=${f.name} @input=${(e: Event) => this.set("name", (e.target as HTMLInputElement).value)} /></label>
         <label>${t("type")}<select name="type" .value=${f.type} @change=${(e: Event) => this.set("type", (e.target as HTMLSelectElement).value)}>
           ${TYPES.map(([k, key]) => html`<option value=${k} ?selected=${f.type === k}>${t(key)}</option>`)}</select></label>
+        ${f.type === "go2rtc" ? this.renderGo2rtc(f) : nothing}
         <label>${t("address")}<input name="url" required .value=${f.url} @input=${(e: Event) => this.set("url", (e.target as HTMLInputElement).value)} /><small>${t("addressHelp")}</small></label>
         <label class="inline"><input type="checkbox" name="enabled" .checked=${f.enabled} @change=${(e: Event) => this.set("enabled", (e.target as HTMLInputElement).checked)} />${t("enabled")}</label>
         <div class="two">
@@ -263,6 +304,7 @@ export class SourcesView extends LitElement {
     fieldset { border: 1px solid var(--divider-color); border-radius: 10px; padding: 10px 14px 14px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
     legend { padding: 0 6px; font-size: 0.9rem; }
     .gridbar { display: flex; gap: 8px; align-items: center; } .gridbar .dim { flex: 1; }
+    .row { display: flex; gap: 8px; } .row input { flex: 1; }
     .buttons { display: flex; justify-content: flex-end; gap: 10px; }
   `;
 }

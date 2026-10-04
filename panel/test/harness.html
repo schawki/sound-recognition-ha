@@ -59,6 +59,15 @@
       const level = typeof e === "string" ? e : e && e.level; const confirm = e && typeof e === "object" && e.confirm;
       return !(level === "ignore" && (!w.safety || confirm));
     }) }),
+    "sound_recognition/go2rtc_streams": (m) => {
+      const g = state.go2rtc = state.go2rtc || { url: "", streams: [{ name: "salon", url: "rtsp://192.168.1.5:8554/salon" }, { name: "garage", url: "rtsp://192.168.1.5:8554/garage" }] };
+      state.g2calls = (state.g2calls || []).concat([m.url === undefined ? null : m.url]);
+      if (m.url !== undefined) {
+        if (m.url.includes("down")) throw { code: "go2rtc_unreachable", message: m.url + ": refused" };
+        g.url = "http://" + m.url.replace(/^https?:\/\//, "").replace(/:\d+$/, "") + ":1984";
+      }
+      return g.url ? { configured: true, url: g.url, streams: g.streams } : { configured: false, url: "", streams: [] };
+    },
     "sound_recognition/events": () => ({ events: [
       { id: "e1", ts: now - 125, source: "garden", mid: "/m/05tny_", class: "Bark", score: 0.91, clip: "garden/e1.wav", clip_url: "/clip.wav", clip_expires: new Date(Date.now() + 5 * 86400000).toISOString() },
       { id: "e3", ts: now - 900, source: "kitchen", mid: SMOKE, class: "Smoke", score: 0.7, clip: "kitchen/e3.wav", clip_url: "/clip.wav", clip_expires: new Date(Date.now() + 86400000).toISOString() },

@@ -62,3 +62,5 @@ export type AdviceSetting = AdviceLevel | { level: AdviceLevel; confirm?: boolea
 export interface ServiceConfig {
   advice?: Record<string, AdviceSetting>; sources?: SourceCfg[]; classes?: ClassBlocks; defaults?: { min_volume_dbfs?: number | null; schedule?: Schedule; clips?: { allowed?: boolean; max_retention_days?: number } }; [extra: string]: unknown }
 export interface Validation { errors: string[]; warnings: Advice[] }
+
+export interface Go2rtcStreams { configured: boolean; url: string; streams: { name: string; url: string }[] }

@@ -6,10 +6,12 @@ from typing import Any
 import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
 from .api import InvalidConfig, SoundRecError
 from .const import DOMAIN, SIGNAL_LIVE
+from .go2rtc import CONF_GO2RTC_URL, Go2RtcError, fetch_streams, normalize_url
 
 ENTRY = {vol.Optional("entry_id"): str}
 
@@ -151,7 +153,31 @@ async def ws_subscribe(hass, connection, msg, entry):
     connection.send_result(msg["id"])
 
 
-COMMANDS = (ws_overview, ws_catalog, ws_warnings, ws_config, ws_config_validate, ws_config_save, ws_resolved, ws_events, ws_subscribe)
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/go2rtc_streams", **ENTRY, vol.Optional("url"): str})
+@websocket_api.require_admin
+@websocket_api.async_response
+@_with_entry
+async def ws_go2rtc_streams(hass, connection, msg, entry):
+    """Streams of the go2rtc server. With `url`, tries that address and remembers it when it answers."""
+    try:
+        base = normalize_url(msg["url"]) if msg.get("url") is not None else (entry.options.get(CONF_GO2RTC_URL) or "")
+    except Go2RtcError as err:
+        connection.send_error(msg["id"], "go2rtc_invalid", str(err))
+        return
+    if not base:
+        connection.send_result(msg["id"], {"configured": False, "url": "", "streams": []})
+        return
+    try:
+        streams = await fetch_streams(async_get_clientsession(hass), base)
+    except Go2RtcError as err:
+        connection.send_error(msg["id"], "go2rtc_unreachable", f"{base}: {err}")
+        return
+    if msg.get("url") is not None and entry.options.get(CONF_GO2RTC_URL) != base:
+        hass.config_entries.async_update_entry(entry, options={**entry.options, CONF_GO2RTC_URL: base})
+    connection.send_result(msg["id"], {"configured": True, "url": base, "streams": streams})
+
+
+COMMANDS = (ws_go2rtc_streams, ws_overview, ws_catalog, ws_warnings, ws_config, ws_config_validate, ws_config_save, ws_resolved, ws_events, ws_subscribe)
 
 
 def async_register(hass: HomeAssistant) -> None:

@@ -265,3 +265,74 @@ async def test_panel_live_subscription_and_admin_only(hass, hass_ws_client, hass
     r = await ro.receive_json()
     assert not r["success"] and r["error"]["code"] == "unauthorized"
     assert entry.state.name == "LOADED"
+
+
+# ------------------------------------------------------------------------------------------------ go2rtc stream picker
+async def test_go2rtc_streams(hass, hass_ws_client):
+    from custom_components.sound_recognition import go2rtc
+
+    entry = await setup_entry(hass)
+    ws = await hass_ws_client(hass)
+
+    async def call(**kw):
+        await ws.send_json({"id": call.n, "type": "sound_recognition/go2rtc_streams", **kw})
+        call.n += 1
+        return await ws.receive_json()
+    call.n = 1
+
+    r = await call()                                           # nothing configured yet
+    assert r["success"] and r["result"] == {"configured": False, "url": "", "streams": []}
+
+    async def fake_fetch(session, base):
+        assert base == "http://192.168.1.5:1984"
+        return go2rtc.parse_streams({"Salon": {}, "cuisine": {"producers": []}}, base)
+
+    with patch("custom_components.sound_recognition.websocket_api.fetch_streams", fake_fetch):
+        r = await call(url="192.168.1.5")                      # bare host: scheme and port are completed, and the address is remembered
+        assert r["success"] and r["result"]["url"] == "http://192.168.1.5:1984"
+        assert [s["name"] for s in r["result"]["streams"]] == ["cuisine", "Salon"]
+        assert r["result"]["streams"][0]["url"] == "rtsp://192.168.1.5:8554/cuisine"
+        assert entry.options["go2rtc_url"] == "http://192.168.1.5:1984"
+        r = await call()                                       # later calls use the remembered address
+        assert r["success"] and r["result"]["configured"] and len(r["result"]["streams"]) == 2
+
+    async def broken(session, base):
+        raise go2rtc.Go2RtcError("refused")
+
+    with patch("custom_components.sound_recognition.websocket_api.fetch_streams", broken):
+        r = await call(url="10.0.0.9:1985")
+        assert not r["success"] and r["error"]["code"] == "go2rtc_unreachable" and "10.0.0.9:1985" in r["error"]["message"]
+        assert entry.options["go2rtc_url"] == "http://192.168.1.5:1984"   # a failing address is not remembered
+    r = await call(url="ftp://x")
+    assert not r["success"] and r["error"]["code"] == "go2rtc_invalid"
+
+
+def test_go2rtc_helpers():
+    from custom_components.sound_recognition.go2rtc import Go2RtcError, normalize_url, rtsp_url
+
+    assert normalize_url("frigate.local") == "http://frigate.local:1984"
+    assert normalize_url(" https://h:1985/api/ ") == "https://h:1985"
+    assert normalize_url("http://[fe80::1]") == "http://[fe80::1]:1984"
+    assert rtsp_url("http://[fe80::1]:1984", "cam") == "rtsp://[fe80::1]:8554/cam"
+    for bad in ("", "  ", "ftp://x", "http://"):
+        with pytest.raises(Go2RtcError):
+            normalize_url(bad)
+
+
+@pytest.mark.allow_hosts(["127.0.0.1"])
+async def test_go2rtc_fetch_against_a_real_server(socket_enabled):
+    import aiohttp
+    from aiohttp import web
+    from aiohttp.test_utils import TestServer
+    from custom_components.sound_recognition.go2rtc import Go2RtcError, fetch_streams
+
+    async def streams(request):
+        return web.json_response({"b_cam": {"producers": []}, "A_cam": {}})
+    app = web.Application()
+    app.router.add_get("/api/streams", streams)
+    async with TestServer(app, host="127.0.0.1") as server, aiohttp.ClientSession() as session:
+        base = f"http://127.0.0.1:{server.port}"
+        got = await fetch_streams(session, base)
+        assert [s["name"] for s in got] == ["A_cam", "b_cam"] and got[0]["url"] == "rtsp://127.0.0.1:8554/A_cam"
+        with pytest.raises(Go2RtcError):
+            await fetch_streams(session, f"http://127.0.0.1:{server.port + 1}")   # nothing listens there

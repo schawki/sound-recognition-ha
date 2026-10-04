@@ -1,4 +1,4 @@
-import type { Advice, Catalog, Hass, LiveMessage, Overview, ServiceConfig, SoundEvent, Validation } from "./types";
+import type { Advice, Catalog, Go2rtcStreams, Hass, LiveMessage, Overview, ServiceConfig, SoundEvent, Validation } from "./types";
 
 export class PanelApi {
   constructor(private hass: Hass, public language: string) {}
@@ -25,6 +25,10 @@ export class PanelApi {
   }
   save(config: ServiceConfig): Promise<unknown> {
     return this.hass.callWS({ type: "sound_recognition/config_save", language: this.language, config });
+  }
+  /** Streams of the go2rtc server; with `url`, tries that address and lets Home Assistant remember it when it answers. */
+  go2rtcStreams(url?: string): Promise<Go2rtcStreams> {
+    return this.hass.callWS({ type: "sound_recognition/go2rtc_streams", ...(url === undefined ? {} : { url }) });
   }
   subscribe(cb: (m: LiveMessage) => void): Promise<() => void> {
     return this.hass.connection.subscribeMessage<LiveMessage>(cb, { type: "sound_recognition/subscribe", language: this.language });
