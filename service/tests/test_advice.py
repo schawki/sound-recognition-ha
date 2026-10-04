@@ -71,3 +71,15 @@ def test_listing_without_overrides_keeps_hidden_advice():
     cfg = _cfg(advice={"speech_target": "ignore"})
     assert _rules(cfg) == {}
     assert {w["source"] for w in advisor.compute(cfg, overrides=False) if w["rule"] == "speech_target"} == {"a", "b"}
+
+
+def test_environment_and_adaptive_validation():
+    cfg = _cfg()
+    cfg["sources"][0].update(environment="living_tv", adaptive={"enabled": True, "max_offset": 0.2})
+    assert cfgmod.validate(cfg, CAT) == []
+    cfg["sources"][0]["environment"] = "moon"
+    cfg["sources"][1]["adaptive"] = {"enabled": "yes"}
+    errs = cfgmod.validate(cfg, CAT)
+    assert any("unknown environment" in e for e in errs) and any("adaptive" in e for e in errs)
+    cfg = _cfg(analysis={**cfgmod.DEFAULTS["analysis"], "safety_boost_cap": 2})
+    assert any("safety_boost_cap" in e for e in cfgmod.validate(cfg, CAT))

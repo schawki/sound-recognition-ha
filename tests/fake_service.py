@@ -3,17 +3,17 @@ import asyncio
 import copy
 from types import SimpleNamespace
 
-from soundrec import advisor, catalog as cm, config as cfgmod, settings as st
+from soundrec import advisor, catalog as cm, config as cfgmod, recommend, settings as st
 from custom_components.sound_recognition.api import CannotConnect, InvalidAuth, InvalidConfig
 
 CAT = st.Catalog(cm.load_raw())
-STATE = SimpleNamespace(cfg=None, down=False, token="tok", handler=None, stop=None, status={}, events=[])
+STATE = SimpleNamespace(cfg=None, down=False, token="tok", handler=None, stop=None, status={}, events=[], feedback={})
 
 
 def reset(cfg=None):
     STATE.cfg = cfgmod._merge(cfgmod.DEFAULTS, cfg or {})
     STATE.cfg["api"]["token"] = STATE.token
-    STATE.down, STATE.handler, STATE.stop, STATE.status, STATE.events = False, None, asyncio.Event(), {}, []
+    STATE.down, STATE.handler, STATE.stop, STATE.status, STATE.events, STATE.feedback = False, None, asyncio.Event(), {}, [], {}
 
 
 class FakeClient:
@@ -75,6 +75,21 @@ class FakeClient:
     async def events(self, lang, **query):
         self._check()
         return [dict(e) for e in STATE.events]
+
+    async def recommendations(self, lang):
+        self._check()
+        return recommend.compute(STATE.cfg, lang)
+
+    async def stats(self, hours=24):
+        self._check()
+        zeros = [0] * hours
+        block = lambda n: {"total": n, "by_source": {"kitchen": n} if n else {}, "by_class": [], "hourly": zeros[:-1] + [n]}
+        return {"hours": hours, "since": 0, "detections": block(3), "masked": block(1), "false": block(0)}
+
+    async def event_feedback(self, event_id, false):
+        self._check()
+        STATE.feedback[event_id] = false
+        return {"ok": True}
 
     async def resolved(self, source, mid):
         self._check()

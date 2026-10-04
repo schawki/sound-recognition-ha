@@ -1,0 +1,128 @@
+# Typical places a microphone can be in. Language neutral data (ids, class mids) plus the texts, so the generated
+# catalog files are untouched. Only Television, Radio, Music (and Fireworks / Firecracker for gunshots) change thresholds:
+# the other "context" sounds are only reported. `adaptive` = the adaptive ambient noise setting is worth enabling there.
+environments:
+  - id: living_tv
+    contexts: [/m/07c52, /m/06bz3, /m/04rlf]
+    adaptive: true
+    en:
+      name: "Living room (TV, music)"
+      why: "A TV or speakers play voices, barking, doorbells and sirens that sound real."
+      tips:
+        - "Enable Television, Radio and Music on this source: while one is heard, the thresholds of look-alike sounds are raised."
+        - "Raise the threshold of Bark on this source if the TV still triggers it."
+        - "Link the TV volume in a later update to adjust sensitivity automatically."
+    fr:
+      name: "Salon (TV, musique)"
+      why: "Une TV ou des enceintes diffusent des voix, des aboiements, des sonnettes et des sirènes qui paraissent réels."
+      tips:
+        - "Activez Télévision, Radio et Musique sur cette source : tant que l'un est entendu, les seuils des sons qui lui ressemblent sont relevés."
+        - "Relevez le seuil d'Aboiement sur cette source si la TV le déclenche encore."
+        - "Un lien avec le volume de la TV viendra plus tard pour ajuster la sensibilité automatiquement."
+  - id: kitchen
+    contexts: [/m/06bz3, /m/04rlf]
+    adaptive: true
+    en:
+      name: "Kitchen"
+      why: "Radio, extractor hood, running water and dishes make steady noise and sudden impacts."
+      tips:
+        - "Enable Radio and Music if there is a radio or speaker in the room."
+        - "Dropped dishes can look like glass breaking; keep the glass-break threshold at its default and check the clips."
+    fr:
+      name: "Cuisine"
+      why: "Radio, hotte, eau qui coule et vaisselle font un bruit continu et des chocs soudains."
+      tips:
+        - "Activez Radio et Musique s'il y a une radio ou une enceinte dans la pièce."
+        - "De la vaisselle qui tombe peut ressembler à du verre brisé ; gardez le seuil par défaut et vérifiez les extraits."
+  - id: bedroom
+    contexts: [/m/07c52, /m/04rlf]
+    adaptive: false
+    en:
+      name: "Bedroom"
+      why: "Usually quiet, so quiet sounds matter, and a TV is only sometimes on."
+      tips:
+        - "Enable Television and Music only if you watch or listen there."
+        - "Keep the adaptive setting off: in a quiet room it only makes you miss soft sounds."
+    fr:
+      name: "Chambre"
+      why: "Généralement calme : les sons faibles comptent, et la TV n'est allumée que parfois."
+      tips:
+        - "Activez Télévision et Musique seulement si vous regardez ou écoutez dans cette pièce."
+        - "Laissez le réglage adaptatif désactivé : dans une pièce calme, il ne ferait que vous faire manquer les sons faibles."
+  - id: nursery
+    contexts: []
+    adaptive: false
+    en:
+      name: "Baby room"
+      why: "A baby cry must never be missed."
+      tips:
+        - "Baby cry is a safety sound: its threshold is never raised by more than the small safety cap."
+        - "Keep the minimum volume low so a quiet whimper is still analysed."
+    fr:
+      name: "Chambre de bébé"
+      why: "Un pleur de bébé ne doit jamais être manqué."
+      tips:
+        - "Les pleurs de bébé sont un son de sécurité : leur seuil n'est jamais relevé de plus que le petit plafond de sécurité."
+        - "Gardez un volume minimum bas pour qu'un gémissement discret soit quand même analysé."
+  - id: office
+    contexts: [/m/06bz3, /m/04rlf]
+    adaptive: true
+    en:
+      name: "Office"
+      why: "Music, calls and a keyboard produce a lot of voice-like and impact sounds."
+      tips:
+        - "Enable Radio and Music if you listen to something while working."
+        - "Speech is only useful as context here, not as an alert."
+    fr:
+      name: "Bureau"
+      why: "Musique, appels et clavier produisent beaucoup de sons proches de la voix ou de chocs."
+      tips:
+        - "Activez Radio et Musique si vous écoutez quelque chose en travaillant."
+        - "La parole n'est utile ici que comme contexte, pas comme alerte."
+  - id: entrance
+    contexts: []
+    adaptive: true
+    en:
+      name: "Entrance, hallway"
+      why: "Street noise and neighbours reach the door; doorbell and knocks matter."
+      tips:
+        - "Enable the adaptive setting so passing traffic raises the thresholds temporarily."
+        - "Keep Doorbell and Knock enabled and check their false positives after a few days."
+    fr:
+      name: "Entrée, couloir"
+      why: "Le bruit de la rue et des voisins arrive jusqu'à la porte ; sonnette et coups comptent."
+      tips:
+        - "Activez le réglage adaptatif pour que la circulation relève temporairement les seuils."
+        - "Gardez Sonnette et Coups activés et vérifiez leurs faux positifs après quelques jours."
+  - id: outdoor
+    contexts: [/m/0g6b5, /g/122z_qxw]
+    adaptive: true
+    en:
+      name: "Outdoors"
+      why: "Wind, rain, traffic and fireworks are constant and change quickly."
+      tips:
+        - "Enable Fireworks and Firecracker so they stop being mistaken for gunshots."
+        - "Enable the adaptive setting: wind and rain raise the thresholds only while they last."
+        - "Wind, rain and traffic are listed as context sounds but do not change thresholds by themselves."
+    fr:
+      name: "Extérieur"
+      why: "Vent, pluie, circulation et feux d'artifice sont constants et changent vite."
+      tips:
+        - "Activez Feux d'artifice et Pétard pour qu'ils ne soient plus pris pour des coups de feu."
+        - "Activez le réglage adaptatif : le vent et la pluie relèvent les seuils seulement tant qu'ils durent."
+        - "Vent, pluie et circulation sont des sons de contexte mais ne modifient pas les seuils à eux seuls."
+  - id: garage
+    contexts: [/m/04rlf]
+    adaptive: true
+    en:
+      name: "Garage, workshop"
+      why: "Tools, engines and music make loud, irregular noise."
+      tips:
+        - "Enable the adaptive setting so tools do not trigger alarms."
+        - "Enable Music if you play some while working."
+    fr:
+      name: "Garage, atelier"
+      why: "Outils, moteurs et musique font un bruit fort et irrégulier."
+      tips:
+        - "Activez le réglage adaptatif pour que les outils ne déclenchent pas d'alertes."
+        - "Activez Musique si vous en écoutez en travaillant."

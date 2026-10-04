@@ -5,7 +5,7 @@ import datetime as dt
 import logging
 import os
 
-from . import advisor, catalog as cm, config as cfgmod, settings as st
+from . import advisor, catalog as cm, config as cfgmod, recommend, settings as st
 from .audio import read_source
 from .classifier import YamnetClassifier
 from .clips import ClipStore
@@ -89,7 +89,7 @@ class Engine:
         self.pipes[s["id"]] = pipe
         self._src_cfg[s["id"]] = s
 
-        last = {"active": []}
+        last = {"active": [], "context": None}
 
         def on_pcm(pcm, pipe=pipe, last=last):
             for ev in pipe.feed(pcm, _now()):
@@ -98,6 +98,10 @@ class Engine:
             if active != last["active"]:  # push changes immediately so clients need not wait for the periodic status
                 last["active"] = active
                 self._publish({"type": "active", "source": pipe.sid, "active_classes": active})
+            ctx = (tuple(pipe.state["active_contexts"]), round(pipe.state["adaptive_offset"], 2))
+            if ctx != last["context"]:
+                last["context"] = ctx
+                self._publish({"type": "context", "source": pipe.sid, **self._context(pipe)})
 
         def on_state(state, err, pipe=pipe):
             pipe.state["connected"] = state == "connected"
@@ -111,6 +115,10 @@ class Engine:
         if ev["type"] == "detection":
             self.store.add(ev)
             log.info("detection %s on %s (score %.2f)", ev["class"], sid, ev["score"])
+            self._publish(ev)
+        elif ev["type"] == "masked":
+            self.store.add_masked(ev)
+            log.info("masked %s on %s (score %.2f < %.2f, %s)", ev["class"], sid, ev["score"], ev["threshold"], "+".join(ev["reasons"]))
             self._publish(ev)
         elif ev["type"] == "clip":
             rel, expires = self.clips.write(ev["id"], ev["pcm"], ev["meta"], ev["retention_days"], _now())
@@ -134,6 +142,12 @@ class Engine:
         self.subs.discard(q)
 
     # ---------------------------------------------------------------- status
+    @staticmethod
+    def _context(pipe):
+        s = pipe.state
+        return {"active_contexts": s["active_contexts"], "ambient_dbfs": s["ambient_dbfs"], "baseline_dbfs": s["baseline_dbfs"],
+                "adaptive_enabled": s["adaptive_enabled"], "adaptive_offset": s["adaptive_offset"]}
+
     def status(self):
         out = []
         for s in self.cfg["sources"]:
@@ -142,14 +156,24 @@ class Engine:
             if p:
                 base.update({k: p.state[k] for k in ("connected", "error", "level_dbfs", "below_gate", "active_classes",
                                                      "last_window", "windows", "inferences")})
+                base.update(self._context(p))
             else:
                 base.update({"connected": False, "error": None if not base["enabled"] else "starting", "level_dbfs": None,
-                             "below_gate": False, "active_classes": [], "last_window": None, "windows": 0, "inferences": 0})
+                             "below_gate": False, "active_classes": [], "last_window": None, "windows": 0, "inferences": 0,
+                             "active_contexts": [], "ambient_dbfs": None, "baseline_dbfs": None, "adaptive_enabled": False,
+                             "adaptive_offset": 0.0})
             out.append(base)
         return out
 
     def warnings(self, lang="en", overrides=True):
         return advisor.compute(self.cfg, lang, self.catalog_root, overrides)
+
+    def recommendations(self, lang="en"):
+        since = _now().timestamp() - recommend.FALSE_DAYS * 86400
+        return recommend.compute(self.cfg, lang, self.catalog_root, self.store.false_detections(since))
+
+    def stats(self, hours=24):
+        return self.store.stats(_now().timestamp(), hours)
 
     async def _maintenance(self):
         while True:

@@ -131,6 +131,33 @@ async def ws_events(hass, connection, msg, entry):
     connection.send_result(msg["id"], {"events": rows})
 
 
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/recommendations", **ENTRY, vol.Optional("language"): str})
+@websocket_api.require_admin
+@websocket_api.async_response
+@_with_entry
+async def ws_recommendations(hass, connection, msg, entry):
+    connection.send_result(msg["id"], {"recommendations": await entry.runtime_data.client.recommendations(_lang(hass, connection, msg))})
+
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/stats", **ENTRY,
+                                  vol.Optional("hours", default=24): vol.All(int, vol.Range(min=1, max=720))})
+@websocket_api.require_admin
+@websocket_api.async_response
+@_with_entry
+async def ws_stats(hass, connection, msg, entry):
+    connection.send_result(msg["id"], await entry.runtime_data.client.stats(msg["hours"]))
+
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/event_feedback", **ENTRY, vol.Required("event_id"): str,
+                                  vol.Required("false"): bool})
+@websocket_api.require_admin
+@websocket_api.async_response
+@_with_entry
+async def ws_event_feedback(hass, connection, msg, entry):
+    """Marks a detection as false (or clears the mark); the recommendations use it to propose a higher threshold."""
+    connection.send_result(msg["id"], await entry.runtime_data.client.event_feedback(msg["event_id"], msg["false"]))
+
+
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/subscribe", **ENTRY, vol.Optional("language"): str})
 @websocket_api.require_admin
 @websocket_api.async_response
@@ -177,7 +204,7 @@ async def ws_go2rtc_streams(hass, connection, msg, entry):
     connection.send_result(msg["id"], {"configured": True, "url": base, "streams": streams})
 
 
-COMMANDS = (ws_go2rtc_streams, ws_overview, ws_catalog, ws_warnings, ws_config, ws_config_validate, ws_config_save, ws_resolved, ws_events, ws_subscribe)
+COMMANDS = (ws_go2rtc_streams, ws_overview, ws_catalog, ws_warnings, ws_config, ws_config_validate, ws_config_save, ws_resolved, ws_events, ws_recommendations, ws_stats, ws_event_feedback, ws_subscribe)
 
 
 def async_register(hass: HomeAssistant) -> None:

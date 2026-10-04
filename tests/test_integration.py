@@ -235,6 +235,13 @@ async def test_panel_commands(hass, hass_ws_client):
     assert ev["clip_url"].startswith(f"/api/sound_recognition/clip/{entry.entry_id}/kitchen/e1.wav?authSig=")
     r = await call(type="sound_recognition/resolved", source="kitchen", mid=BARK)
     assert r["success"] and "threshold" in r["result"]
+    r = await call(type="sound_recognition/recommendations", language="fr")
+    assert r["success"] and [x["rule"] for x in r["result"]["recommendations"]] == ["set_environment"]
+    r = await call(type="sound_recognition/stats", hours=6)
+    assert r["success"] and r["result"]["detections"]["total"] == 3 and len(r["result"]["detections"]["hourly"]) == 6
+    assert not (await call(type="sound_recognition/stats", hours=0))["success"]
+    r = await call(type="sound_recognition/event_feedback", event_id="e1", false=True)
+    assert r["success"] and fs.STATE.feedback == {"e1": True}
     # validation is a dry run; a refused save reports the reasons and changes nothing
     cfg = (await call(type="sound_recognition/config"))["result"]
     bad = {**cfg, "sources": [{"id": "x", "type": "rtsp", "url": ""}]}

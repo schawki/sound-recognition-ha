@@ -20,7 +20,10 @@ def load_raw(root=None):
     root = os.path.abspath(root or default_root())
     with _lock:
         if ("raw", root) not in _cache:
-            _cache[("raw", root)] = _y(os.path.join(root, "catalog.yaml"))
+            raw = _y(os.path.join(root, "catalog.yaml"))
+            env = os.path.join(root, "environments.yaml")
+            raw["environments"] = _y(env)["environments"] if os.path.exists(env) else []
+            _cache[("raw", root)] = raw
         return _cache[("raw", root)]
 
 
@@ -73,6 +76,8 @@ def load_lang(lang, root=None):
         d["false_positives"] = dict(c["false_positives"], cause_labels=[out["causes"][x] for x in c["false_positives"]["causes"]])
         classes.append(d)
     out["classes"] = classes
+    out["environments"] = [{"id": e["id"], "contexts": e["contexts"], "adaptive": e["adaptive"],
+                            **{k: (e.get(lang) or e["en"])[k] for k in ("name", "why", "tips")}} for e in cat["environments"]]
     with _lock:
         _cache[key] = out
     return out

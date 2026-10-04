@@ -76,6 +76,15 @@ class SoundRecClient:
         params = {"lang": lang, **{k: v for k, v in query.items() if v is not None}}
         return (await self._request("GET", "/events", params=params))["events"]
 
+    async def recommendations(self, lang: str) -> list[dict]:
+        return (await self._request("GET", "/recommendations", params={"lang": lang}))["recommendations"]
+
+    async def stats(self, hours: int = 24) -> dict:
+        return await self._request("GET", "/stats", params={"hours": hours})
+
+    async def event_feedback(self, event_id: str, false: bool) -> dict:
+        return await self._request("POST", f"/events/{event_id}/feedback", json={"false": false})
+
     async def resolved(self, source: str, mid: str) -> dict:
         return await self._request("GET", "/resolved", params={"source": source, "class": mid})
 

@@ -17,7 +17,7 @@ DEFAULTS = {
     "language": "en",
     "timezone": None,
     "api": {"host": "0.0.0.0", "port": 8765, "token": None},
-    "analysis": {"hop_s": 0.48, "context_boost": 0.15, "hold_s": 2.0},
+    "analysis": {"hop_s": 0.48, "context_boost": 0.15, "hold_s": 2.0, "safety_boost_cap": 0.05},
     "storage": {"clips_dir": "/data/clips", "db_path": "/data/events.sqlite", "ring_seconds": 30, "events_retention_days": 30},
     "defaults": {"min_volume_dbfs": -60, "schedule": {"mode": "continuous"}, "clips": {"allowed": True, "max_retention_days": 30}},
     "classes": {},
@@ -140,6 +140,8 @@ def validate(cfg, catalog: Catalog):
         errs.append("analysis.hop_s must be between 0.1 and 0.975")
     if not _num(cfg["analysis"].get("context_boost"), 0, 1):
         errs.append("analysis.context_boost must be between 0 and 1")
+    if not _num(cfg["analysis"].get("safety_boost_cap"), 0, 1):
+        errs.append("analysis.safety_boost_cap must be between 0 and 1")
     d = cfg["defaults"]
     if d.get("min_volume_dbfs") is not None and not _num(d["min_volume_dbfs"], -90, 0):
         errs.append("defaults.min_volume_dbfs must be between -90 and 0 (or null)")
@@ -172,6 +174,13 @@ def validate(cfg, catalog: Catalog):
             errs.append(f"{w}.min_volume_dbfs must be between -90 and 0")
         if "schedule" in s:
             _check_schedule(s["schedule"], f"{w}.schedule", errs)
+        if s.get("environment") is not None and s["environment"] not in {e["id"] for e in catalog.raw.get("environments", [])}:
+            errs.append(f"{w}.environment: unknown environment '{s['environment']}'")
+        if "adaptive" in s:
+            ad = s["adaptive"]
+            if not isinstance(ad, dict) or set(ad) - {"enabled", "max_offset"} or not isinstance(ad.get("enabled", False), bool) \
+                    or ("max_offset" in ad and not _num(ad["max_offset"], 0, 0.4)):
+                errs.append(f"{w}.adaptive: only 'enabled' (true/false) and 'max_offset' (0 to 0.4) are allowed")
         if "advice" in s:
             _check_advice(s["advice"], f"{w}.advice", rule_ids, errs)
         clips = s.get("clips") or {}

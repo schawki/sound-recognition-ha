@@ -7,6 +7,7 @@ import zoneinfo
 import numpy as np
 
 from . import settings as st
+from .ambient import AmbientTracker
 from .audio import RingBuffer
 from .classifier import SAMPLE_RATE, WINDOW
 
@@ -22,8 +23,13 @@ class SourcePipeline:
         self.ring = RingBuffer(cfg["storage"]["ring_seconds"])
         self.tz = zoneinfo.ZoneInfo(tz) if tz else None
         self.state = {"connected": False, "error": None, "level_dbfs": None, "below_gate": False,
-                      "active_classes": [], "last_window": None, "windows": 0, "inferences": 0}
+                      "active_classes": [], "last_window": None, "windows": 0, "inferences": 0,
+                      "active_contexts": [], "ambient_dbfs": None, "baseline_dbfs": None, "adaptive_offset": 0.0,
+                      "adaptive_enabled": False}
+        self.ambient = AmbientTracker()
         self._runs = {}      # mid -> run state
+        self._shadow = {}    # mid -> detections that only the raised threshold stopped (counted, never reported as detections)
+        self._shadow_cool = {}
         self._cool = {}      # mid -> abs sample index until which re-emission is blocked
         self._pending = []   # clips waiting for their post-roll
         self._next_end = WINDOW
@@ -35,14 +41,20 @@ class SourcePipeline:
         a = cfg["analysis"]
         self.hop = max(1, int(a["hop_s"] * SAMPLE_RATE))
         self.boost, self.hold_s = a["context_boost"], a["hold_s"]
+        self.safety_cap = a.get("safety_boost_cap", 0.05)
+        ad = self.source.get("adaptive") or {}
+        self.adaptive_on, self.max_offset = bool(ad.get("enabled")), ad.get("max_offset", 0.15)
+        self.state["adaptive_enabled"] = self.adaptive_on
         self.resolved = {}
         for c in self.cat.by_mid.values():
             r = st.resolve(cfg, self.cat, self.sid, c["mid"])
             if r["enabled"]:
                 self.resolved[c["mid"]] = r
-        for mid in list(self._runs):
-            if mid not in self.resolved:
-                del self._runs[mid]
+        self._safety = {m: st.is_safety(self.cat.by_mid[m]) for m in self.resolved}
+        for table in (self._runs, self._shadow):
+            for mid in list(table):
+                if mid not in self.resolved:
+                    del table[mid]
 
     # ---------------------------------------------------------------- feed
     def feed(self, pcm, now):
@@ -71,6 +83,12 @@ class SourcePipeline:
         x = raw.astype(np.float32) / 32768.0
         level = 20 * math.log10(max(float(np.sqrt(np.mean(x * x))), 1e-9))
         st_["level_dbfs"] = round(level, 1)
+        self.ambient.add(t_end.timestamp(), level)
+        amb_off = self.ambient.offset(self.max_offset) if self.adaptive_on else 0.0
+        st_["ambient_dbfs"] = round(self.ambient.ambient, 1)
+        base = self.ambient.baseline
+        st_["baseline_dbfs"] = None if base is None else round(base, 1)
+        st_["adaptive_offset"] = amb_off
         local = self._local_naive(t_end)
         active = {m: r for m, r in self.resolved.items() if st.is_active(r["schedule"], local)}
         passing = {m: r for m, r in active.items() if r["min_volume_dbfs"] is None or level >= r["min_volume_dbfs"]}
@@ -81,29 +99,47 @@ class SourcePipeline:
                 self._miss(m, end)
         if not passing:
             st_["active_classes"] = self._active_now(end)
+            st_["active_contexts"] = []
             return []
         scores = self.clf.predict(x)
         st_["inferences"] += 1
         ctx_on = {m for m, r in active.items()
                   if self.cat.by_mid[m]["interest"] == "context" and scores[self.cat.by_mid[m]["yamnet_index"]] >= r["threshold"]}
+        st_["active_contexts"] = sorted(ctx_on)
         events = []
         for m, r in passing.items():
             c = self.cat.by_mid[m]
             score = float(scores[c["yamnet_index"]])
-            thr = r["threshold"]
-            if c["interest"] != "context" and any(x_ in ctx_on for x_ in c["inhibiting_contexts"]):
-                thr = min(0.99, thr + self.boost)
+            base = r["threshold"]
+            reasons, total = [], 0.0
+            if c["interest"] != "context":
+                if any(x_ in ctx_on for x_ in c["inhibiting_contexts"]):
+                    reasons.append("context")
+                    total += self.boost
+                if amb_off:
+                    reasons.append("ambient")
+                    total += amb_off
+            if total and self._safety.get(m):
+                total = min(total, self.safety_cap)       # a safety sound is never made much harder to hear
+            thr = min(0.99, base + total)
             if score >= thr:
-                ev = self._hit(m, r, c, score, end, t_end)
+                self._shadow.pop(m, None)
+                ev = self._hit(m, r, c, score, end, t_end, thr, total)
                 if ev:
                     events.append(ev)
             else:
                 self._miss(m, end)
+                if total and score >= base:
+                    ev = self._masked(m, r, c, score, base, thr, total, reasons, end, t_end)
+                    if ev:
+                        events.append(ev)
+                else:
+                    self._shadow.pop(m, None)
         st_["active_classes"] = self._active_now(end)
         return events
 
     # ---------------------------------------------------------------- run state machine
-    def _hit(self, m, r, c, score, end, t_end):
+    def _hit(self, m, r, c, score, end, t_end, thr, offset=0.0):
         run = self._runs.get(m)
         if run is None:
             run = self._runs[m] = {"first_end": end, "hits": 0, "misses": 0, "peak": 0.0, "emitted": False, "last_end": end}
@@ -119,7 +155,7 @@ class SourcePipeline:
         onset_abs = run["first_end"] - WINDOW
         started = t_end - dt.timedelta(seconds=(end - onset_abs) / SAMPLE_RATE)
         ev = {"type": "detection", "id": uuid.uuid4().hex[:12], "source": self.sid, "mid": m, "class": c["audioset_name"],
-              "score": round(run["peak"], 3), "threshold": r["threshold"], "duration_s": round(covered, 2),
+              "score": round(run["peak"], 3), "threshold": thr, "offset": round(offset, 3), "duration_s": round(covered, 2),
               "level_dbfs": self.state["level_dbfs"], "started_at": started.isoformat(), "detected_at": t_end.isoformat(),
               "clip_retention_days": r["clip_retention_days"]}
         if r["clip_retention_days"] > 0:
@@ -127,6 +163,20 @@ class SourcePipeline:
                                   "to": end + int(r["post_roll_s"] * SAMPLE_RATE), "retention": r["clip_retention_days"],
                                   "meta": {k: ev[k] for k in ("source", "mid", "class", "score", "started_at")}})
         return ev
+
+    def _masked(self, m, r, c, score, base, thr, offset, reasons, end, t_end):
+        """A sound that would have been reported without the raised threshold: counted so the administrator can see what is hidden."""
+        run = self._shadow.setdefault(m, {"first_end": end, "hits": 0, "peak": 0.0, "emitted": False})
+        run["hits"] += 1
+        run["peak"] = max(run["peak"], score)
+        covered = WINDOW_S + (run["hits"] - 1) * self.hop / SAMPLE_RATE
+        if run["emitted"] or covered + 1e-9 < r["min_duration_s"] or end < self._shadow_cool.get(m, 0):
+            return None
+        run["emitted"] = True
+        self._shadow_cool[m] = end + int(r["cooldown_s"] * SAMPLE_RATE)
+        return {"type": "masked", "id": uuid.uuid4().hex[:12], "source": self.sid, "mid": m, "class": c["audioset_name"],
+                "score": round(run["peak"], 3), "threshold": thr, "base_threshold": base, "offset": round(offset, 3),
+                "reasons": reasons, "duration_s": round(covered, 2), "detected_at": t_end.isoformat()}
 
     def _miss(self, m, end):
         run = self._runs.get(m)

@@ -94,14 +94,72 @@ def test_schedule_outside_window_is_silent():
 
 
 def test_context_raises_threshold():
-    cls = {"Screaming": {"enabled": True, "min_duration_s": 0}, "Television": {"enabled": True}}
+    cls = {"Bark": {"enabled": True, "min_duration_s": 0}, "Television": {"enabled": True}}
     cfg = make_cfg(cls)
-    only_scream = Fake({"Screaming": 0.7})                          # catalog threshold 0.6
-    assert len(det(run(SourcePipeline(cfg["sources"][0], cfg, CAT, only_scream), 3))) == 1
-    with_tv = Fake({"Screaming": 0.7, "Television": 0.9})           # threshold becomes 0.75 -> silent
+    only_bark = Fake({"Bark": 0.6})                                 # catalog threshold 0.5
+    assert len(det(run(SourcePipeline(cfg["sources"][0], cfg, CAT, only_bark), 3))) == 1
+    with_tv = Fake({"Bark": 0.6, "Television": 0.9})                # threshold becomes 0.65 -> silent
     assert det(run(SourcePipeline(cfg["sources"][0], cfg, CAT, with_tv), 3)) == []
-    strong = Fake({"Screaming": 0.9, "Television": 0.9})
-    assert len(det(run(SourcePipeline(cfg["sources"][0], cfg, CAT, strong), 3))) == 1
+    strong = Fake({"Bark": 0.9, "Television": 0.9})
+    ev = det(run(SourcePipeline(cfg["sources"][0], cfg, CAT, strong), 3))
+    assert len(ev) == 1 and ev[0]["threshold"] == 0.65 and ev[0]["offset"] == 0.15
+
+
+def test_safety_sounds_are_only_raised_up_to_the_cap():
+    cls = {"Screaming": {"enabled": True, "min_duration_s": 0}, "Television": {"enabled": True}}   # Screaming: threshold 0.6
+    cfg = make_cfg(cls)
+    p = SourcePipeline(cfg["sources"][0], cfg, CAT, Fake({"Screaming": 0.7, "Television": 0.9}))
+    ev = det(run(p, 3))
+    assert len(ev) == 1 and ev[0]["threshold"] == 0.65             # +0.05 (cap), not +0.15
+    cfg = make_cfg(cls, analysis={"safety_boost_cap": 0.0})
+    p = SourcePipeline(cfg["sources"][0], cfg, CAT, Fake({"Screaming": 0.61, "Television": 0.9}))
+    assert det(run(p, 3))[0]["threshold"] == 0.6                   # 0 = never raised
+    cfg = make_cfg(cls, analysis={"safety_boost_cap": 1.0})
+    p = SourcePipeline(cfg["sources"][0], cfg, CAT, Fake({"Screaming": 0.7, "Television": 0.9}))
+    assert det(run(p, 3)) == []                                    # cap 1 = same as any other class
+
+
+def test_sounds_hidden_by_the_raised_threshold_are_counted_once():
+    cls = {"Bark": {"enabled": True, "min_duration_s": 0, "cooldown_s": 30}, "Television": {"enabled": True}}
+    cfg = make_cfg(cls)
+    p = SourcePipeline(cfg["sources"][0], cfg, CAT, Fake({"Bark": 0.6, "Television": 0.9}))
+    ev = run(p, 6)
+    assert [e["class"] for e in det(ev)] == ["Television"]          # the context itself is reported; the bark is not
+    masked = [e for e in ev if e["type"] == "masked"]
+    assert len(masked) == 1                                        # cooldown: one per episode, like a detection
+    m = masked[0]
+    assert m["class"] == "Bark" and m["base_threshold"] == 0.5 and m["threshold"] == 0.65 and m["reasons"] == ["context"]
+    cfg = make_cfg({"Bark": {"enabled": True, "min_duration_s": 0}})
+    assert [e for e in run(SourcePipeline(cfg["sources"][0], cfg, CAT, Fake({"Bark": 0.3})), 4) if e["type"] == "masked"] == []   # below even the base threshold
+
+
+def test_ambient_tracker_baseline_and_offset():
+    from soundrec.ambient import AmbientTracker, WARMUP_MINUTES
+    tr = AmbientTracker()
+    for i in range(WARMUP_MINUTES * 60 - 30):                      # not enough history yet
+        tr.add(float(i), -50.0)
+    assert tr.baseline is None and tr.offset(0.15) == 0.0
+    for i in range(WARMUP_MINUTES * 60, WARMUP_MINUTES * 60 + 120):
+        tr.add(float(i), -50.0)
+    assert tr.baseline == -50.0 and tr.offset(0.15) == 0.0         # quiet room: nothing
+    t0 = WARMUP_MINUTES * 60 + 120
+    for i in range(90):                                            # TV on: 20 dB louder for 90 s
+        tr.add(float(t0 + i), -30.0)
+    assert tr.ambient == -30.0
+    assert tr.offset(0.15) == pytest.approx(0.15 * (20 - 6) / 30, abs=0.001)
+    assert tr.offset(0.0) == 0.0
+
+
+def test_adaptive_setting_raises_thresholds_only_when_enabled():
+    cls = {"Bark": {"enabled": True, "min_duration_s": 0}}
+    for enabled, expected in ((False, 1), (True, 0)):
+        cfg = make_cfg(cls, source={"adaptive": {"enabled": enabled, "max_offset": 0.2}})
+        p = SourcePipeline(cfg["sources"][0], cfg, CAT, Fake({"Bark": 0.6}))
+        p.ambient._minutes.extend([-60.0] * 40)                    # a known quiet baseline of -60 dBFS
+        ev = run(p, 3)                                             # loud() sits near -20 dBFS: 40 dB above the baseline
+        assert len(det(ev)) == expected
+        if enabled:
+            assert p.state["adaptive_offset"] == 0.2 and [e["reasons"] for e in ev if e["type"] == "masked"] == [["ambient"]]
 
 
 def test_clip_pre_and_post_roll_and_forbidden():

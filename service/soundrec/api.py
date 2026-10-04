@@ -103,6 +103,32 @@ async def events(req):
     return web.json_response({"events": rows})
 
 
+async def recommendations(req):
+    return web.json_response({"recommendations": req.app["engine"].recommendations(_lang(req))})
+
+
+async def stats(req):
+    try:
+        hours = max(1, min(int(req.query.get("hours", 24)), 24 * 30))
+    except ValueError:
+        return web.json_response({"error": "hours must be a number"}, status=400)
+    return web.json_response(req.app["engine"].stats(hours))
+
+
+async def feedback(req):
+    """Marks a detection as false (or clears the mark): {"false": true|false}."""
+    try:
+        body = await req.json()
+        value = "false" if body["false"] is True else None
+        if body["false"] not in (True, False):
+            raise ValueError
+    except Exception:
+        return web.json_response({"error": 'body must be {"false": true|false}'}, status=400)
+    if not req.app["engine"].store.set_feedback(req.match_info["id"], value):
+        return web.json_response({"error": "unknown event"}, status=404)
+    return web.json_response({"ok": True})
+
+
 async def clip(req):
     p = req.app["engine"].clips.path(req.match_info["rel"])
     if not p:
@@ -148,6 +174,7 @@ def make_app(engine):
         web.get(f"{p}/health", health), web.get(f"{p}/languages", languages), web.get(f"{p}/catalog", catalog),
         web.get(f"{p}/config", get_config), web.put(f"{p}/config", put_config), web.post(f"{p}/config/validate", validate_config),
         web.get(f"{p}/warnings", warnings), web.get(f"{p}/sources", sources), web.get(f"{p}/resolved", resolved),
-        web.get(f"{p}/events", events), web.get(f"{p}/clips/{{rel:.+}}", clip), web.get(f"{p}/ws", ws),
+        web.get(f"{p}/events", events), web.get(f"{p}/recommendations", recommendations), web.get(f"{p}/stats", stats),
+        web.post(f"{p}/events/{{id}}/feedback", feedback), web.get(f"{p}/clips/{{rel:.+}}", clip), web.get(f"{p}/ws", ws),
     ])
     return app
