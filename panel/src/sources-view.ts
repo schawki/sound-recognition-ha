@@ -1,5 +1,6 @@
 import { LitElement, css, html, nothing } from "lit";
 import { property, state } from "lit/decorators.js";
+import { repeat } from "lit/directives/repeat.js";
 import type { PanelApi } from "./api";
 import type { T } from "./i18n";
 import { cellsToWindows, hoursPerWeek, windowsToCells } from "./schedule";
@@ -10,11 +11,31 @@ const TYPES: [string, "typeRtsp" | "typeGo2rtc" | "typeAlsa" | "typeEsphome" | "
   ["rtsp", "typeRtsp"], ["go2rtc", "typeGo2rtc"], ["alsa_rpi", "typeAlsa"], ["esphome", "typeEsphome"], ["file", "typeFile"],
 ];
 
+interface Row { key: number; name: string; url: string }
+
 interface Form {
   id: string; isNew: boolean; name: string; type: string; url: string; enabled: boolean;
+  rows: Row[]; picked: Record<string, string>;
   offset: string; minVolume: string; scheduled: boolean; cells: boolean[];
   clipsAllowed: boolean; clipsMaxDays: string;
 }
+
+let rowKey = 0;
+const newRow = (name = "", url = ""): Row => ({ key: ++rowKey, name, url });
+let lastType = "go2rtc";   // the type of the last source added, so the next one starts on it (kept while the page stays open)
+
+/** "name, rtsp://…" or just "rtsp://…" (one per line); blank lines are ignored. */
+export function parseList(text: string): Row[] {
+  return text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((l) => {
+    const m = l.match(/^(.*?)[,;\t]\s*([a-z][a-z0-9+.-]*:\/\/\S+)$/i);
+    return m ? newRow(m[1].trim(), m[2]) : newRow("", l);
+  });
+}
+
+const nameFromUrl = (u: string): string => {
+  const last = u.replace(/[?#].*$/, "").split("/").filter(Boolean).pop() ?? "";
+  return last.includes(":") ? "" : decodeURIComponent(last);
+};
 
 const slug = (s: string): string => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 40) || "source";
 
@@ -75,7 +96,7 @@ export class SourcesView extends LitElement {
   private toForm(s: SourceCfg): Form {
     const sched = s.schedule;
     return {
-      id: s.id, isNew: false, name: s.name ?? s.id, type: s.type, url: s.url, enabled: s.enabled !== false,
+      id: s.id, isNew: false, name: s.name ?? s.id, type: s.type, url: s.url, enabled: s.enabled !== false, rows: [], picked: {},
       offset: s.threshold_offset == null ? "" : String(s.threshold_offset),
       minVolume: s.min_volume_dbfs == null ? "" : String(s.min_volume_dbfs),
       scheduled: sched?.mode === "scheduled", cells: windowsToCells(sched?.windows ?? []),
@@ -84,7 +105,7 @@ export class SourcesView extends LitElement {
   }
 
   private blankForm(): Form {
-    return { id: "", isNew: true, name: "", type: "rtsp", url: "", enabled: true, offset: "", minVolume: "", scheduled: false, cells: new Array(336).fill(false), clipsAllowed: true, clipsMaxDays: "" };
+    return { id: "", isNew: true, name: "", type: lastType, url: "", enabled: true, rows: [newRow()], picked: {}, offset: "", minVolume: "", scheduled: false, cells: new Array(336).fill(false), clipsAllowed: true, clipsMaxDays: "" };
   }
 
   /** Applies the form on a copy of the stored source, so fields the form does not know (class settings, advice) are kept. */
@@ -110,8 +131,8 @@ export class SourcesView extends LitElement {
     return s;
   }
 
-  private uniqueId(name: string): string {
-    const taken = new Set(this.sources.map((s) => s.id));
+  private uniqueId(name: string, also: Iterable<string> = []): string {
+    const taken = new Set([...this.sources.map((s) => s.id), ...also]);
     const base = slug(name);
     let id = base;
     for (let n = 2; taken.has(id); n++) id = `${base}_${n}`;
@@ -150,11 +171,29 @@ export class SourcesView extends LitElement {
       this.errors = [this.t("pickSomething")];
       return;
     }
-    const id = f.isNew ? this.uniqueId(f.name || "source") : f.id;
-    const existing = this.sources.find((s) => s.id === f.id);
-    const updated = this.fromForm({ ...f, id }, existing);
-    const next = f.isNew ? [...this.sources, updated] : this.sources.map((s) => (s.id === f.id ? updated : s));
-    if (await this.commit(next, id)) this.form = null;
+    if (!f.isNew) {
+      const existing = this.sources.find((s) => s.id === f.id);
+      const updated = this.fromForm({ ...f }, existing);
+      if (await this.commit(this.sources.map((s) => (s.id === f.id ? updated : s)), f.id)) this.form = null;
+      return;
+    }
+    // new sources: the checked go2rtc streams, then the typed or pasted rows; one check and one save for all of them
+    const wanted: { name: string; url: string }[] = [];
+    if (f.type === "go2rtc") for (const [url, name] of Object.entries(f.picked)) wanted.push({ name, url });
+    for (const r of f.rows) if (r.url.trim()) wanted.push({ name: r.name, url: r.url });
+    if (wanted.length === 0) {
+      this.errors = [this.t("pickAtLeastOne")];
+      return;
+    }
+    const made: SourceCfg[] = [];
+    for (const w of wanted) {
+      const name = w.name.trim() || nameFromUrl(w.url) || this.t("sourceDefaultName");
+      made.push(this.fromForm({ ...f, id: this.uniqueId(name, made.map((m) => m.id)), name, url: w.url }));
+    }
+    if (await this.commit([...this.sources, ...made], made[0].id)) {
+      lastType = f.type;
+      this.form = null;
+    }
   }
 
   private async toggleEnabled(s: SourceCfg): Promise<void> {
@@ -170,6 +209,7 @@ export class SourcesView extends LitElement {
 
   private set<K extends keyof Form>(key: K, value: Form[K]): void {
     if (this.form) this.form = { ...this.form, [key]: value };
+    if (key === "type" && this.form?.isNew) lastType = value as string;
   }
 
   // ------------------------------------------------------------------ rendering
@@ -195,7 +235,7 @@ export class SourcesView extends LitElement {
   private renderList() {
     const t = this.t;
     return html`
-      <div class="toolbar"><button class="primary" data-action="add" @click=${() => { this.errors = []; this.form = this.blankForm(); }}>${t("addSource")}</button></div>
+      <div class="toolbar"><button class="primary" data-action="add" @click=${() => { this.errors = []; this.form = this.blankForm(); }}>${t("addSources")}</button></div>
       ${this.errors.length ? this.renderErrors() : nothing}
       ${this.sources.length === 0 ? html`<p class="note">${t("noSources")}</p>` : html`<ul class="list">${this.sources.map((s) => html`
         <li data-source=${s.id}>
@@ -228,10 +268,51 @@ export class SourcesView extends LitElement {
         <button type="button" data-action="g2-load" ?disabled=${g.loading || !g.url.trim()} @click=${() => void this.loadStreams(this.g2.url)}>${t("go2rtcLoad")}</button></span>
         <small>${t("go2rtcAddressHelp")}</small></label>
       ${g.error ? html`<p class="note error" data-g2-error>${g.error}</p>` : nothing}
-      ${g.streams.length ? html`<label>${t("go2rtcStream")}
+      ${g.streams.length && f.isNew ? this.renderStreamChecklist(f, used) : g.streams.length ? html`<label>${t("go2rtcStream")}
         <select name="g2stream" @change=${(e: Event) => { this.pickStream((e.target as HTMLSelectElement).value); (e.target as HTMLSelectElement).value = ""; }}>
           <option value="" selected>${t("go2rtcPick")}</option>
           ${g.streams.map((x) => html`<option value=${x.url}>${x.name}${used.has(x.url) ? ` (${t("alreadyAdded")})` : ""}</option>`)}</select></label>` : g.tried && !g.loading && !g.error && g.url ? html`<p class="note">${t("go2rtcNone")}</p>` : nothing}
+    </fieldset>`;
+  }
+
+  private renderStreamChecklist(f: Form, used: Set<string>) {
+    const t = this.t;
+    return html`<div class="streams" role="group" aria-label=${t("go2rtcStream")}>
+      <div class="gridbar"><span class="dim">${t("go2rtcStream")}</span>
+        <button type="button" data-action="g2-all" @click=${() => this.set("picked", Object.fromEntries(this.g2.streams.filter((x) => !used.has(x.url)).map((x) => [x.url, f.picked[x.url] ?? x.name])))}>${t("all")}</button>
+        <button type="button" data-action="g2-none" @click=${() => this.set("picked", {})}>${t("none")}</button></div>
+      ${this.g2.streams.map((x) => {
+        const taken = used.has(x.url), on = x.url in f.picked;
+        return html`<div class="stream" data-stream=${x.name}>
+          <label class="inline"><input type="checkbox" name="g2pick" .checked=${on} ?disabled=${taken}
+            @change=${(e: Event) => { const next = { ...f.picked }; if ((e.target as HTMLInputElement).checked) next[x.url] = x.name; else delete next[x.url]; this.set("picked", next); }} />
+            ${x.name}${taken ? html` <span class="dim">(${t("alreadyAdded")})</span>` : nothing}</label>
+          ${on ? html`<input class="rowname" name="g2name" aria-label=${t("name")} .value=${f.picked[x.url]} @input=${(e: Event) => this.set("picked", { ...f.picked, [x.url]: (e.target as HTMLInputElement).value })} />` : nothing}
+        </div>`;
+      })}</div>`;
+  }
+
+  private renderRows(f: Form) {
+    const t = this.t;
+    const upd = (key: number, patch: Partial<Row>) => this.set("rows", f.rows.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+    return html`<fieldset class="rows"><legend>${f.type === "go2rtc" ? t("otherAddresses") : t("camerasToAdd")}</legend>
+      ${repeat(f.rows, (r) => r.key, (r, i) => html`<div class="rowline" data-row=${i}>
+        <input name="row-name" placeholder=${t("name")} aria-label=${t("name")} .value=${r.name} @input=${(e: Event) => upd(r.key, { name: (e.target as HTMLInputElement).value })} />
+        <input name="row-url" placeholder="rtsp://…" aria-label=${t("address")} .value=${r.url} @input=${(e: Event) => upd(r.key, { url: (e.target as HTMLInputElement).value })} />
+        <button type="button" data-action="row-remove" aria-label=${t("remove")} ?disabled=${f.rows.length === 1 && !r.url && !r.name}
+          @click=${() => this.set("rows", f.rows.length === 1 ? [newRow()] : f.rows.filter((x) => x.key !== r.key))}>✕</button></div>`)}
+      <div class="gridbar"><button type="button" data-action="row-add" @click=${() => this.set("rows", [...f.rows, newRow()])}>${t("addRow")}</button></div>
+      <details class="paste"><summary>${t("pasteList")}</summary>
+        <textarea name="paste" rows="4" placeholder="Salon, rtsp://192.168.1.20:554/stream1&#10;rtsp://192.168.1.21:554/stream1"></textarea>
+        <small>${t("pasteHelp")}</small>
+        <div class="gridbar"><button type="button" data-action="paste-add" @click=${(e: Event) => {
+          const ta = (e.target as HTMLElement).closest("details")!.querySelector("textarea")!;
+          const parsed = parseList(ta.value);
+          if (!parsed.length) return;
+          ta.value = "";
+          this.set("rows", [...f.rows.filter((r) => r.url.trim() || r.name.trim()), ...parsed]);
+        }}>${t("pasteAdd")}</button></div></details>
+      <small>${f.type === "go2rtc" ? t("rowsHelpGo2rtc") : t("addressHelp")}</small>
     </fieldset>`;
   }
 
@@ -239,13 +320,17 @@ export class SourcesView extends LitElement {
     const t = this.t;
     return html`
       <form @submit=${(e: Event) => void this.submit(e)}>
-        <h2>${f.isNew ? t("addSource") : f.name}</h2>
+        <h2>${f.isNew ? t("addSources") : f.name}</h2>
         ${this.errors.length ? this.renderErrors() : nothing}
-        <label>${t("name")}<input name="name" required .value=${f.name} @input=${(e: Event) => this.set("name", (e.target as HTMLInputElement).value)} /></label>
+        ${f.isNew ? nothing : html`
+        <label>${t("name")}<input name="name" required .value=${f.name} @input=${(e: Event) => this.set("name", (e.target as HTMLInputElement).value)} /></label>`}
         <label>${t("type")}<select name="type" .value=${f.type} @change=${(e: Event) => this.set("type", (e.target as HTMLSelectElement).value)}>
           ${TYPES.map(([k, key]) => html`<option value=${k} ?selected=${f.type === k}>${t(key)}</option>`)}</select></label>
         ${f.type === "go2rtc" ? this.renderGo2rtc(f) : nothing}
-        <label>${t("address")}<input name="url" required .value=${f.url} @input=${(e: Event) => this.set("url", (e.target as HTMLInputElement).value)} /><small>${t("addressHelp")}</small></label>
+        ${f.isNew ? this.renderRows(f) : html`
+        <label>${t("address")}<input name="url" required .value=${f.url} @input=${(e: Event) => this.set("url", (e.target as HTMLInputElement).value)} /><small>${t("addressHelp")}</small></label>`}
+        ${f.isNew
+          ? html`<details class="adv"><summary>${t("advancedSettings")}</summary><div class="advbody">
         <label class="inline"><input type="checkbox" name="enabled" .checked=${f.enabled} @change=${(e: Event) => this.set("enabled", (e.target as HTMLInputElement).checked)} />${t("enabled")}</label>
         <div class="two">
           <label>${t("thresholdOffset")}<input name="offset" type="number" step="0.01" min="-1" max="1" .value=${f.offset} @input=${(e: Event) => this.set("offset", (e.target as HTMLInputElement).value)} /><small>${t("thresholdOffsetHelp")}</small></label>
@@ -270,6 +355,32 @@ export class SourcesView extends LitElement {
           <label class="inline"><input type="checkbox" name="clipsAllowed" .checked=${f.clipsAllowed} @change=${(e: Event) => this.set("clipsAllowed", (e.target as HTMLInputElement).checked)} />${t("clipsAllowed")}</label>
           ${f.clipsAllowed ? html`<label>${t("clipsMaxDays")}<input name="clipsMaxDays" type="number" min="0" max="3650" step="1" .value=${f.clipsMaxDays} @input=${(e: Event) => this.set("clipsMaxDays", (e.target as HTMLInputElement).value)} /></label>` : nothing}
         </fieldset>
+          </div></details>`
+          : html`
+        <label class="inline"><input type="checkbox" name="enabled" .checked=${f.enabled} @change=${(e: Event) => this.set("enabled", (e.target as HTMLInputElement).checked)} />${t("enabled")}</label>
+        <div class="two">
+          <label>${t("thresholdOffset")}<input name="offset" type="number" step="0.01" min="-1" max="1" .value=${f.offset} @input=${(e: Event) => this.set("offset", (e.target as HTMLInputElement).value)} /><small>${t("thresholdOffsetHelp")}</small></label>
+          <label>${t("minVolume")}<input name="minVolume" type="number" step="1" min="-90" max="0" .value=${f.minVolume} @input=${(e: Event) => this.set("minVolume", (e.target as HTMLInputElement).value)} /><small>${t("minVolumeHelp")}</small></label>
+        </div>
+        <fieldset>
+          <legend>${t("listenMode")}</legend>
+          <label class="inline"><input type="radio" name="mode" value="continuous" .checked=${!f.scheduled} @change=${() => this.set("scheduled", false)} />${t("continuous")}</label>
+          <label class="inline"><input type="radio" name="mode" value="scheduled" .checked=${f.scheduled} @change=${() => this.set("scheduled", true)} />${t("scheduled")}</label>
+          ${f.scheduled ? html`
+            <p class="dim">${t("gridHelp")}</p>
+            <sr-schedule-grid .cells=${f.cells} .language=${this.language} @cells-changed=${(e: CustomEvent<boolean[]>) => this.set("cells", e.detail)}></sr-schedule-grid>
+            <div class="gridbar">
+              <span class="dim">${t("hoursPerWeek", { h: hoursPerWeek(f.cells) })}</span>
+              <button type="button" @click=${() => this.set("cells", new Array(336).fill(true))}>${t("all")}</button>
+              <button type="button" @click=${() => this.set("cells", new Array(336).fill(false))}>${t("none")}</button>
+            </div>
+            ${f.cells.some(Boolean) ? nothing : html`<p class="note error">${t("pickSomething")}</p>`}` : nothing}
+        </fieldset>
+        <fieldset>
+          <legend>${t("clipsAllowed")}</legend>
+          <label class="inline"><input type="checkbox" name="clipsAllowed" .checked=${f.clipsAllowed} @change=${(e: Event) => this.set("clipsAllowed", (e.target as HTMLInputElement).checked)} />${t("clipsAllowed")}</label>
+          ${f.clipsAllowed ? html`<label>${t("clipsMaxDays")}<input name="clipsMaxDays" type="number" min="0" max="3650" step="1" .value=${f.clipsMaxDays} @input=${(e: Event) => this.set("clipsMaxDays", (e.target as HTMLInputElement).value)} /></label>` : nothing}
+        </fieldset>`}
         <div class="buttons">
           <button type="button" data-action="cancel" @click=${() => { this.form = null; this.errors = []; }}>${t("cancel")}</button>
           <button type="submit" class="primary" data-action="save" ?disabled=${this.busy}>${this.busy ? t("saving") : t("save")}</button>
@@ -305,6 +416,11 @@ export class SourcesView extends LitElement {
     legend { padding: 0 6px; font-size: 0.9rem; }
     .gridbar { display: flex; gap: 8px; align-items: center; } .gridbar .dim { flex: 1; }
     .row { display: flex; gap: 8px; } .row input { flex: 1; }
+    .streams { display: flex; flex-direction: column; gap: 6px; } .stream { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-height: 34px; } .stream label { min-width: 140px; } .stream .rowname { flex: 1; min-width: 160px; }
+    .rowline { display: grid; grid-template-columns: minmax(100px, 1fr) minmax(160px, 2fr) auto; gap: 8px; }
+    textarea { font: inherit; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--divider-color); background: var(--primary-background-color); color: var(--primary-text-color); width: 100%; box-sizing: border-box; margin: 6px 0; }
+    details.adv, details.paste { border: 1px solid var(--divider-color); border-radius: 10px; padding: 8px 14px; } details.paste { border: 0; padding: 0; }
+    details > summary { cursor: pointer; font-size: 0.9rem; } .advbody { display: flex; flex-direction: column; gap: 14px; margin-top: 12px; }
     .buttons { display: flex; justify-content: flex-end; gap: 10px; }
   `;
 }
