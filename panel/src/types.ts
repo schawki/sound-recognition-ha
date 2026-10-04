@@ -89,3 +89,9 @@ export interface ServiceConfig {
 export interface Validation { errors: string[]; warnings: Advice[] }
 
 export interface Go2rtcStreams { configured: boolean; url: string; streams: { name: string; url: string }[] }
+
+export interface UpdateStatus { state: "idle" | "requested" | "running" | "done" | "failed"; message?: string; log?: string; stalled?: boolean; updated?: number | null }
+export interface UpdateInfo {
+  installed: string | null; latest: string | null; available: boolean; outdated: boolean; capable: boolean; installing: boolean;
+  status: UpdateStatus | Record<string, never>; release_url: string; manual_command: string; api_level: number; min_api_level: number;
+}

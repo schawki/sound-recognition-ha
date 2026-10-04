@@ -46,6 +46,20 @@ pct exec <CTID> -- bash -c 'git -C /opt/sound-recognition-ha pull && bash /opt/s
 ```
 
 
+### Updating from Home Assistant
+
+From version 0.2.0 the integration shows an **Update** entity for the service (*Settings → Devices & services → Sound Recognition*) and a banner in the panel when a newer release exists or when the service is too old for the integration. Press *Update* (entity or banner): the service restarts, the panel follows the progress and Home Assistant sends a notification when the service is back online (or when the update failed, with the end of the log).
+
+How it works, and what it is allowed to do:
+
+- The service itself stays unprivileged. It only drops a request file; a small root helper (`soundrec-update`, started by the systemd path unit `soundrec-update.path`) does the work. The helper reads only its own root-owned file `/etc/soundrec-updater.env`, never the content of the request, and writes its progress in `/var/lib/soundrec-update/`, a folder the service can read but not write.
+- Only **tagged releases** (`vX.Y.Z`) are installed, never the tip of `main`. The helper fast-forwards the clone to the latest tag and runs `install.sh`; if that fails, the previous version is restored and the failure is reported.
+- Config and data are kept. After an update the clone stays on `main`, fast-forwarded to the tag, so the manual `git pull` command above keeps working.
+- It needs Debian/Ubuntu with systemd (the LXC of this guide, or any host installed with `install.sh`). With Docker, update by pulling a new image: the Update entity then only informs.
+- Turn it off with `SOUNDREC_REMOTE_UPDATE=0 bash deploy/install.sh` (the helper is removed). It is on by default.
+
+**One manual update is needed** to install the helper the first time (the old service does not have it): run the update command above once, then restart the integration (HACS update + restart Home Assistant). Afterwards, updates can be launched from Home Assistant. Until then the Update entity only informs and shows the command to run.
+
 Restart after editing the YAML by hand: `systemctl restart soundrec`.
 
 ## Troubleshooting

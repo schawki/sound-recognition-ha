@@ -52,6 +52,7 @@ with sync_playwright() as p:
         pg = b.new_page(viewport={"width": w, "height": h}, color_scheme=scheme)
         pg.on("pageerror", lambda e: errors.append(str(e)))
         pg.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
+        pg.add_init_script("window.__updatePollMs = 50")
         pg.goto(base + query)
         return pg
 
@@ -420,6 +421,49 @@ with sync_playwright() as p:
     pg.click("button[data-tab=insights]")
     pg.wait_for_selector("sound-recognition-insights .card")
     ok(any("Dernières 24 heures" in t for t in text(pg, "h2")) and any("Recommandations" in t for t in text(pg, "h2")), "French overview")
+    pg.close()
+
+    # ------------------------------------------------------------------ service updates
+    def banner(pg):
+        return pg.evaluate("document.querySelector('sound-recognition-panel').shadowRoot.querySelector('sound-recognition-update')?.shadowRoot?.querySelector('[data-update]')?.dataset.update ?? null")
+    def banner_text(pg):
+        return pg.evaluate("document.querySelector('sound-recognition-panel').shadowRoot.querySelector('sound-recognition-update').shadowRoot.querySelector('[data-update]').textContent.replace(/\\s+/g, ' ')")
+    pg = new("?upd=available", "light", 1200, 800)
+    pg.wait_for_function("document.querySelector('sound-recognition-panel').shadowRoot.querySelector('sound-recognition-update')?.shadowRoot?.querySelector('[data-update]')")
+    ok(banner(pg) == "available" and "0.1.0 → v0.2.0" in banner_text(pg), "update: banner says a newer service version exists")
+    pg.screenshot(path=os.path.join(OUT, "update-available.png"))
+    pg.evaluate("document.querySelector('sound-recognition-panel').shadowRoot.querySelector('sound-recognition-update').shadowRoot.querySelector('button.go').click()")
+    pg.wait_for_function("document.querySelector('sound-recognition-panel').shadowRoot.querySelector('sound-recognition-update').shadowRoot.querySelector('[data-update=installing]')")
+    ok(pg.evaluate("window.__state.installs") == 1, "update: one click launches the update once")
+    pg.wait_for_function("document.querySelector('sound-recognition-panel').shadowRoot.querySelector('sound-recognition-update').shadowRoot.querySelector('[data-update=done]')")
+    ok("updated to 0.2.0 and is back online" in banner_text(pg), "update: tells when the service is back")
+    pg.evaluate("document.querySelector('sound-recognition-panel').shadowRoot.querySelector('sound-recognition-update').shadowRoot.querySelector('button.x').click()")
+    pg.wait_for_timeout(100)
+    ok(banner(pg) is None, "update: banner goes away once closed and nothing is left to update")
+    pg.close()
+
+    pg = new("?upd=fail", "light", 1200, 800)
+    pg.wait_for_selector("sound-recognition-update >> [data-update=available]")
+    pg.evaluate("document.querySelector('sound-recognition-panel').shadowRoot.querySelector('sound-recognition-update').shadowRoot.querySelector('button.go').click()")
+    pg.wait_for_function("document.querySelector('sound-recognition-panel').shadowRoot.querySelector('sound-recognition-update').shadowRoot.querySelector('[data-update=failed]')")
+    ok("boom" in banner_text(pg) and "git said no" in pg.evaluate("document.querySelector('sound-recognition-panel').shadowRoot.querySelector('sound-recognition-update').shadowRoot.querySelector('pre').textContent"), "update: failure shows the reason and the log")
+    pg.close()
+
+    pg = new("?upd=manual&lang=fr", "light", 1200, 800)
+    pg.wait_for_selector("sound-recognition-update >> [data-update=available]")
+    ok(pg.evaluate("!!document.querySelector('sound-recognition-panel').shadowRoot.querySelector('sound-recognition-update').shadowRoot.querySelector('button.go')") is False
+       and "git pull && bash install.sh" in banner_text(pg) and "Une nouvelle version" in banner_text(pg), "update: without the helper, the command to run is shown (French)")
+    pg.close()
+
+    pg = new("?upd=outdated", "light", 1200, 800)
+    pg.wait_for_selector("sound-recognition-update >> [data-update=outdated]")
+    ok("older than this panel expects" in banner_text(pg), "update: an outdated service is flagged")
+    pg.close()
+
+    pg = new("?upd=none", "light", 1200, 800)
+    pg.wait_for_selector("sound-recognition-live .card")
+    pg.wait_for_timeout(200)
+    ok(banner(pg) is None, "update: no banner when the service is current")
     pg.close()
 
     # ------------------------------------------------------------------ "not a real sound"

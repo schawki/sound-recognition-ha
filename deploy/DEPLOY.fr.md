@@ -46,6 +46,20 @@ pct exec <CTID> -- bash -c 'git -C /opt/sound-recognition-ha pull && bash /opt/s
 ```
 
 
+### Mettre à jour depuis Home Assistant
+
+À partir de la version 0.2.0, l'intégration affiche une entité **Mise à jour** pour le service (*Paramètres → Appareils et services → Sound Recognition*) et une bannière dans le panneau quand une version plus récente existe, ou quand le service est trop ancien pour l'intégration. Appuyez sur *Mettre à jour* (entité ou bannière) : le service redémarre, le panneau suit l'avancement et Home Assistant envoie une notification quand le service est de nouveau en ligne (ou quand la mise à jour a échoué, avec la fin du journal).
+
+Comment cela fonctionne, et ce que c'est autorisé à faire :
+
+- Le service lui-même reste sans privilège. Il dépose seulement un fichier de demande ; un petit assistant root (`soundrec-update`, lancé par l'unité systemd `soundrec-update.path`) fait le travail. L'assistant ne lit que son propre fichier `/etc/soundrec-updater.env` (propriété de root), jamais le contenu de la demande, et écrit son avancement dans `/var/lib/soundrec-update/`, un dossier que le service peut lire mais pas modifier.
+- Seules les **versions publiées** (`vX.Y.Z`) sont installées, jamais le bout de `main`. L'assistant avance le clone jusqu'à la dernière étiquette et lance `install.sh` ; en cas d'échec, la version précédente est remise et l'échec est signalé.
+- La configuration et les données sont conservées. Après une mise à jour, le clone reste sur `main`, avancé jusqu'à l'étiquette : la commande manuelle `git pull` ci-dessus continue donc de fonctionner.
+- Il faut Debian/Ubuntu avec systemd (le LXC de ce guide, ou tout hôte installé avec `install.sh`). Avec Docker, on met à jour en tirant une nouvelle image : l'entité Mise à jour se contente alors d'informer.
+- Pour le désactiver : `SOUNDREC_REMOTE_UPDATE=0 bash deploy/install.sh` (l'assistant est retiré). Il est activé par défaut.
+
+**Une mise à jour manuelle est nécessaire** pour installer l'assistant la première fois (l'ancien service ne l'a pas) : lancez une fois la commande de mise à jour ci-dessus, puis mettez à jour l'intégration (HACS + redémarrage de Home Assistant). Ensuite, les mises à jour se lancent depuis Home Assistant. D'ici là, l'entité Mise à jour informe seulement et affiche la commande à lancer.
+
 Redémarrage après modification manuelle du YAML : `systemctl restart soundrec`.
 
 ## Dépannage

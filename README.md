@@ -52,3 +52,5 @@ node --test test/schedule.test.mjs             // schedule grid <-> service wind
 ## Deployment
 
 Test deployment on Proxmox (unprivileged Debian 13 LXC, systemd service, no Docker): see [deploy/DEPLOY.md](deploy/DEPLOY.md) ([français](deploy/DEPLOY.fr.md)).
+
+Updates: from version 0.2.0 the service can be updated from Home Assistant (Update entity and panel banner, tagged releases only); see [CHANGELOG.md](CHANGELOG.md) ([français](CHANGELOG.fr.md)).

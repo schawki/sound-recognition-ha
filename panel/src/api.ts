@@ -1,10 +1,16 @@
-import type { Advice, AreaLink, HaArea, HaDevice, HaOpening, StructureInfo, Catalog, Go2rtcStreams, Hass, LiveMessage, Overview, Recommendation, ServiceConfig, SoundEvent, Stats, Validation } from "./types";
+import type { UpdateInfo, Advice, AreaLink, HaArea, HaDevice, HaOpening, StructureInfo, Catalog, Go2rtcStreams, Hass, LiveMessage, Overview, Recommendation, ServiceConfig, SoundEvent, Stats, Validation } from "./types";
 
 export class PanelApi {
   constructor(private hass: Hass, public language: string) {}
 
   overview(): Promise<Overview> {
     return this.hass.callWS({ type: "sound_recognition/overview", language: this.language });
+  }
+  update(refresh = false): Promise<UpdateInfo> {
+    return this.hass.callWS({ type: "sound_recognition/update", refresh });
+  }
+  updateInstall(): Promise<UpdateInfo> {
+    return this.hass.callWS({ type: "sound_recognition/update_install" });
   }
   catalog(): Promise<Catalog> {
     return this.hass.callWS({ type: "sound_recognition/catalog", language: this.language });

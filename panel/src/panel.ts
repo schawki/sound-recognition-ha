@@ -9,6 +9,7 @@ import "./sources-view";
 import "./sounds-view";
 import "./advice-view";
 import "./clips-view";
+import "./update-banner";
 
 type Tab = "live" | "insights" | "sources" | "sounds" | "advice" | "clips";
 const TABS: [Tab, "live" | "insightsTab" | "sourcesTab" | "soundsTab" | "adviceTab" | "clipsTab"][] = [
@@ -62,6 +63,7 @@ class SoundRecognitionPanel extends LitElement {
         ${this.narrow ? html`<button class="menu" @click=${this.toggleMenu} aria-label="Menu">☰</button>` : ""}
         <h1>${t("title")}</h1>
       </div>
+      <sound-recognition-update .api=${this.api} .t=${t}></sound-recognition-update>
       <nav role="tablist" @keydown=${this.tabKeys}>
         ${TABS.map(([k, label]) => html`<button role="tab" id=${`tab-${k}`} aria-selected=${this.tab === k} aria-controls="view" tabindex=${this.tab === k ? 0 : -1} class=${this.tab === k ? "on" : ""} data-tab=${k} @click=${() => (this.tab = k)}>${t(label)}</button>`)}
       </nav>

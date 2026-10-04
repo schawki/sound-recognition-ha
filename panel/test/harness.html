@@ -57,7 +57,20 @@
     }
     return { errors, warnings };
   };
+  const upd = q.get("upd") || "available";    // available | none | outdated | manual | fail
+  const U = state.update = { installed: "0.1.0", latest: "v0.2.0", available: upd !== "none", outdated: upd === "outdated", capable: upd !== "manual", installing: false, status: {},
+    release_url: "https://example.test/r", manual_command: "git pull && bash install.sh", api_level: 1, min_api_level: 2, busy: 0, outcome: upd === "fail" ? "failed" : "done" };
+  const updView = () => {
+    if (U.installing && --U.busy <= 0) {
+      U.installing = false;
+      if (U.outcome === "done") Object.assign(U, { installed: "0.2.0", available: false, outdated: false, status: { state: "done", message: "Updated" } });
+      else U.status = { state: "failed", message: "boom", log: "git said no" };
+    }
+    const { busy, outcome, ...v } = U; return v;
+  };
   const calls = {
+    "sound_recognition/update": () => updView(),
+    "sound_recognition/update_install": () => { if (!U.capable) throw { code: "update_failed", message: "not enabled" }; state.installs = (state.installs || 0) + 1; U.installing = true; U.busy = 2; U.status = { state: "requested" }; const { busy, outcome, ...v } = U; return v; },
     "sound_recognition/overview": () => ({ entry_id: "e", entries: [], version: "0.1.0", language: q.get("lang") || "en", sources,
       warnings: [{ rule: "r", kind: "rule", level: "warning", source: "kitchen", classes: [], message: "m" }], config: JSON.parse(JSON.stringify(state.config)) }),
     "sound_recognition/catalog": () => fullCatalog,
