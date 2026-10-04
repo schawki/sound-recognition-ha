@@ -224,12 +224,21 @@
       "advice": {
         "name": "Conseils et avertissements"
       }
+    },
+    "update": {
+      "service": {
+        "name": "Service"
+      }
     }
   },
   "issues": {
     "advice": {
       "title": "Conseil de reconnaissance de sons",
       "description": "**{source}** : {message}"
+    },
+    "service_outdated": {
+      "title": "Le service Sound Recognition doit être mis à jour",
+      "description": "Le service (version {version}) est plus ancien que ce que l'intégration attend : certaines fonctions ne marchent pas encore. Mettez-le à jour, ce message disparaîtra ensuite.\n\nSi le service a été installé avec l'assistant de mise à jour, utilisez l'entité Mise à jour du service. Sinon, lancez sur la machine qui l'héberge :\n\n`{command}`"
     },
     "stale_entities": {
       "title": "Entités Sound Recognition inutilisées",

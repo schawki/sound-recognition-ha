@@ -35,7 +35,7 @@ def detected_unique_id(entry_id: str, sid: str, mid: str) -> str:
 
 def expected_unique_ids(entry_id: str, cfg: dict, idx: dict) -> set[str]:
     """Unique ids of every entity the current configuration provides (one set per enabled source, plus the service's own)."""
-    ids = {f"{entry_id}_advice"}
+    ids = {f"{entry_id}_advice", f"{entry_id}_service_update"}
     for s in cfg.get("sources", []):
         if not s.get("enabled", True):
             continue

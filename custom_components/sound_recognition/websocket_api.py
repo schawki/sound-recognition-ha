@@ -62,6 +62,37 @@ async def ws_overview(hass, connection, msg, entry):
     })
 
 
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/update", **ENTRY, vol.Optional("refresh"): bool})
+@websocket_api.require_admin
+@websocket_api.async_response
+@_with_entry
+async def ws_update(hass, connection, msg, entry):
+    """Installed and latest service release, and the progress of an update (the panel polls this while one runs)."""
+    up = entry.runtime_data.coordinator.updates
+    if msg.get("refresh"):
+        await up.async_check(force=True)
+    if up.installing:
+        try:
+            up.status = await entry.runtime_data.client.update_status()
+        except SoundRecError:
+            pass                                            # restarting
+    connection.send_result(msg["id"], up.summary())
+
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/update_install", **ENTRY})
+@websocket_api.require_admin
+@websocket_api.async_response
+@_with_entry
+async def ws_update_install(hass, connection, msg, entry):
+    up = entry.runtime_data.coordinator.updates
+    try:
+        await up.async_start()
+    except SoundRecError as err:
+        connection.send_error(msg["id"], "update_failed", str(err))
+        return
+    connection.send_result(msg["id"], up.summary())
+
+
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/catalog", **ENTRY, vol.Optional("language"): str})
 @websocket_api.require_admin
 @websocket_api.async_response
@@ -268,7 +299,7 @@ async def ws_go2rtc_streams(hass, connection, msg, entry):
     connection.send_result(msg["id"], {"configured": True, "url": base, "streams": streams})
 
 
-COMMANDS = (ws_go2rtc_streams, ws_overview, ws_catalog, ws_warnings, ws_config, ws_config_validate, ws_config_save, ws_resolved, ws_events, ws_recommendations, ws_areas, ws_openings, ws_devices, ws_structure, ws_import_structure, ws_stats, ws_event_feedback, ws_subscribe)
+COMMANDS = (ws_go2rtc_streams, ws_overview, ws_update, ws_update_install, ws_catalog, ws_warnings, ws_config, ws_config_validate, ws_config_save, ws_resolved, ws_events, ws_recommendations, ws_areas, ws_openings, ws_devices, ws_structure, ws_import_structure, ws_stats, ws_event_feedback, ws_subscribe)
 
 
 def async_register(hass: HomeAssistant) -> None:

@@ -85,9 +85,12 @@ EN = {
         "binary_sensor": {"connection": {"name": "Connected"}, "detected": {"name": "{class_name}"}},
         "event": {"sound": {"name": "Sound detection", "state_attributes": {"event_type": {"state": {"detection": "Detection", "clip_ready": "Clip ready"}}}}},
         "sensor": {"level": {"name": "Sound level"}, "advice": {"name": "Advice and warnings"}},
+        "update": {"service": {"name": "Service"}},
     },
     "issues": {
         "advice": {"title": "Sound recognition advice", "description": "**{source}**: {message}"},
+        "service_outdated": {"title": "The Sound Recognition service needs an update",
+                             "description": "The service (version {version}) is older than this integration expects, so some features do not work yet. Update it, then this message disappears.\n\nIf the service is installed with the update helper, use the Update entity of the service. Otherwise run on the machine that hosts it:\n\n`{command}`"},
         "stale_entities": {
             "title": "Unused Sound Recognition entities",
             "fix_flow": {
@@ -188,9 +191,12 @@ FR = {
         "binary_sensor": {"connection": {"name": "Connecté"}, "detected": {"name": "{class_name}"}},
         "event": {"sound": {"name": "Détection de son", "state_attributes": {"event_type": {"state": {"detection": "Détection", "clip_ready": "Clip prêt"}}}}},
         "sensor": {"level": {"name": "Niveau sonore"}, "advice": {"name": "Conseils et avertissements"}},
+        "update": {"service": {"name": "Service"}},
     },
     "issues": {
         "advice": {"title": "Conseil de reconnaissance de sons", "description": "**{source}** : {message}"},
+        "service_outdated": {"title": "Le service Sound Recognition doit être mis à jour",
+                             "description": "Le service (version {version}) est plus ancien que ce que l'intégration attend : certaines fonctions ne marchent pas encore. Mettez-le à jour, ce message disparaîtra ensuite.\n\nSi le service a été installé avec l'assistant de mise à jour, utilisez l'entité Mise à jour du service. Sinon, lancez sur la machine qui l'héberge :\n\n`{command}`"},
         "stale_entities": {
             "title": "Entités Sound Recognition inutilisées",
             "fix_flow": {

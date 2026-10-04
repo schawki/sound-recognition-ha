@@ -224,12 +224,21 @@
       "advice": {
         "name": "Advice and warnings"
       }
+    },
+    "update": {
+      "service": {
+        "name": "Service"
+      }
     }
   },
   "issues": {
     "advice": {
       "title": "Sound recognition advice",
       "description": "**{source}**: {message}"
+    },
+    "service_outdated": {
+      "title": "The Sound Recognition service needs an update",
+      "description": "The service (version {version}) is older than this integration expects, so some features do not work yet. Update it, then this message disappears.\n\nIf the service is installed with the update helper, use the Update entity of the service. Otherwise run on the machine that hosts it:\n\n`{command}`"
     },
     "stale_entities": {
       "title": "Unused Sound Recognition entities",

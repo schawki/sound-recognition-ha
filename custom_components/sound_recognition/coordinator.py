@@ -13,8 +13,9 @@ from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import CannotConnect, InvalidAuth, SoundRecClient, SoundRecError
-from .const import DOMAIN, SIGNAL_LIVE, SIGNAL_MESSAGE, UPDATE_INTERVAL_S
+from .const import DOMAIN, MANUAL_UPDATE_COMMAND, SIGNAL_LIVE, SIGNAL_MESSAGE, UPDATE_INTERVAL_S
 from .helpers import build_index
+from .updates import ServiceUpdate
 
 if TYPE_CHECKING:
     from . import SoundRecConfigEntry
@@ -34,6 +35,8 @@ class SoundRecCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.index: dict = {}
         self._issues: set[str] = set()
         self.version: str | None = None
+        self.health: dict = {}
+        self.updates = ServiceUpdate(hass, self)
 
     @property
     def signal(self) -> str:
@@ -53,7 +56,8 @@ class SoundRecCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def _async_setup(self) -> None:
         try:
-            self.version = (await self.client.health()).get("version")
+            self.health = await self.client.health()
+            self.version = self.health.get("version")
             self.catalog = await self.client.catalog(self.lang)
             self.service_config = await self.client.get_config()
         except InvalidAuth as err:
@@ -64,6 +68,8 @@ class SoundRecCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def _async_update_data(self) -> dict[str, Any]:
         try:
+            self.health = await self.client.health()
+            self.version = self.health.get("version")
             sources = await self.client.sources()
             warnings = await self.client.warnings(self.lang)
         except InvalidAuth as err:
@@ -71,6 +77,8 @@ class SoundRecCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         except SoundRecError as err:
             raise UpdateFailed(str(err)) from err
         self._sync_issues(warnings)
+        self._sync_outdated_issue()
+        await self.updates.async_check()
         return {"sources": {s["id"]: s for s in sources}, "warnings": warnings}
 
     # ---------------------------------------------------------------- live messages
@@ -140,7 +148,17 @@ class SoundRecCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             ir.async_delete_issue(self.hass, DOMAIN, iid)
         self._issues = set(wanted)
 
+    def _sync_outdated_issue(self) -> None:
+        iid = f"service_outdated_{self.config_entry.entry_id}"
+        if self.updates.outdated:
+            ir.async_create_issue(
+                self.hass, DOMAIN, iid, is_fixable=False, severity=ir.IssueSeverity.WARNING, translation_key="service_outdated",
+                translation_placeholders={"version": self.version or "?", "command": MANUAL_UPDATE_COMMAND})
+        else:
+            ir.async_delete_issue(self.hass, DOMAIN, iid)
+
     def clear_issues(self) -> None:
+        ir.async_delete_issue(self.hass, DOMAIN, f"service_outdated_{self.config_entry.entry_id}")
         for iid in self._issues:
             ir.async_delete_issue(self.hass, DOMAIN, iid)
         self._issues = set()

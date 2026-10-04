@@ -1,3 +1,4 @@
+import asyncio
 from unittest.mock import patch
 
 import pytest
@@ -20,7 +21,8 @@ BASE = {"classes": {"Bark": {"enabled": True}, "Smoke detector, smoke alarm": {"
 def fake_service():
     fs.reset(BASE)
     with patch("custom_components.sound_recognition.SoundRecClient", fs.FakeClient), \
-         patch("custom_components.sound_recognition.config_flow.SoundRecClient", fs.FakeClient):
+         patch("custom_components.sound_recognition.config_flow.SoundRecClient", fs.FakeClient), \
+         patch("custom_components.sound_recognition.updates.ServiceUpdate.async_check", return_value=None):   # never reach GitHub
         yield
     fs.STATE.stop.set()
 
@@ -452,7 +454,89 @@ async def test_nothing_is_claimed_when_the_configuration_is_unreadable(hass):
     from custom_components.sound_recognition.helpers import expected_unique_ids
     from custom_components.sound_recognition.repairs import stale_entries
     entry = await setup_entry(hass)
-    assert expected_unique_ids("e", {}, {}) == {"e_advice"}                  # why an unreadable configuration must be refused
+    assert expected_unique_ids("e", {}, {}) == {"e_advice", "e_service_update"}                  # why an unreadable configuration must be refused
     coordinator = entry.runtime_data.coordinator
     assert stale_entries(hass, entry, {}, coordinator.index) == []
     assert stale_entries(hass, entry, coordinator.service_config, {}) == []
+
+
+# ------------------------------------------------------------------------------------------------ service updates
+from custom_components.sound_recognition import updates as upd  # noqa: E402
+
+
+def test_release_helpers():
+    assert upd.latest_tag(["v0.2.0", "v0.10.0", "v0.9.9", "main", "v1.0.0-rc1", "0.5.0"]) == "v0.10.0"
+    assert upd.latest_tag(["main"]) is None and upd.parse_version("v1.2.3") == (1, 2, 3) and upd.parse_version("x") is None
+    text = "# Changes\n\n## 0.2.0\n- a\n- b\n\n## 0.1.0\n- old\n"
+    assert upd.changelog_section(text, "0.2.0") == "- a\n- b" and "Changes" in upd.changelog_section(text, "9.9.9")
+
+
+async def test_update_entity_and_availability(hass):
+    entry = await setup_entry(hass)
+    up = entry.runtime_data.coordinator.updates
+    ent = eid(hass, "update", entry, "service_update")
+    st = hass.states.get(ent)
+    assert st.state == "off" and st.attributes["installed_version"] == "0.2.0"
+    up.latest = "v0.3.0"
+    await entry.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+    st = hass.states.get(ent)
+    assert st.state == "on" and st.attributes["latest_version"] == "0.3.0" and st.attributes["supported_features"] & 1   # INSTALL
+    fs.STATE.update["capable"] = False
+    await entry.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert not hass.states.get(ent).attributes["supported_features"] & 1
+
+
+async def test_outdated_service_raises_repair(hass):
+    fs.STATE.health_extra = {"api_level": 1}
+    entry = await setup_entry(hass)
+    iid = f"service_outdated_{entry.entry_id}"
+    assert ir.async_get(hass).async_get_issue(DOMAIN, iid)
+    fs.STATE.health_extra = {}
+    await entry.runtime_data.coordinator.async_refresh()
+    assert ir.async_get(hass).async_get_issue(DOMAIN, iid) is None
+
+
+async def test_install_follows_update_and_notifies(hass):
+    entry = await setup_entry(hass)
+    coord = entry.runtime_data.coordinator
+    coord.updates.latest = "v0.3.0"
+    notes = []
+    with patch.object(upd, "POLL_S", 0.01), \
+         patch.object(upd.persistent_notification, "async_create", lambda h, msg, title=None, notification_id=None: notes.append(msg)):
+        await hass.services.async_call("update", "install", {"entity_id": eid(hass, "update", entry, "service_update")}, blocking=True)
+        assert coord.updates.installing and fs.STATE.update["state"] == "requested"
+        fs.STATE.down = True                                    # the service restarts
+        await asyncio.sleep(0.05)
+        fs.STATE.down = False
+        fs.STATE.update = {**fs.STATE.update, "state": "done", "message": "Updated", "updated": 123.0, "to": "v0.3.0"}
+        for _ in range(100):
+            await asyncio.sleep(0.02)
+            if not coord.updates.installing:
+                break
+    await hass.async_block_till_done()
+    assert not coord.updates.installing and len(notes) == 1 and "0.2.0" in notes[0] and "online" in notes[0]
+
+
+async def test_install_failure_notifies_with_log(hass):
+    entry = await setup_entry(hass)
+    coord = entry.runtime_data.coordinator
+    notes = []
+    with patch.object(upd, "POLL_S", 0.01), \
+         patch.object(upd.persistent_notification, "async_create", lambda h, msg, title=None, notification_id=None: notes.append(msg)):
+        await coord.updates.async_start()
+        fs.STATE.update = {**fs.STATE.update, "state": "failed", "message": "boom", "updated": 5.0, "log": "git said no"}
+        for _ in range(100):
+            await asyncio.sleep(0.02)
+            if not coord.updates.installing:
+                break
+    assert len(notes) == 1 and "boom" in notes[0] and "git said no" in notes[0]
+
+
+async def test_install_refused_when_not_capable_or_busy(hass):
+    from custom_components.sound_recognition.api import SoundRecError
+    fs.STATE.update["capable"] = False
+    entry = await setup_entry(hass)
+    with pytest.raises(SoundRecError):
+        await entry.runtime_data.coordinator.updates.async_start()

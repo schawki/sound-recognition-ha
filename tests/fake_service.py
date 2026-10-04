@@ -4,16 +4,17 @@ import copy
 from types import SimpleNamespace
 
 from soundrec import advisor, catalog as cm, config as cfgmod, recommend, settings as st
-from custom_components.sound_recognition.api import CannotConnect, InvalidAuth, InvalidConfig
+from custom_components.sound_recognition.api import CannotConnect, InvalidAuth, InvalidConfig, SoundRecError
 
 CAT = st.Catalog(cm.load_raw())
-STATE = SimpleNamespace(cfg=None, down=False, token="tok", handler=None, stop=None, status={}, events=[], feedback={}, pushed={})
+STATE = SimpleNamespace(update=None, health_extra={}, cfg=None, down=False, token="tok", handler=None, stop=None, status={}, events=[], feedback={}, pushed={})
 
 
 def reset(cfg=None):
     STATE.cfg = cfgmod._merge(cfgmod.DEFAULTS, cfg or {})
     STATE.cfg["api"]["token"] = STATE.token
     STATE.down, STATE.handler, STATE.stop, STATE.status, STATE.events, STATE.feedback, STATE.pushed = False, None, asyncio.Event(), {}, [], {}, {}
+    STATE.update, STATE.health_extra = {"state": "idle", "capable": True}, {}
 
 
 class FakeClient:
@@ -29,7 +30,20 @@ class FakeClient:
     async def health(self):
         if STATE.down:
             raise CannotConnect("down")
-        return {"status": "ok", "version": "0.1.0"}
+        return {"status": "ok", "version": "0.2.0", "api_level": 2, "commit": "abc1234", "release": "v0.2.0", "update": {"capable": STATE.update["capable"]}, **STATE.health_extra}
+
+    async def update_status(self):
+        self._check()
+        return dict(STATE.update)
+
+    async def update_start(self):
+        self._check()
+        if not STATE.update["capable"]:
+            raise SoundRecError("HTTP 501 on /update")
+        if STATE.update["state"] in ("requested", "running"):
+            raise SoundRecError("HTTP 409 on /update")
+        STATE.update = {**STATE.update, "state": "requested"}
+        return dict(STATE.update)
 
     async def sources(self):
         self._check()

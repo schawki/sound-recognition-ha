@@ -53,6 +53,13 @@ class SoundRecClient:
     async def health(self) -> dict:
         return await self._request("GET", "/health", auth=False)
 
+    async def update_status(self) -> dict:
+        return await self._request("GET", "/update")
+
+    async def update_start(self) -> dict:
+        """Asks the service to update itself; raises SoundRecError when the installation cannot (HTTP 501) or is busy (409)."""
+        return await self._request("POST", "/update")
+
     async def sources(self) -> list[dict]:
         return (await self._request("GET", "/sources"))["sources"]
 
