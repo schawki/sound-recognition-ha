@@ -26,6 +26,23 @@ Comme la référence demande de l'historique, le décalage est nul pendant les 3
 
 Quand un seuil relevé empêche un son qui aurait été signalé, le service le compte comme une *détection masquée* (une fois par épisode, même délai qu'une détection) avec son score, le seuil qu'il fallait et la cause (son de contexte, bruit ambiant). Le panneau les montre en direct et dans les chiffres des 24 heures. Les détections indiquent maintenant le seuil réellement appliqué (`threshold`) et la hausse (`offset`).
 
-## Prévu
+## Pièces, appareils et pièces reliées (par source, désactivé par défaut)
 
-Ajuster la sensibilité à partir d'entités Home Assistant (TV allumée et son volume, enceinte, aspirateur, lave-linge) par source, avec les mêmes plafonds et la même transparence. Pas encore implémenté.
+Donnez à une source une pièce Home Assistant (`sources[].area`) : l'intégration trouve les appareils qui font du bruit dedans, c'est-à-dire les lecteurs multimédias (TV, enceintes, consoles) et les aspirateurs. D'autres entités (un interrupteur de hotte, un ventilateur…) s'ajoutent à la main (`devices.include`), et tout appareil trouvé peut être écarté (`devices.exclude`). Plusieurs entités d'un même appareil (une TV qui apparaît trois fois) comptent une seule fois.
+
+Rien ne change tant que vous ne l'activez pas pour la source : `sources[].devices: {enabled: true, max_offset: 0.15, exclude: [], include: []}`. Ensuite, tant qu'un appareil joue, les seuils des sons qui lui ressemblent sont relevés, de la moitié à la totalité de `max_offset` selon le volume (60 % si l'appareil n'en indique pas) ; un appareil coupé ou éteint ne compte pas. Un aspirateur compte pour 80 %, un interrupteur ou un ventilateur pour 60 %. La cause la plus forte l'emporte, elles ne s'additionnent pas.
+
+**Pièces reliées** (`area_links`, onglet Sources) : un salon et une entrée sans cloison forment un seul espace, et une porte de cuisine souvent ouverte laisse passer le son.
+
+```yaml
+area_links:
+  - {a: salon, b: entree, type: open}                                  # 100 %
+  - {a: entree, b: cuisine, type: door, sensor: binary_sensor.porte}   # ouverte environ 70 %, fermée environ 15 %
+  - {a: entree, b: cuisine, type: door}                                # sans capteur : environ 42 %
+```
+
+Les appareils d'une pièce reliée comptent pour la source en proportion de ce qui passe (jusqu'à deux liaisons, les coefficients se multiplient). On les modifie avec `open_factor` et `closed_factor`. Un capteur de porte indisponible compte comme la moyenne. Un son entendu par *une autre* source d'une pièce reliée (une télévision détectée par le micro du salon) relève aussi cette source, de `context_boost` multiplié par cette part : c'est le même interrupteur, rien d'autre à activer. Le total ne dépasse jamais `analysis.total_boost_cap` (0,30), et les sons de sécurité restent plafonnés à `safety_boost_cap`.
+
+L'intégration recalcule dans la seconde qui suit un changement et envoie le résultat au service avec une durée de vie de 60 secondes, renouvelée toutes les 20 secondes : si Home Assistant s'arrête, les seuils reviennent seuls à la normale. L'onglet Aperçu montre ce qui relève chaque source (par exemple « TV Salon · 100 % +0.08 »), et les sons masqués indiquent leur cause (appareils de la pièce, son entendu dans une pièce voisine).
+
+Tous les coefficients (0,15, 70 %, 15 %, 60 %…) sont des estimations : surveillez les détections masquées quelques jours et ajustez `max_offset` par source.

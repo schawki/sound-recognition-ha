@@ -5,7 +5,7 @@ import type { PanelApi } from "./api";
 import type { T } from "./i18n";
 import { cellsToWindows, hoursPerWeek, windowsToCells } from "./schedule";
 import { groupAdvice, type NoticeItem } from "./advice-group";
-import type { Advice, Catalog, Environment, Go2rtcStreams, ServiceConfig, SourceCfg } from "./types";
+import type { Advice, AreaLink, Catalog, Environment, Go2rtcStreams, HaArea, HaDevice, HaOpening, ServiceConfig, SourceCfg } from "./types";
 import "./schedule-grid";
 
 const TYPES: [string, "typeRtsp" | "typeGo2rtc" | "typeAlsa" | "typeEsphome" | "typeFile"][] = [
@@ -20,6 +20,7 @@ interface Form {
   offset: string; minVolume: string; scheduled: boolean; cells: boolean[];
   clipsAllowed: boolean; clipsMaxDays: string;
   environment: string; adaptive: boolean; adaptiveMax: string;
+  area: string; devEnabled: boolean; devMax: string; devExclude: string[]; devInclude: string;
 }
 
 let rowKey = 0;
@@ -54,6 +55,11 @@ export class SourcesView extends LitElement {
   @state() private busy = false;
   @state() private loadError = false;
   @state() private environments: Environment[] = [];
+  @state() private areas: HaArea[] = [];
+  @state() private openings: HaOpening[] = [];
+  @state() private devs: HaDevice[] = [];
+  @state() private linkDraft: { a: string; b: string; type: "open" | "door"; sensor: string } = { a: "", b: "", type: "open", sensor: "" };
+  private devsFor = "";
   @state() private g2: { url: string; streams: Go2rtcStreams["streams"]; loading: boolean; error: string; tried: boolean } = { url: "", streams: [], loading: false, error: "", tried: false };
 
   connectedCallback(): void {
@@ -66,6 +72,8 @@ export class SourcesView extends LitElement {
       this.config = await this.api.config();
       this.loadError = false;
       void this.api.catalog().then((c) => { this.environments = c.environments ?? []; }, () => undefined);
+      void this.api.areas().then((a) => { this.areas = a; }, () => undefined);
+      void this.api.openings().then((o) => { this.openings = o; }, () => undefined);
     } catch {
       this.loadError = true;
     }
@@ -107,11 +115,13 @@ export class SourcesView extends LitElement {
       scheduled: sched?.mode === "scheduled", cells: windowsToCells(sched?.windows ?? []),
       clipsAllowed: s.clips?.allowed !== false, clipsMaxDays: s.clips?.max_retention_days == null ? "" : String(s.clips.max_retention_days),
       environment: s.environment ?? "", adaptive: s.adaptive?.enabled === true, adaptiveMax: s.adaptive?.max_offset == null ? "" : String(s.adaptive.max_offset),
+      area: s.area ?? "", devEnabled: s.devices?.enabled === true, devMax: s.devices?.max_offset == null ? "" : String(s.devices.max_offset),
+      devExclude: [...(s.devices?.exclude ?? [])], devInclude: (s.devices?.include ?? []).join("\n"),
     };
   }
 
   private blankForm(): Form {
-    return { id: "", isNew: true, name: "", type: lastType, url: "", enabled: true, rows: [newRow()], picked: {}, offset: "", minVolume: "", scheduled: false, cells: new Array(336).fill(false), clipsAllowed: true, clipsMaxDays: "", environment: "", adaptive: false, adaptiveMax: "" };
+    return { id: "", isNew: true, name: "", type: lastType, url: "", enabled: true, rows: [newRow()], picked: {}, offset: "", minVolume: "", scheduled: false, cells: new Array(336).fill(false), clipsAllowed: true, clipsMaxDays: "", environment: "", adaptive: false, adaptiveMax: "", area: "", devEnabled: false, devMax: "", devExclude: [], devInclude: "" };
   }
 
   /** Applies the form on a copy of the stored source, so fields the form does not know (class settings, advice) are kept. */
@@ -135,6 +145,15 @@ export class SourcesView extends LitElement {
       s.adaptive = { ...(existing?.adaptive ?? {}), enabled: f.adaptive };
       if (f.adaptiveMax.trim() !== "" && Number.isFinite(max)) s.adaptive.max_offset = max; else delete s.adaptive.max_offset;
     }
+    if (f.area) s.area = f.area; else delete s.area;
+    const dmax = parseFloat(f.devMax), include = f.devInclude.split(/\r?\n|,/).map((x) => x.trim()).filter(Boolean);
+    if (f.devEnabled || (existing?.devices && Object.keys(existing.devices).length) || include.length || f.devExclude.length) {
+      const d: NonNullable<SourceCfg["devices"]> = { ...(existing?.devices ?? {}), enabled: f.devEnabled };
+      if (f.devMax.trim() !== "" && Number.isFinite(dmax)) d.max_offset = dmax; else delete d.max_offset;
+      if (f.devExclude.length) d.exclude = f.devExclude; else delete d.exclude;
+      if (include.length) d.include = include; else delete d.include;
+      s.devices = d;
+    }
     const clips: NonNullable<SourceCfg["clips"]> = {};
     if (!f.clipsAllowed) clips.allowed = false;
     const days = parseInt(f.clipsMaxDays, 10);
@@ -152,11 +171,11 @@ export class SourcesView extends LitElement {
   }
 
   // ------------------------------------------------------------------ actions
-  private async commit(next: SourceCfg[], focus: string | string[] = []): Promise<boolean> {
+  private async commit(next: SourceCfg[], focus: string | string[] = [], extra: Partial<ServiceConfig> = {}): Promise<boolean> {
     if (!this.config) return false;
     this.busy = true;
     this.errors = [];
-    const candidate: ServiceConfig = { ...this.config, sources: next };
+    const candidate: ServiceConfig = { ...this.config, sources: next, ...extra };
     try {
       const check = await this.api.validate(candidate);
       if (check.errors.length) {
@@ -239,6 +258,49 @@ export class SourcesView extends LitElement {
   private set<K extends keyof Form>(key: K, value: Form[K]): void {
     if (this.form) this.form = { ...this.form, [key]: value };
     if (key === "type" && this.form?.isNew) lastType = value as string;
+    if (key === "area") void this.loadDevices(value as string);
+  }
+
+  private openForm(f: Form): void {
+    this.errors = [];
+    this.form = f;
+    void this.loadDevices(f.area);
+  }
+
+  private get links(): AreaLink[] {
+    return this.config?.area_links ?? [];
+  }
+
+  /** Devices of the room and of the rooms connected to it, as Home Assistant knows them. */
+  private async loadDevices(area: string): Promise<void> {
+    this.devsFor = area;
+    if (!area) { this.devs = []; return; }
+    try {
+      const rows = await this.api.devices(area, this.links);
+      if (this.devsFor === area) this.devs = rows;
+    } catch {
+      if (this.devsFor === area) this.devs = [];
+    }
+  }
+
+  private areaName(id: string): string {
+    return this.areas.find((a) => a.area_id === id)?.name ?? id;
+  }
+
+  private async saveLinks(next: AreaLink[]): Promise<boolean> {
+    return this.commit(this.sources, [], { area_links: next });
+  }
+
+  private async addLink(): Promise<void> {
+    const d = this.linkDraft;
+    if (!d.a || !d.b) return;
+    if (d.a === d.b) { this.errors = [this.t("linkSame")]; return; }
+    const link: AreaLink = { a: d.a, b: d.b, type: d.type };
+    if (d.type === "door" && d.sensor) link.sensor = d.sensor;
+    if (await this.saveLinks([...this.links.filter((l) => !((l.a === d.a && l.b === d.b) || (l.a === d.b && l.b === d.a))), link])) {
+      this.linkDraft = { a: "", b: "", type: "open", sensor: "" };
+      void this.loadDevices(this.devsFor);
+    }
   }
 
   // ------------------------------------------------------------------ rendering
@@ -275,7 +337,7 @@ export class SourcesView extends LitElement {
   private renderList() {
     const t = this.t;
     return html`
-      <div class="toolbar"><button class="primary" data-action="add" @click=${() => { this.errors = []; this.form = this.blankForm(); }}>${t("addSources")}</button></div>
+      <div class="toolbar"><button class="primary" data-action="add" @click=${() => { this.errors = []; this.openForm(this.blankForm()); }}>${t("addSources")}</button></div>
       ${this.errors.length ? this.renderErrors() : nothing}
       ${this.sources.length === 0 ? html`<p class="note">${t("noSources")}</p>` : html`<ul class="list">${this.sources.map((s) => html`
         <li data-source=${s.id}>
@@ -286,12 +348,58 @@ export class SourcesView extends LitElement {
           </div>
           <div class="actions">
             <label class="switch" title=${t("enabled")}><input type="checkbox" .checked=${s.enabled !== false} ?disabled=${this.busy} @change=${() => void this.toggleEnabled(s)} aria-label=${t("enabled")} /></label>
-            <button data-action="edit" @click=${() => { this.errors = []; this.form = this.toForm(s); }}>${t("edit")}</button>
+            <button data-action="edit" @click=${() => this.openForm(this.toForm(s))}>${t("edit")}</button>
             ${this.confirming === s.id
               ? html`<button class="danger" data-action="confirm-remove" @click=${() => void this.removeSource(s.id)}>${t("confirmRemove")}</button><button @click=${() => (this.confirming = null)}>${t("cancel")}</button>`
               : html`<button data-action="remove" @click=${() => (this.confirming = s.id)}>${t("remove")}</button>`}
           </div>
-        </li>`)}</ul>`}`;
+        </li>`)}</ul>`}
+      ${this.areas.length ? this.renderLinks() : nothing}`;
+  }
+
+  /** Rooms that communicate (open space, door), so the sound of one counts in the other. */
+  private renderLinks() {
+    const t = this.t, d = this.linkDraft;
+    const kind = (l: AreaLink) => l.type === "open" ? t("linkOpen") : l.sensor ? `${t("linkDoor")} · ${this.openings.find((o) => o.entity_id === l.sensor)?.name ?? l.sensor}` : `${t("linkDoor")} · ${t("linkNoSensor")}`;
+    const rooms = (value: string, name: string, label: string) => html`<label>${label}<select name=${name} @change=${(e: Event) => (this.linkDraft = { ...this.linkDraft, [name === "linkA" ? "a" : "b"]: (e.target as HTMLSelectElement).value })}>
+      <option value="" ?selected=${value === ""}>${t("linkPick")}</option>${this.areas.map((a) => html`<option value=${a.area_id} ?selected=${value === a.area_id}>${a.name}</option>`)}</select></label>`;
+    const near = (o: HaOpening) => (o.area_id === d.a || o.area_id === d.b ? 0 : 1);
+    return html`<section class="links" data-links><h2>${t("linksTitle")}</h2><p class="dim">${t("linksHelp")}</p>
+      ${this.links.length === 0 ? html`<p class="note">${t("linksNone")}</p>` : html`<ul class="list">${this.links.map((l, i) => html`<li data-link=${i}>
+        <div class="info"><strong>${this.areaName(l.a)} ↔ ${this.areaName(l.b)}</strong><span class="dim">${kind(l)}</span></div>
+        <div class="actions"><button data-action="link-remove" ?disabled=${this.busy} @click=${() => void this.saveLinks(this.links.filter((_, j) => j !== i))}>${t("remove")}</button></div></li>`)}</ul>`}
+      <div class="linkform" data-linkform>
+        <div class="two">${rooms(d.a, "linkA", t("linkRoomA"))}${rooms(d.b, "linkB", t("linkRoomB"))}</div>
+        <div class="two"><label>${t("linkType")}<select name="linkType" @change=${(e: Event) => (this.linkDraft = { ...this.linkDraft, type: (e.target as HTMLSelectElement).value as "open" | "door" })}>
+          <option value="open" ?selected=${d.type === "open"}>${t("linkOpen")}</option><option value="door" ?selected=${d.type === "door"}>${t("linkDoorWith")}</option></select></label>
+        ${d.type === "door" ? html`<label>${t("linkSensor")}<select name="linkSensor" @change=${(e: Event) => (this.linkDraft = { ...this.linkDraft, sensor: (e.target as HTMLSelectElement).value })}>
+          <option value="" ?selected=${d.sensor === ""}>${t("linkNoSensor")}</option>
+          ${[...this.openings].sort((x, y) => near(x) - near(y)).map((o) => html`<option value=${o.entity_id} ?selected=${d.sensor === o.entity_id}>${o.name}${o.area_id ? ` · ${this.areaName(o.area_id)}` : ""}</option>`)}</select></label>` : nothing}</div>
+        <div class="buttons"><button class="primary" data-action="link-add" ?disabled=${this.busy || !d.a || !d.b} @click=${() => void this.addLink()}>${t("linkAdd")}</button></div>
+      </div></section>`;
+  }
+
+  /** Room of the source and the devices around it that raise the thresholds. */
+  private renderRoom(f: Form) {
+    const t = this.t;
+    return html`<fieldset class="room"><legend>${t("areaLabel")}</legend>
+      <label>${t("areaLabel")}<select name="area" aria-label=${t("areaLabel")} @change=${(e: Event) => this.set("area", (e.target as HTMLSelectElement).value)}>
+        <option value="" ?selected=${f.area === ""}>${t("areaNone")}</option>
+        ${this.areas.map((a) => html`<option value=${a.area_id} ?selected=${f.area === a.area_id}>${a.name}</option>`)}</select>
+        <small>${t("areaHelp")}</small></label>
+      <label class="inline"><input type="checkbox" name="devEnabled" .checked=${f.devEnabled} @change=${(e: Event) => this.set("devEnabled", (e.target as HTMLInputElement).checked)} />${t("devicesLabel")}</label>
+      <small>${t("devicesHelp")}</small>
+      ${f.devEnabled ? html`<label>${t("devicesMax")}<input name="devMax" type="number" step="0.05" min="0" max="0.4" placeholder="0.15" .value=${f.devMax} @input=${(e: Event) => this.set("devMax", (e.target as HTMLInputElement).value)} /></label>` : nothing}
+      ${!f.area ? html`<p class="dim">${t("devicesPickRoom")}</p>` : html`<div class="devs" data-devices role="group" aria-label=${t("devicesFound")}>
+        <span class="dim">${t("devicesFound")}</span>
+        ${this.devs.length === 0 ? html`<p class="note">${t("devicesNone")}</p>` : this.devs.map((d) => d.duplicate_of
+          ? html`<div class="dev dim" data-device=${d.entity_id}>${d.name} <span>(${t("devicesFolded", { e: d.duplicate_of })})</span></div>`
+          : html`<label class="inline dev" data-device=${d.entity_id}><input type="checkbox" name="devpick" .checked=${!f.devExclude.includes(d.entity_id)}
+            @change=${(e: Event) => this.set("devExclude", (e.target as HTMLInputElement).checked ? f.devExclude.filter((x) => x !== d.entity_id) : [...f.devExclude, d.entity_id])} />
+            ${d.name}${d.area_id !== f.area ? html` <span class="dim">· ${d.area}</span>` : nothing}
+            <span class="dim">${d.available ? d.state : t("devicesUnavailable")}</span></label>`)}</div>`}
+      <label>${t("devicesInclude")}<textarea name="devInclude" rows="2" placeholder="switch.hood" .value=${f.devInclude} @input=${(e: Event) => this.set("devInclude", (e.target as HTMLTextAreaElement).value)}></textarea><small>${t("devicesIncludeHelp")}</small></label>
+    </fieldset>`;
   }
 
   private renderErrors() {
@@ -386,6 +494,7 @@ export class SourcesView extends LitElement {
         ${f.isNew ? this.renderRows(f) : html`
         <label>${t("address")}<input name="url" required .value=${f.url} @input=${(e: Event) => this.set("url", (e.target as HTMLInputElement).value)} /><small>${t("addressHelp")}</small></label>`}
         ${this.renderPlace(f)}
+        ${this.areas.length ? this.renderRoom(f) : nothing}
         ${f.isNew
           ? html`<details class="adv"><summary>${t("advancedSettings")}</summary><div class="advbody">
         <label class="inline"><input type="checkbox" name="enabled" .checked=${f.enabled} @change=${(e: Event) => this.set("enabled", (e.target as HTMLInputElement).checked)} />${t("enabled")}</label>
@@ -479,6 +588,8 @@ export class SourcesView extends LitElement {
     textarea { font: inherit; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--divider-color); background: var(--primary-background-color); color: var(--primary-text-color); width: 100%; box-sizing: border-box; margin: 6px 0; }
     details.adv, details.paste { border: 1px solid var(--divider-color); border-radius: 10px; padding: 8px 14px; } details.paste { border: 0; padding: 0; }
     details > summary { cursor: pointer; font-size: 0.9rem; } .advbody { display: flex; flex-direction: column; gap: 14px; margin-top: 12px; }
+    .links { margin-top: 22px; } .linkform { display: flex; flex-direction: column; gap: 12px; max-width: 760px; margin-top: 12px; }
+    .devs { display: flex; flex-direction: column; gap: 6px; } .dev { min-height: 28px; }
     .buttons { display: flex; justify-content: flex-end; gap: 10px; }
   `;
 }

@@ -1,4 +1,4 @@
-import type { Advice, Catalog, Go2rtcStreams, Hass, LiveMessage, Overview, Recommendation, ServiceConfig, SoundEvent, Stats, Validation } from "./types";
+import type { Advice, AreaLink, HaArea, HaDevice, HaOpening, Catalog, Go2rtcStreams, Hass, LiveMessage, Overview, Recommendation, ServiceConfig, SoundEvent, Stats, Validation } from "./types";
 
 export class PanelApi {
   constructor(private hass: Hass, public language: string) {}
@@ -20,6 +20,16 @@ export class PanelApi {
   async recommendations(): Promise<Recommendation[]> {
     const r = await this.hass.callWS<{ recommendations: Recommendation[] }>({ type: "sound_recognition/recommendations", language: this.language });
     return r.recommendations;
+  }
+  async areas(): Promise<HaArea[]> {
+    return (await this.hass.callWS<{ areas: HaArea[] }>({ type: "sound_recognition/areas" })).areas;
+  }
+  async openings(): Promise<HaOpening[]> {
+    return (await this.hass.callWS<{ openings: HaOpening[] }>({ type: "sound_recognition/openings" })).openings;
+  }
+  /** Devices of a room and of the rooms linked to it. */
+  async devices(areaId: string, links: AreaLink[]): Promise<HaDevice[]> {
+    return (await this.hass.callWS<{ devices: HaDevice[] }>({ type: "sound_recognition/devices", area_id: areaId, links })).devices;
   }
   stats(hours = 24): Promise<Stats> {
     return this.hass.callWS({ type: "sound_recognition/stats", hours });

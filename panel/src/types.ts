@@ -9,6 +9,7 @@ export interface SourceStatus {
   connected: boolean; error: string | null; level_dbfs: number | null; below_gate: boolean;
   active_classes: string[]; last_window?: unknown; windows: number; inferences: number;
   active_contexts?: string[]; ambient_dbfs?: number | null; baseline_dbfs?: number | null; adaptive_enabled?: boolean; adaptive_offset?: number;
+  external_offset?: number; external_reasons?: string[]; external_detail?: { label: string; value: number }[];
 }
 
 export interface Advice { rule: string; kind: string; level: "info" | "warning" | "danger"; source: string; classes: string[]; safety?: boolean; message: string }
@@ -59,7 +60,7 @@ export type LiveMessage =
   | { type: "source_state"; source: string; state: string; error?: string | null }
   | { type: "detection"; id: string; source: string; mid: string; name?: string; class: string; score: number; duration_s: number; detected_at: string; threshold?: number; offset?: number }
   | { type: "masked"; id: string; source: string; mid: string; name?: string; class: string; score: number; threshold: number; base_threshold: number; offset: number; reasons: string[]; detected_at: string }
-  | { type: "context"; source: string; active_contexts: string[]; ambient_dbfs: number | null; baseline_dbfs: number | null; adaptive_enabled: boolean; adaptive_offset: number }
+  | { type: "context"; source: string; active_contexts: string[]; ambient_dbfs: number | null; baseline_dbfs: number | null; adaptive_enabled: boolean; adaptive_offset: number; external_offset?: number; external_reasons?: string[]; external_detail?: { label: string; value: number }[] }
   | { type: "clip_ready"; id: string; source: string; mid: string; clip: string; clip_url: string; expires_at: string };
 
 export interface ScheduleWindow { days?: string[]; from: string; to: string }
@@ -68,12 +69,18 @@ export interface SourceCfg {
   id: string; name?: string; type: string; url: string; enabled?: boolean; threshold_offset?: number;
   min_volume_dbfs?: number | null; schedule?: Schedule; clips?: { allowed?: boolean; max_retention_days?: number };
   environment?: string; adaptive?: { enabled?: boolean; max_offset?: number };
+  area?: string; devices?: { enabled?: boolean; max_offset?: number; exclude?: string[]; include?: string[] };
   advice?: Record<string, AdviceSetting>;
   [extra: string]: unknown;
 }
 export type AdviceLevel = "default" | "info" | "warning" | "danger" | "ignore";
 export type AdviceSetting = AdviceLevel | { level: AdviceLevel; confirm?: boolean };
+export interface AreaLink { a: string; b: string; type: "open" | "door"; sensor?: string; open_factor?: number; closed_factor?: number }
+export interface HaArea { area_id: string; name: string }
+export interface HaOpening { entity_id: string; name: string; area_id: string | null; state: string }
+export interface HaDevice { entity_id: string; name: string; domain: string; state: string; available: boolean; has_volume: boolean; duplicate_of: string | null; area_id: string; area: string }
 export interface ServiceConfig {
+  area_links?: AreaLink[];
   advice?: Record<string, AdviceSetting>; sources?: SourceCfg[]; classes?: ClassBlocks; defaults?: { min_volume_dbfs?: number | null; schedule?: Schedule; clips?: { allowed?: boolean; max_retention_days?: number } }; [extra: string]: unknown }
 export interface Validation { errors: string[]; warnings: Advice[] }
 

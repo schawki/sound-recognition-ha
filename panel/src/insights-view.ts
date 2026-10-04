@@ -113,7 +113,7 @@ export class InsightsView extends LitElement {
           else if (was.length) this.push("context", t("evContextEnd", { s }));
         }
         if (m.adaptive_offset > 0 && !((prev?.adaptive_offset ?? 0) > 0)) this.push("context", t("evAmbient", { s, v: `+${m.adaptive_offset.toFixed(2)}` }));
-        this.sources = this.sources.map((x) => (x.id === m.source ? { ...x, active_contexts: m.active_contexts, ambient_dbfs: m.ambient_dbfs, baseline_dbfs: m.baseline_dbfs, adaptive_enabled: m.adaptive_enabled, adaptive_offset: m.adaptive_offset } : x));
+        this.sources = this.sources.map((x) => (x.id === m.source ? { ...x, active_contexts: m.active_contexts, ambient_dbfs: m.ambient_dbfs, baseline_dbfs: m.baseline_dbfs, adaptive_enabled: m.adaptive_enabled, adaptive_offset: m.adaptive_offset, external_offset: m.external_offset, external_reasons: m.external_reasons, external_detail: m.external_detail } : x));
         break;
       }
       case "detection":
@@ -123,7 +123,7 @@ export class InsightsView extends LitElement {
       case "masked":
         this.push("hidden", t("evHidden", {
           c: m.name ?? this.name(m.mid, m.class), s: this.sourceName(m.source), score: m.score.toFixed(2), thr: m.threshold.toFixed(2),
-          why: m.reasons.map((r) => t(r === "ambient" ? "insReasonAmbient" : "insReasonContext")).join(" + "),
+          why: [...new Set(m.reasons)].map((r) => this.reason(r)).join(" + "),
         }), Date.parse(m.detected_at) / 1000);
         this.refreshSoon();
         break;
@@ -154,13 +154,18 @@ export class InsightsView extends LitElement {
     return new Set((this.catalog?.classes ?? []).flatMap((c) => c.inhibiting_contexts ?? []));
   }
 
+  private reason(r: string): string {
+    return this.t(r === "ambient" ? "insReasonAmbient" : r === "device" ? "insReasonDevice" : r === "shared" ? "insReasonShared" : "insReasonContext");
+  }
+
   private raisedBy(s: SourceStatus): { total: number; reasons: string[] } {
     const boost = (this.config.analysis as { context_boost?: number } | undefined)?.context_boost ?? 0.15;
     const inh = this.inhibitors();
     const ctx = (s.active_contexts ?? []).some((m) => inh.has(m)) ? boost : 0;
     const amb = s.adaptive_enabled ? s.adaptive_offset ?? 0 : 0;
-    const reasons = [ctx ? this.t("insReasonContext") : "", amb ? this.t("insReasonAmbient") : ""].filter(Boolean);
-    return { total: ctx + amb, reasons };
+    const ext = s.external_offset ?? 0;
+    const reasons = [ctx ? this.t("insReasonContext") : "", amb ? this.t("insReasonAmbient") : "", ...(ext ? [...new Set(s.external_reasons?.length ? s.external_reasons : ["device"])].map((r) => this.reason(r)) : [])].filter(Boolean);
+    return { total: ctx + amb + ext, reasons };
   }
 
   render() {
@@ -203,6 +208,7 @@ export class InsightsView extends LitElement {
       <div class="line" data-thresholds>${raised.total > 0
         ? html`<strong>${t("insRaised", { v: `+${raised.total.toFixed(2)}` })}</strong> <span class="dim">(${raised.reasons.join(" + ")})</span>`
         : html`<span class="dim">${s.adaptive_enabled ? t("insNormal") : `${t("insNormal")} · ${t("insAdaptiveOff")}`}</span>`}</div>
+      ${(s.external_detail ?? []).length ? html`<div class="line dim" data-devices>${t("insDevicesLine", { d: (s.external_detail ?? []).slice(0, 3).map((d) => `${d.label} +${d.value.toFixed(2)}`).join(" ; ") })}</div>` : nothing}
       <div class="counts" data-counts><span>${t("statDetected")} <strong>${d}</strong></span><span>${t("statHidden")} <strong>${h}</strong></span><span>${t("statFalse")} <strong>${f}</strong></span></div>
     </section>`;
   }
