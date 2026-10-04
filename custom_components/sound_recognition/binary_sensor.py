@@ -8,7 +8,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import SoundRecConfigEntry
 from .entity import SoundRecSourceEntity
-from .helpers import enabled_mids
+from .helpers import detected_unique_id, enabled_mids
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: SoundRecConfigEntry, async_add_entities: AddConfigEntryEntitiesCallback) -> None:
@@ -49,7 +49,7 @@ class SoundRecDetectedSensor(SoundRecSourceEntity, BinarySensorEntity):
     def __init__(self, coordinator, source, mid: str) -> None:
         super().__init__(coordinator, source)
         self._mid = mid
-        self._attr_unique_id = f"{self._entry_id}_{self._sid}_{mid.strip('/').replace('/', '_')}"
+        self._attr_unique_id = detected_unique_id(self._entry_id, self._sid, mid)
         self._attr_translation_placeholders = {"class_name": coordinator.class_name(mid)}
 
     @property

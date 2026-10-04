@@ -15,13 +15,14 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PORT, CONF_TOKEN
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
-from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import CannotConnect, InvalidAuth, SoundRecClient
 from . import websocket_api as panel_ws
 from .const import CLIP_SIGN_HOURS, CLIP_URL_TEMPLATE, CLIP_VIEW_URL, DOMAIN, PANEL_STATIC_URL, PANEL_URL_PATH, PLATFORMS
 from .coordinator import SoundRecCoordinator
+from .helpers import expected_unique_ids
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -80,6 +81,21 @@ async def _async_register_panel(hass: HomeAssistant) -> None:
     )
 
 
+def _remove_stale_entities(hass: HomeAssistant, entry: SoundRecConfigEntry, coordinator: SoundRecCoordinator) -> None:
+    """Drops the entities of sounds or sources that are no longer in the configuration (they would stay 'unavailable' forever).
+    Only this entry's own entities, and never one the user renamed or gave another icon."""
+    cfg = coordinator.service_config
+    if "sources" not in cfg or not coordinator.index:
+        return                                  # configuration not read properly: remove nothing
+    keep = expected_unique_ids(entry.entry_id, cfg, coordinator.index)
+    registry = er.async_get(hass)
+    for reg in er.async_entries_for_config_entry(registry, entry.entry_id):
+        if reg.unique_id in keep or reg.name is not None or reg.icon is not None:
+            continue
+        _LOGGER.debug("Removing %s: no longer provided by the configuration", reg.entity_id)
+        registry.async_remove(reg.entity_id)
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: SoundRecConfigEntry) -> bool:
     client = SoundRecClient(async_get_clientsession(hass), entry.data[CONF_HOST], entry.data[CONF_PORT], entry.data[CONF_TOKEN])
     coordinator = SoundRecCoordinator(hass, entry, client)
@@ -99,6 +115,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: SoundRecConfigEntry) -> 
         hass.http.register_view(SoundRecClipView())
         hass.data[f"{DOMAIN}_view"] = True
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    _remove_stale_entities(hass, entry, coordinator)
     coordinator.start_listener()
     return True
 

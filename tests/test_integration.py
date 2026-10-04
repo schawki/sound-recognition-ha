@@ -352,3 +352,42 @@ async def test_panel_survives_reload_and_goes_with_the_last_entry(hass):
         await hass.async_block_till_done()
         removed.assert_called_once()
     assert "sound-recognition" not in hass.data["frontend_panels"]
+
+
+# ------------------------------------------------------------------------------------------------ stale entities
+async def test_entities_of_removed_sounds_and_sources_are_cleaned_up(hass):
+    entry = await setup_entry(hass)
+    reg = er.async_get(hass)
+    mid = lambda m: m.strip("/").replace("/", "_")
+    bark, smoke = eid(hass, "binary_sensor", entry, f"kitchen_{mid(BARK)}"), eid(hass, "binary_sensor", entry, f"kitchen_{mid(SMOKE)}")
+    assert bark and smoke
+    reg.async_update_entity(smoke, name="My smoke alarm")                  # the user renamed this one: it is never removed
+    foreign = reg.async_get_or_create("binary_sensor", "other_integration", "kitchen_bark", suggested_object_id="not_ours")
+
+    # the sound is switched off and a new source appears, then the entry reloads (what every saved change does)
+    fs.STATE.cfg["classes"]["Bark"] = {"enabled": False}
+    fs.STATE.cfg["classes"]["Smoke detector, smoke alarm"] = {"enabled": False}
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    assert reg.async_get(bark) is None                                       # gone, instead of staying unavailable
+    assert reg.async_get(smoke) is not None                                  # renamed by the user: kept
+    assert reg.async_get(foreign.entity_id) is not None                      # not ours: untouched
+    assert eid(hass, "binary_sensor", entry, "kitchen_connection") and eid(hass, "sensor", entry, "advice")
+
+    # the source itself is removed: all its entities go, the service ones stay
+    fs.STATE.cfg["sources"] = []
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    assert eid(hass, "binary_sensor", entry, "kitchen_connection") is None and eid(hass, "event", entry, "kitchen_event") is None
+    assert eid(hass, "sensor", entry, "advice")
+
+
+async def test_nothing_is_removed_when_the_configuration_is_unreadable(hass):
+    from custom_components.sound_recognition.helpers import expected_unique_ids
+    entry = await setup_entry(hass)
+    assert expected_unique_ids("e", {}, {}) == {"e_advice"}                  # why the cleanup refuses to run without a "sources" key
+    before = {e.entity_id for e in er.async_entries_for_config_entry(er.async_get(hass), entry.entry_id)}
+    entry.runtime_data.coordinator.service_config = {}
+    from custom_components.sound_recognition import _remove_stale_entities
+    _remove_stale_entities(hass, entry, entry.runtime_data.coordinator)
+    assert before == {e.entity_id for e in er.async_entries_for_config_entry(er.async_get(hass), entry.entry_id)}

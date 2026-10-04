@@ -29,6 +29,22 @@ def enabled_mids(cfg: dict, source: dict, idx: dict) -> set[str]:
     return out
 
 
+def detected_unique_id(entry_id: str, sid: str, mid: str) -> str:
+    return f"{entry_id}_{sid}_{mid.strip('/').replace('/', '_')}"
+
+
+def expected_unique_ids(entry_id: str, cfg: dict, idx: dict) -> set[str]:
+    """Unique ids of every entity the current configuration provides (one set per enabled source, plus the service's own)."""
+    ids = {f"{entry_id}_advice"}
+    for s in cfg.get("sources", []):
+        if not s.get("enabled", True):
+            continue
+        sid = s["id"]
+        ids.update({f"{entry_id}_{sid}_connection", f"{entry_id}_{sid}_event", f"{entry_id}_{sid}_level"})
+        ids.update(detected_unique_id(entry_id, sid, mid) for mid in enabled_mids(cfg, s, idx))
+    return ids
+
+
 def slugify(text: str) -> str:
     s = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode().lower()
     return re.sub(r"[^a-z0-9]+", "_", s).strip("_")[:40] or "source"
