@@ -9,7 +9,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
-from . import devices as dev
+from . import devices as dev, structure_link
 from .api import InvalidConfig, SoundRecError
 from .const import DOMAIN, SIGNAL_LIVE
 from .go2rtc import CONF_GO2RTC_URL, Go2RtcError, fetch_streams, normalize_url
@@ -140,7 +140,9 @@ async def ws_recommendations(hass, connection, msg, entry):
     lang = _lang(hass, connection, msg)
     rows = await entry.runtime_data.client.recommendations(lang)
     cfg = entry.runtime_data.coordinator.service_config
-    connection.send_result(msg["id"], {"recommendations": rows + dev.recommendations(hass, cfg, lang)})
+    hs = await structure_link.status(hass)
+    _, origin = await structure_link.effective_links(hass, cfg)
+    connection.send_result(msg["id"], {"recommendations": rows + dev.recommendations(hass, cfg, lang, hs, origin == "home_structure")})
 
 
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/areas"})
@@ -158,16 +160,47 @@ def ws_openings(hass, connection, msg):
 
 
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/devices", vol.Required("area_id"): str,
-                                  vol.Optional("links", default=[]): list})
+                                  vol.Optional("links"): list, **ENTRY})
 @websocket_api.require_admin
-@callback
-def ws_devices(hass, connection, msg):
-    """Devices of a room and of the rooms linked to it (the links as they are being edited in the panel, if any)."""
+@websocket_api.async_response
+@_with_entry
+async def ws_devices(hass, connection, msg, entry):
+    """Devices of a room and of the rooms connected to it: through Home Structure when it describes the home, else through the
+    connections configured here (those being edited in the panel when it sends them)."""
+    links = msg.get("links")
+    if links is None:
+        links, _ = await structure_link.effective_links(hass, entry.runtime_data.coordinator.service_config)
     names = {a["area_id"]: a["name"] for a in dev.areas(hass)}
     rows = []
-    for area in sorted(dev.reachable_areas(msg["area_id"], msg["links"])):
+    for area in sorted(dev.reachable_areas(msg["area_id"], links)):
         rows += [{**d, "area_id": area, "area": names.get(area, area)} for d in dev.discover(hass, area)]
     connection.send_result(msg["id"], {"devices": rows})
+
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/structure", **ENTRY})
+@websocket_api.require_admin
+@websocket_api.async_response
+@_with_entry
+async def ws_structure(hass, connection, msg, entry):
+    """Where the description of the home comes from: Home Structure (state, links as read) or the connections configured here."""
+    status = await structure_link.status(hass)
+    cfg = entry.runtime_data.coordinator.service_config
+    links, origin = await structure_link.effective_links(hass, cfg)
+    names = {a["area_id"]: a["name"] for a in dev.areas(hass)}
+    states = {l["sensor"]: s.state for l in links if l.get("sensor") and (s := hass.states.get(l["sensor"]))}
+    rows = [{"a": l["a"], "b": l["b"], "a_name": names.get(l["a"], l["a"]), "b_name": names.get(l["b"], l["b"]), "type": dev.link_type(l),
+             "sensor": l.get("sensor"), "state": dev.link_state(l, states)} for l in links] if origin == "home_structure" else []
+    connection.send_result(msg["id"], {"status": status, "origin": origin, "links": rows, "url": structure_link.HS_URL})
+
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/import_structure", **ENTRY})
+@websocket_api.require_admin
+@websocket_api.async_response
+@_with_entry
+async def ws_import_structure(hass, connection, msg, entry):
+    """Copies the connections configured here into Home Structure."""
+    links = list(entry.runtime_data.coordinator.service_config.get("area_links") or [])
+    connection.send_result(msg["id"], {"added": await structure_link.import_links(hass, links)})
 
 
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/stats", **ENTRY,
@@ -235,7 +268,7 @@ async def ws_go2rtc_streams(hass, connection, msg, entry):
     connection.send_result(msg["id"], {"configured": True, "url": base, "streams": streams})
 
 
-COMMANDS = (ws_go2rtc_streams, ws_overview, ws_catalog, ws_warnings, ws_config, ws_config_validate, ws_config_save, ws_resolved, ws_events, ws_recommendations, ws_areas, ws_openings, ws_devices, ws_stats, ws_event_feedback, ws_subscribe)
+COMMANDS = (ws_go2rtc_streams, ws_overview, ws_catalog, ws_warnings, ws_config, ws_config_validate, ws_config_save, ws_resolved, ws_events, ws_recommendations, ws_areas, ws_openings, ws_devices, ws_structure, ws_import_structure, ws_stats, ws_event_feedback, ws_subscribe)
 
 
 def async_register(hass: HomeAssistant) -> None:

@@ -12,7 +12,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.event import async_call_later, async_track_state_change_event, async_track_time_interval
 from datetime import timedelta
 
-from . import devices
+from . import devices, structure_link
 from .api import SoundRecError
 from .const import SIGNAL_LIVE
 
@@ -31,6 +31,8 @@ class DynamicManager:
         self._track: CALLBACK_TYPE | None = None
         self._tracked: set[str] = set()
         self._timer: CALLBACK_TYPE | None = None
+        self.links: list[dict] = list(coordinator.service_config.get("area_links") or [])
+        self.origin = "internal"
 
     def enabled_sources(self) -> list[dict]:
         return [s for s in self.coordinator.service_config.get("sources", []) if s.get("enabled", True) and (s.get("devices") or {}).get("enabled")]
@@ -55,11 +57,9 @@ class DynamicManager:
                 setattr(self, attr, None)
 
     def _entities(self) -> set[str]:
-        cfg = self.coordinator.service_config
-        links = cfg.get("area_links") or []
-        found = {l["sensor"] for l in links if l.get("sensor")}
+        found = {l["sensor"] for l in self.links if l.get("sensor")}
         for src in self.enabled_sources():
-            found.update(eid for eid, _ in devices.selected(self.hass, src, links))
+            found.update(eid for eid, _ in devices.selected(self.hass, src, self.links))
         return found
 
     def _retrack(self) -> None:
@@ -90,7 +90,6 @@ class DynamicManager:
         await self.push()
 
     async def _tick(self, _now) -> None:
-        self._retrack()
         await self.push()
 
     def compute_all(self) -> dict[str, tuple[float, list[str], list[dict]]]:
@@ -99,10 +98,15 @@ class DynamicManager:
         names = {m: co.class_name(m) for m in co.inhibitors}
         out = {}
         for src in self.enabled_sources():
-            out[src["id"]] = devices.compute(self.hass, co.service_config, src, statuses, co.inhibitors, names)
+            out[src["id"]] = devices.compute(self.hass, co.service_config, src, statuses, co.inhibitors, names, self.links)
         return out
 
+    async def refresh_links(self) -> None:
+        self.links, self.origin = await structure_link.effective_links(self.hass, self.coordinator.service_config)
+        self._retrack()
+
     async def push(self) -> None:
+        await self.refresh_links()
         self.last = self.compute_all()
         for sid, (offset, reasons, detail) in self.last.items():
             try:

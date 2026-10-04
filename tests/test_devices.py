@@ -155,3 +155,187 @@ async def test_manager_pushes_with_ttl(hass, home):
         assert fs.STATE.pushed["salon"]["offset"] == 0
         await hass.config_entries.async_unload(entry.entry_id)
         fs.STATE.stop.set()
+
+
+# ------------------------------------------------------------------------------------------------ separations and their sound
+def L(kind, a="a", b="b", sensor=None, **kw):
+    return {"a": a, "b": b, "type": kind, **({"sensor": sensor} if sensor else {}), **kw}
+
+
+def test_every_kind_of_separation():
+    st = {"s": "on"}
+    assert dv.edge_factor(L("open_space"), {}) == 1 and dv.edge_factor(L("open"), {}) == 1            # "open" is the former name
+    assert dv.edge_factor(L("opening"), {}) == 0.9 and dv.edge_factor(L("wall"), {}) == 0.05
+    assert dv.edge_factor(L("door", sensor="s"), st) == 0.7 and dv.edge_factor(L("door", sensor="s"), {"s": "off"}) == 0.15
+    assert dv.edge_factor(L("glass_door", sensor="s"), {"s": "off"}) == 0.25                           # glass lets more through than a door
+    assert dv.edge_factor(L("window", sensor="s"), {"s": "closed"}) == 0.1 and dv.edge_factor(L("window", sensor="s"), {"s": "open"}) == 0.6
+    assert dv.edge_factor(L("shutter", sensor="s"), {"s": "partial"}) == pytest.approx(0.35)          # states of Home Structure
+    assert dv.edge_factor(L("door"), {}) == pytest.approx(0.425)                                       # no sensor
+    assert dv.edge_factor(L("door", sensor="s", open_factor=0.9, closed_factor=0.0), {"s": "on"}) == 0.9
+    assert dv.edge_factor(L("wall", open_factor=1.0), {}) == 0.05                                      # fixed types ignore the factors
+
+
+def test_several_separations_between_two_spaces():
+    s = {"d": "off", "g": "on", "w": "off", "v": "closed"}
+    assert dv.pair_factor([L("door", sensor="d"), L("glass_door", sensor="g")], s) == 0.7              # the most open wins
+    assert dv.pair_factor([L("wall"), L("door", sensor="d")], s) == 0.15
+    assert dv.pair_factor([L("window", sensor="g"), L("shutter", sensor="v")], s) == pytest.approx(0.3)   # shutter closed halves an open window
+    assert dv.pair_factor([L("window", sensor="g"), L("shutter", sensor="x")], s) == pytest.approx(0.45) # shutter unknown: 75 %
+    assert dv.pair_factor([L("shutter", sensor="v")], s) == 0.1                                        # alone it is the opening itself
+    assert dv.coupling("a", "b", [L("door", sensor="d"), L("glass_door", sensor="g")], s) == 0.7
+
+
+def test_walls_are_not_followed_but_doors_are():
+    links = [L("wall", "a", "b"), L("door", "b", "c", sensor="d"), L("window", "c", "z", sensor="w")]
+    assert dv.reachable_areas("a", links) == {"a"}
+    assert dv.reachable_areas("b", links) == {"b", "c", "z"}
+
+
+def test_states_of_home_structure_are_understood():
+    assert [dv.link_state(L("door", sensor="s"), {"s": v}) for v in ("open", "on", "closed", "off", "partial", "opening", "unknown", "unavailable")] == \
+        ["open", "open", "closed", "closed", "partial", "partial", "unknown", "unknown"]
+
+
+# ------------------------------------------------------------------------------------------------ link with Home Structure
+from custom_components.sound_recognition import structure_link as sl  # noqa: E402
+
+HS = {"spaces": [], "connections": [
+    {"id": "c1", "a": "area:salon", "b": "area:entree", "separations": [{"id": "1", "type": "open_space", "state": "open", "sensor": None, "entity_id": "sensor.hs_1"}]},
+    {"id": "c2", "a": "area:entree", "b": "area:cuisine", "separations": [{"id": "2", "type": "door", "state": "open", "sensor": "binary_sensor.porte", "entity_id": "sensor.hs_2"},
+                                                                          {"id": "3", "type": "window", "state": "closed", "sensor": "binary_sensor.f", "entity_id": None}]},
+    {"id": "c3", "a": "area:salon", "b": "zone:rue", "separations": [{"id": "4", "type": "window", "state": "closed", "sensor": "binary_sensor.g", "entity_id": "sensor.hs_4"}]},
+]}
+
+
+def test_links_from_structure():
+    assert sl.links_from_structure(HS) == [
+        {"a": "salon", "b": "entree", "type": "open_space"},
+        {"a": "entree", "b": "cuisine", "type": "door", "sensor": "sensor.hs_2"},        # the Home Structure entity, normalised states
+        {"a": "entree", "b": "cuisine", "type": "window", "sensor": "binary_sensor.f"},  # no entity: the raw sensor
+    ]                                                                                      # the street has no area: left out
+
+
+def test_merge_into_home_structure_options():
+    ids = {"salon", "entree", "cuisine"}
+    opts = {"zones": [], "connections": [{"id": "c", "a": "area:entree", "b": "area:salon", "separations": [{"id": "x", "type": "open_space"}]}]}
+    links = [{"a": "salon", "b": "entree", "type": "open"}, {"a": "salon", "b": "entree", "type": "glass_door", "sensor": "binary_sensor.b"},
+             {"a": "entree", "b": "cuisine", "type": "door", "sensor": "binary_sensor.p"}, {"a": "entree", "b": "ghost", "type": "wall"},
+             {"a": "cuisine", "b": "entree", "type": "door", "sensor": "binary_sensor.p"}]
+    new, added = sl.merge_links(opts, links, ids)
+    assert added == 2 and len(new["connections"]) == 2                                      # the open space was already there, the ghost room refused
+    assert [s["type"] for s in new["connections"][0]["separations"]] == ["open_space", "glass_door"]
+    assert new["connections"][1]["separations"][0]["sensor"] == "binary_sensor.p"
+    assert opts["connections"][0]["separations"] == [{"id": "x", "type": "open_space"}]     # the input is not modified
+    assert sl.merge_links({}, [{"a": "salon", "b": "entree", "type": "wall", "sensor": "binary_sensor.z"}], ids)[0]["connections"][0]["separations"][0].get("sensor") is None
+
+
+def _hs_service(hass, structure):
+    async def handler(call):
+        return structure
+
+    from homeassistant.core import SupportsResponse
+    hass.services.async_register("home_structure", "get_structure", handler, supports_response=SupportsResponse.ONLY)
+
+
+def _hs_entry(hass, options=None):
+    from homeassistant.config_entries import ConfigEntryState
+    e = MockConfigEntry(domain="home_structure", data={}, options=options or {})
+    e.add_to_hass(hass)
+    e.mock_state(hass, ConfigEntryState.LOADED)
+    return e
+
+
+async def test_status_and_effective_links(hass, home):
+    cfg = {"area_links": [{"a": "x", "b": "y", "type": "open"}]}
+    assert await sl.status(hass) == "not_installed"
+    assert await sl.effective_links(hass, cfg) == ([{"a": "x", "b": "y", "type": "open"}], "internal")
+    with patch.object(sl, "async_get_custom_components", return_value={"home_structure": object()}):
+        assert await sl.status(hass) == "not_configured"
+    _hs_entry(hass)
+    _hs_service(hass, {"spaces": [], "connections": []})
+    assert await sl.status(hass) == "ready"
+    assert (await sl.effective_links(hass, cfg))[1] == "internal"                           # ready but empty: ours are kept
+    hass.services.async_remove("home_structure", "get_structure")
+    _hs_service(hass, HS)
+    links, origin = await sl.effective_links(hass, cfg)
+    assert origin == "home_structure" and len(links) == 3
+
+
+async def test_manager_uses_home_structure(hass, home):
+    s, e = home["Salon"], home["Entrée"]
+    hass.states.async_set("sensor.hs_door", "open")
+    structure = {"spaces": [], "connections": [{"id": "c", "a": f"area:{s}", "b": f"area:{e}", "separations": [
+        {"id": "1", "type": "glass_door", "state": "open", "sensor": "binary_sensor.b", "entity_id": "sensor.hs_door"}]}]}
+    _hs_entry(hass)
+    _hs_service(hass, structure)
+    cfg = {"classes": {"Bark": {"enabled": True}},
+           "sources": [{"id": "hall", "name": "Hall", "type": "rtsp", "url": "rtsp://x/h", "area": e, "devices": {"enabled": True}}]}
+    fs.reset(cfg)
+    with patch("custom_components.sound_recognition.SoundRecClient", fs.FakeClient), \
+         patch("custom_components.sound_recognition.config_flow.SoundRecClient", fs.FakeClient):
+        entry = MockConfigEntry(domain=DOMAIN, data=DATA, unique_id="x", title="Sound Recognition")
+        entry.add_to_hass(hass)
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+        async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=2))
+        await hass.async_block_till_done()
+        assert fs.STATE.pushed["hall"]["offset"] == pytest.approx(0.057, abs=2e-3)         # TV 0.081 through an open glass door (0.7)
+        assert entry.runtime_data.dynamic.origin == "home_structure"
+        hass.states.async_set("sensor.hs_door", "closed")                                  # the door is closed: 0.25 x 0.081 = 0.02
+        await hass.async_block_till_done()
+        async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=4))
+        await hass.async_block_till_done()
+        assert fs.STATE.pushed["hall"]["offset"] == pytest.approx(0.02, abs=2e-3)
+        await hass.config_entries.async_unload(entry.entry_id)
+        fs.STATE.stop.set()
+
+
+async def test_panel_commands_structure_and_import(hass, hass_ws_client, home):
+    s, e = home["Salon"], home["Entrée"]
+    cfg = {"classes": {"Bark": {"enabled": True}}, "area_links": [{"a": s, "b": e, "type": "glass_door", "sensor": "binary_sensor.porte"}],
+           "sources": [{"id": "hall", "name": "Hall", "type": "rtsp", "url": "rtsp://x/h", "area": e}]}
+    fs.reset(cfg)
+    ws_n = [0]
+    with patch("custom_components.sound_recognition.SoundRecClient", fs.FakeClient), \
+         patch("custom_components.sound_recognition.config_flow.SoundRecClient", fs.FakeClient):
+        entry = MockConfigEntry(domain=DOMAIN, data=DATA, unique_id="x", title="Sound Recognition")
+        entry.add_to_hass(hass)
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+        ws = await hass_ws_client(hass)
+
+        async def call(**kw):
+            ws_n[0] += 1
+            await ws.send_json({"id": ws_n[0], **kw})
+            return (await ws.receive_json())["result"]
+
+        r = await call(type="sound_recognition/structure")
+        assert r["status"] == "not_installed" and r["origin"] == "internal" and r["links"] == [] and "ha-home-structure" in r["url"]
+        rules = [x["rule"] for x in (await call(type="sound_recognition/recommendations", language="fr"))["recommendations"]]
+        assert "install_home_structure" not in rules                                         # links already described here: no nagging
+        fs.STATE.cfg["area_links"] = []
+        entry.runtime_data.coordinator.service_config["area_links"] = []
+        recs = (await call(type="sound_recognition/recommendations", language="fr"))["recommendations"]
+        install = next(x for x in recs if x["rule"] == "install_home_structure")
+        assert install["apply"] is None and "Home Structure" in install["message"] and "voisines" in install["message"]
+        with patch.object(sl, "async_get_custom_components", return_value={"home_structure": object()}):
+            assert "setup_home_structure" in [x["rule"] for x in (await call(type="sound_recognition/recommendations"))["recommendations"]]
+        hs = _hs_entry(hass, {"zones": [], "connections": []})
+        _hs_service(hass, {"spaces": [], "connections": []})
+        assert "describe_home_structure" in [x["rule"] for x in (await call(type="sound_recognition/recommendations"))["recommendations"]]
+        hass.services.async_remove("home_structure", "get_structure")
+        _hs_service(hass, HS | {"connections": [{"id": "c", "a": f"area:{s}", "b": f"area:{e}", "separations": [{"id": "1", "type": "door", "state": "closed", "sensor": "binary_sensor.p", "entity_id": "sensor.hs_p"}]}]})
+        hass.states.async_set("sensor.hs_p", "closed")
+        r = await call(type="sound_recognition/structure")
+        assert r["status"] == "ready" and r["origin"] == "home_structure" and r["links"][0]["state"] == "closed" and r["links"][0]["a_name"] == "Salon"
+        assert not [x for x in (await call(type="sound_recognition/recommendations"))["recommendations"] if x["rule"].endswith("home_structure")]
+        # import what was described here into Home Structure
+        entry.runtime_data.coordinator.service_config["area_links"] = [{"a": s, "b": e, "type": "open"}]
+        with patch.object(hass.config_entries, "async_reload") as reload:
+            assert (await call(type="sound_recognition/import_structure"))["added"] == 1
+            reload.assert_called_once()
+        assert hs.options["connections"][0]["separations"] == [{"id": hs.options["connections"][0]["separations"][0]["id"], "type": "open_space"}]
+        devs = await call(type="sound_recognition/devices", area_id=e)
+        assert {d["area_id"] for d in devs["devices"]} == {s}                                # the living-room TV, reached through the connection described in Home Structure
+        await hass.config_entries.async_unload(entry.entry_id)
+        fs.STATE.stop.set()

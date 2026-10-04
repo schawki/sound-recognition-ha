@@ -1,4 +1,4 @@
-import type { Advice, AreaLink, HaArea, HaDevice, HaOpening, Catalog, Go2rtcStreams, Hass, LiveMessage, Overview, Recommendation, ServiceConfig, SoundEvent, Stats, Validation } from "./types";
+import type { Advice, AreaLink, HaArea, HaDevice, HaOpening, StructureInfo, Catalog, Go2rtcStreams, Hass, LiveMessage, Overview, Recommendation, ServiceConfig, SoundEvent, Stats, Validation } from "./types";
 
 export class PanelApi {
   constructor(private hass: Hass, public language: string) {}
@@ -27,9 +27,16 @@ export class PanelApi {
   async openings(): Promise<HaOpening[]> {
     return (await this.hass.callWS<{ openings: HaOpening[] }>({ type: "sound_recognition/openings" })).openings;
   }
-  /** Devices of a room and of the rooms linked to it. */
-  async devices(areaId: string, links: AreaLink[]): Promise<HaDevice[]> {
-    return (await this.hass.callWS<{ devices: HaDevice[] }>({ type: "sound_recognition/devices", area_id: areaId, links })).devices;
+  /** Devices of a room and of the rooms connected to it; `links` are the connections being edited here (otherwise those of Home Structure or saved ones are used). */
+  async devices(areaId: string, links?: AreaLink[]): Promise<HaDevice[]> {
+    return (await this.hass.callWS<{ devices: HaDevice[] }>({ type: "sound_recognition/devices", area_id: areaId, ...(links ? { links } : {}) })).devices;
+  }
+  structure(): Promise<StructureInfo> {
+    return this.hass.callWS({ type: "sound_recognition/structure" });
+  }
+  /** Copies the connections described here into Home Structure; resolves to the number of separations added. */
+  async importStructure(): Promise<number> {
+    return (await this.hass.callWS<{ added: number }>({ type: "sound_recognition/import_structure" })).added;
   }
   stats(hours = 24): Promise<Stats> {
     return this.hass.callWS({ type: "sound_recognition/stats", hours });

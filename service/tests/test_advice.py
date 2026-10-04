@@ -93,7 +93,11 @@ def test_area_devices_and_links_validation():
     assert cfgmod.validate(cfg, CAT) == []
     cfg["sources"][0]["devices"] = {"enabled": "yes", "oops": 1}
     cfg["sources"][1]["devices"] = {"exclude": ["nodot"], "max_offset": 3}
-    cfg["area_links"] = [{"a": "x", "b": "x", "type": "open"}, {"a": "x", "b": "y", "type": "wall"}, {"a": "x", "b": "y", "type": "open", "sensor": "binary_sensor.d"}]
+    cfg["area_links"] = [{"a": "x", "b": "x", "type": "open"}, {"a": "x", "b": "y", "type": "teleport"}, {"a": "x", "b": "y", "type": "wall", "sensor": "binary_sensor.d"}]
     errs = cfgmod.validate(cfg, CAT)
     assert sum("devices" in e for e in errs) >= 3 and sum("area_links" in e for e in errs) >= 3
+    cfg = _cfg()
+    cfg["area_links"] = [{"a": "a", "b": "b", "type": t} for t in ("open", "open_space", "opening", "wall")] + [
+        {"a": "a", "b": "b", "type": t, "sensor": "binary_sensor.s"} for t in ("door", "glass_door", "window", "shutter")]
+    assert cfgmod.validate(cfg, CAT) == []
     assert any("total_boost_cap" in e for e in cfgmod.validate(_cfg(analysis={**cfgmod.DEFAULTS["analysis"], "total_boost_cap": 5}), CAT))

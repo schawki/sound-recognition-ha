@@ -124,6 +124,11 @@ def _check_devices(s, w, errs):
             errs.append(f"{w}.devices.{key} must be a list of entity ids")
 
 
+# What separates two rooms (the vocabulary of the Home Structure integration; "open" is the former name of "open_space").
+FIXED_LINK_TYPES = ("open", "open_space", "opening", "wall")
+LINK_TYPES = FIXED_LINK_TYPES + ("door", "glass_door", "window", "shutter")
+
+
 def _check_area_links(links, errs):
     if links is None:
         return
@@ -137,10 +142,10 @@ def _check_area_links(links, errs):
             continue
         if not all(isinstance(l.get(k), str) and l.get(k) for k in ("a", "b")) or l.get("a") == l.get("b"):
             errs.append(f"{w}: a and b must be two different areas")
-        if l.get("type") not in ("open", "door"):
-            errs.append(f"{w}.type must be 'open' or 'door'")
-        if l.get("sensor") is not None and (l.get("type") != "door" or not isinstance(l["sensor"], str) or "." not in l["sensor"]):
-            errs.append(f"{w}.sensor is an entity id and only applies to doors")
+        if l.get("type") not in LINK_TYPES:
+            errs.append(f"{w}.type must be one of {', '.join(LINK_TYPES)}")
+        if l.get("sensor") is not None and (l.get("type") in FIXED_LINK_TYPES or not isinstance(l["sensor"], str) or "." not in l["sensor"]):
+            errs.append(f"{w}.sensor is an entity id and does not apply to an open space, an opening or a wall")
         for k in ("open_factor", "closed_factor"):
             if k in l and not _num(l[k], 0, 1):
                 errs.append(f"{w}.{k} must be between 0 and 1")

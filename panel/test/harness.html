@@ -29,6 +29,10 @@
     ],
   };
   state.saves = [];
+  const hsLinks = [{ a: "salon", b: "entree", a_name: "Salon", b_name: "Entrée", type: "open_space", sensor: null, state: "open" }, { a: "entree", b: "hall", a_name: "Entrée", b_name: "Entrée (extérieur)", type: "door", sensor: "sensor.hs_porte", state: "closed" }];
+  const hs = q.get("hs");
+  state.structure = { status: hs === "setup" ? "not_configured" : hs ? "ready" : "not_installed", origin: hs === "ready" ? "home_structure" : "internal", links: hs === "ready" ? hsLinks : [], url: "https://github.com/schawki/ha-home-structure" };
+  if (q.get("internal")) state.config.area_links = [{ a: "salon", b: "entree", type: "open" }];
   const TV = fullCatalog.classes.find((c) => c.audioset_name === "Television").mid;
   state.recs = [
     { rule: "enable_contexts", level: "warning", source: "garden", classes: [TV], message: "« Garden camera » (Living room): enable Television.", apply: { source: "garden", class_patch: { [TV]: { enabled: true } } } },
@@ -58,13 +62,15 @@
       warnings: [{ rule: "r", kind: "rule", level: "warning", source: "kitchen", classes: [], message: "m" }], config: JSON.parse(JSON.stringify(state.config)) }),
     "sound_recognition/catalog": () => fullCatalog,
     "sound_recognition/areas": () => ({ areas: [{ area_id: "cuisine", name: "Cuisine" }, { area_id: "entree", name: "Entrée" }, { area_id: "salon", name: "Salon" }] }),
-    "sound_recognition/openings": () => ({ openings: [{ entity_id: "binary_sensor.porte_bureau", name: "Porte bureau", area_id: "bureau", state: "off" }, { entity_id: "binary_sensor.porte_cuisine", name: "Porte cuisine", area_id: "cuisine", state: "on" }] }),
+    "sound_recognition/openings": () => ({ openings: [{ entity_id: "binary_sensor.porte_bureau", name: "Porte bureau", area_id: "bureau", state: "off", domain: "binary_sensor", device_class: "door" }, { entity_id: "binary_sensor.porte_cuisine", name: "Porte cuisine", area_id: "cuisine", state: "on", domain: "binary_sensor", device_class: "door" }, { entity_id: "cover.volet_salon", name: "Volet salon", area_id: "salon", state: "open", domain: "cover", device_class: "shutter" }] }),
+    "sound_recognition/structure": () => state.structure,
+    "sound_recognition/import_structure": () => { state.imports = (state.imports || 0) + 1; return { added: 2 }; },
     "sound_recognition/devices": (m) => {
       const mk = (id, name, area, area_id, extra) => Object.assign({ entity_id: id, name, domain: id.split(".")[0], state: "playing", available: true, has_volume: true, duplicate_of: null, area, area_id }, extra || {});
       const rooms = { salon: [mk("media_player.tv", "TV Salon", "Salon", "salon"), mk("media_player.tv_2", "TV Salon 2", "Salon", "salon", { available: false, state: "unavailable", duplicate_of: "media_player.tv" })], cuisine: [mk("media_player.homepod", "HomePod", "Cuisine", "cuisine")], entree: [] };
       const seen = new Set([m.area_id]);
-      for (let i = 0; i < 2; i++) for (const l of m.links) if (seen.has(l.a) || seen.has(l.b)) { seen.add(l.a); seen.add(l.b); }
-      state.deviceCalls = (state.deviceCalls || []).concat([[m.area_id, m.links.length]]);
+      for (let i = 0; i < 2; i++) for (const l of (m.links || [])) if (seen.has(l.a) || seen.has(l.b)) { seen.add(l.a); seen.add(l.b); }
+      state.deviceCalls = (state.deviceCalls || []).concat([[m.area_id, m.links ? m.links.length : -1]]);
       return { devices: [...seen].sort().flatMap((a) => rooms[a] || []) };
     },
     "sound_recognition/stats": (m) => {

@@ -75,9 +75,13 @@ export interface SourceCfg {
 }
 export type AdviceLevel = "default" | "info" | "warning" | "danger" | "ignore";
 export type AdviceSetting = AdviceLevel | { level: AdviceLevel; confirm?: boolean };
-export interface AreaLink { a: string; b: string; type: "open" | "door"; sensor?: string; open_factor?: number; closed_factor?: number }
+export type SeparationType = "open_space" | "opening" | "door" | "glass_door" | "window" | "shutter" | "wall";
+export interface AreaLink { a: string; b: string; type: SeparationType | "open"; sensor?: string; open_factor?: number; closed_factor?: number }
+export interface StructureLink { a: string; b: string; a_name: string; b_name: string; type: SeparationType; sensor: string | null; state: "open" | "closed" | "partial" | "unknown" }
+/** Where the description of the home comes from. */
+export interface StructureInfo { status: "not_installed" | "not_configured" | "ready"; origin: "home_structure" | "internal"; links: StructureLink[]; url: string }
 export interface HaArea { area_id: string; name: string }
-export interface HaOpening { entity_id: string; name: string; area_id: string | null; state: string }
+export interface HaOpening { entity_id: string; name: string; area_id: string | null; state: string; domain: "binary_sensor" | "cover"; device_class: string | null }
 export interface HaDevice { entity_id: string; name: string; domain: string; state: string; available: boolean; has_volume: boolean; duplicate_of: string | null; area_id: string; area: string }
 export interface ServiceConfig {
   area_links?: AreaLink[];

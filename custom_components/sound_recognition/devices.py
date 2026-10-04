@@ -36,28 +36,73 @@ def contribution(domain: str, state: str | None, attrs: dict[str, Any], max_offs
     return 0.0
 
 
+# Share of the sound that goes through each kind of separation: (open, closed). Home Structure only says what separates two spaces;
+# what that means for sound is decided here. An unreadable state counts as the average of the two.
+TRANSMISSION = {"open_space": (1.0, 1.0), "opening": (0.9, 0.9), "door": (OPEN_FACTOR, CLOSED_FACTOR), "glass_door": (OPEN_FACTOR, 0.25),
+                "window": (0.6, 0.1), "shutter": (0.6, 0.1), "wall": (0.05, 0.05)}
+SHUTTER_ON_OPENING = {"open": 1.0, "partial": 0.75, "unknown": 0.75, "closed": 0.5}   # a shutter in front of a window or a door only lowers it
+REACH_MIN = 0.1                                                                       # a separation that can never let this much through is not followed
+MIN_EFFECT = 0.01                                                                     # smaller increases are noise and are not reported
+
+
+def link_type(link: dict) -> str:
+    kind = link.get("type", "open_space")
+    return "open_space" if kind == "open" else kind if kind in TRANSMISSION else "door"
+
+
+def link_state(link: dict, states: dict[str, str]) -> str:
+    """open | closed | partial | unknown. Accepts the states of Home Structure (open, closed, partial) and of raw sensors (on, off, opening...)."""
+    if link_type(link) in ("open_space", "opening", "wall"):
+        return "open" if link_type(link) != "wall" else "closed"
+    raw = states.get(link.get("sensor") or "")
+    if raw in ("on", "open"):
+        return "open"
+    if raw in ("off", "closed"):
+        return "closed"
+    if raw in ("partial", "opening", "closing"):
+        return "partial"
+    return "unknown"
+
+
 def edge_factor(link: dict, states: dict[str, str]) -> float:
-    """Share of the sound that passes between two linked areas now."""
-    if link.get("type") != "door":
-        return 1.0
-    open_f, closed_f = link.get("open_factor", OPEN_FACTOR), link.get("closed_factor", CLOSED_FACTOR)
-    state = states.get(link.get("sensor") or "")
-    if state == "on":                                              # a door or window sensor reads "on" when open
-        return open_f
-    if state == "off":
-        return closed_f
-    return (open_f + closed_f) / 2                                 # no sensor, or it does not answer
+    """Share of the sound that passes through one separation now."""
+    kind = link_type(link)
+    open_f, closed_f = TRANSMISSION[kind]
+    if kind not in ("open_space", "opening", "wall"):
+        open_f, closed_f = link.get("open_factor", open_f), link.get("closed_factor", closed_f)
+    state = link_state(link, states)
+    return open_f if state == "open" else closed_f if state == "closed" else round((open_f + closed_f) / 2, 4)
+
+
+def pair_factor(links: list[dict], states: dict[str, str]) -> float:
+    """Several separations between the same two spaces: the most open one wins, a shutter in front of it lowers it."""
+    openings = [l for l in links if link_type(l) != "shutter"]
+    shutters = [l for l in links if link_type(l) == "shutter"]
+    if openings and shutters:
+        base = max(edge_factor(l, states) for l in openings)
+        return round(base * min(SHUTTER_ON_OPENING[link_state(l, states)] for l in shutters), 4)
+    return max(edge_factor(l, states) for l in links) if links else 0.0
+
+
+def _pairs(links: list[dict]) -> dict[frozenset, list[dict]]:
+    out: dict[frozenset, list[dict]] = {}
+    for l in links:
+        out.setdefault(frozenset((l["a"], l["b"])), []).append(l)
+    return out
 
 
 def coupling(a: str | None, b: str | None, links: list[dict], states: dict[str, str]) -> float:
-    """How much of the sound of area b reaches area a: 1 inside an area, through up to two links otherwise (factors multiply)."""
+    """How much of the sound of area b reaches area a: 1 inside an area, through up to two connections otherwise (factors multiply)."""
     if a is None or b is None or a == b:
         return 1.0
     edges: dict[str, dict[str, float]] = {}
-    for link in links:
-        f = edge_factor(link, states)
-        for x, y in ((link["a"], link["b"]), (link["b"], link["a"])):
-            edges.setdefault(x, {})[y] = max(f, edges.get(x, {}).get(y, 0.0))
+    for pair, group in _pairs(links).items():
+        x, y = tuple(pair) if len(pair) == 2 else (None, None)
+        if x is None:
+            continue
+        f = pair_factor(group, states)
+        edges.setdefault(x, {})[y] = f
+        edges.setdefault(y, {})[x] = f
     best = edges.get(a, {}).get(b, 0.0)
     for mid, f1 in edges.get(a, {}).items():
         if mid != b:
@@ -66,12 +111,13 @@ def coupling(a: str | None, b: str | None, links: list[dict], states: dict[str, 
 
 
 def reachable_areas(a: str | None, links: list[dict]) -> set[str]:
-    """The area itself and the areas at most two links away."""
+    """The area itself and the areas at most two connections away, following only separations that can let sound through."""
     if a is None:
         return set()
+    usable = [l for l in links if max(TRANSMISSION[link_type(l)]) >= REACH_MIN]
     seen = {a}
     for _ in range(2):
-        for link in links:
+        for link in usable:
             if link["a"] in seen or link["b"] in seen:
                 seen.update((link["a"], link["b"]))
     return seen
@@ -128,17 +174,20 @@ def areas(hass: HomeAssistant) -> list[dict]:
     return sorted(({"area_id": a.id, "name": a.name} for a in ar.async_get(hass).async_list_areas()), key=lambda a: a["name"].casefold())
 
 
+COVER_CLASSES = {"shutter", "blind", "shade", "curtain", "awning", "door", "window", "garage", "gate", "damper"}
+
+
 def openings(hass: HomeAssistant) -> list[dict]:
-    """Door, window and opening sensors, to describe how rooms communicate."""
+    """Door and window sensors and covers (shutters, doors), to say what separates two rooms."""
     registry, out = er.async_get(hass), []
     for r in registry.entities.values():
-        if r.domain != "binary_sensor" or r.disabled_by:
+        if r.domain not in ("binary_sensor", "cover") or r.disabled_by:
             continue
         st = hass.states.get(r.entity_id)
         dc = (st.attributes.get("device_class") if st else None) or r.original_device_class or r.device_class
-        if dc in OPENING_CLASSES:
+        if dc in (OPENING_CLASSES if r.domain == "binary_sensor" else COVER_CLASSES):
             out.append({"entity_id": r.entity_id, "name": (st.name if st else None) or r.name or r.original_name or r.entity_id,
-                        "area_id": entity_area(hass, r), "state": st.state if st else "unavailable"})
+                        "area_id": entity_area(hass, r), "state": st.state if st else "unavailable", "domain": r.domain, "device_class": dc})
     return sorted(out, key=lambda o: o["entity_id"])
 
 
@@ -160,9 +209,10 @@ def selected(hass: HomeAssistant, src: dict, links: list[dict]) -> list[tuple[st
     return out
 
 
-def compute(hass: HomeAssistant, cfg: dict, src: dict, statuses: dict[str, dict], inhibitors: set[str], names: dict[str, str]) -> tuple[float, list[str], list[dict]]:
+def compute(hass: HomeAssistant, cfg: dict, src: dict, statuses: dict[str, dict], inhibitors: set[str], names: dict[str, str],
+            links: list[dict] | None = None) -> tuple[float, list[str], list[dict]]:
     """Threshold increase for one source from the devices around it and from the context sounds heard by the sources linked to it."""
-    links = cfg.get("area_links") or []
+    links = cfg.get("area_links") or [] if links is None else links
     dcfg = src.get("devices") or {}
     max_offset = dcfg.get("max_offset", DEFAULT_MAX_OFFSET)
     own = src.get("area")
@@ -177,7 +227,8 @@ def compute(hass: HomeAssistant, cfg: dict, src: dict, statuses: dict[str, dict]
         value = round(contribution(eid.split(".")[0], st.state, st.attributes, max_offset) * c, 3)
         where = area_names.get(area or "", "")
         label = f"{st.name} · {where} · {round(c * 100)} %" if where and area != own else f"{st.name} · {round(c * 100)} %"
-        items.append({"kind": "device", "label": label, "value": value})
+        if value >= MIN_EFFECT:
+            items.append({"kind": "device", "label": label, "value": value})
     boost = (cfg.get("analysis") or {}).get("context_boost", 0.15)
     for other in cfg.get("sources", []):
         if other["id"] == src["id"] or not other.get("enabled", True):
@@ -187,7 +238,8 @@ def compute(hass: HomeAssistant, cfg: dict, src: dict, statuses: dict[str, dict]
             continue
         c = coupling(own, other.get("area"), links, states) if own and other.get("area") else 0.0
         label = f"{other.get('name') or other['id']}: {', '.join(names.get(m, m) for m in heard)} · {round(c * 100)} %"
-        items.append({"kind": "shared", "label": label, "value": round(boost * c, 3)})
+        if boost * c >= MIN_EFFECT:
+            items.append({"kind": "shared", "label": label, "value": round(boost * c, 3)})
     return combine(items)
 
 
@@ -195,19 +247,31 @@ TEXTS = {
     "en": {
         "set_area": "Assign a Home Assistant room to « {source} » so the devices around it (TV, speakers...) can be taken into account.",
         "enable_devices": "« {source} » ({area}): {devices} found in the room. Enable the device setting, so the thresholds rise while they play.",
+        "install_home_structure": "Install the Home Structure integration to describe which rooms are next to each other and what separates them (open space, door, window, shutter, sensors). Sound Recognition uses it to share what is heard between connected rooms, and other integrations can use it too. You can still describe the rooms here, in the Sources tab.",
+        "setup_home_structure": "Home Structure is installed: add it in Settings, Devices & services, then describe your home there. Sound Recognition will use it.",
+        "describe_home_structure": "Home Structure is set up but describes nothing yet. Describe which rooms are next to each other and what separates them there: Sound Recognition will use it.",
     },
     "fr": {
         "set_area": "Attribuez une pièce Home Assistant à « {source} » pour prendre en compte les appareils qui l'entourent (TV, enceintes...).",
         "enable_devices": "« {source} » ({area}) : {devices} dans la pièce. Activez le réglage par appareils, pour que les seuils montent pendant leur lecture.",
+        "install_home_structure": "Installez l'intégration Home Structure pour décrire quelles pièces sont voisines et ce qui les sépare (espace ouvert, porte, fenêtre, volet, capteurs). Sound Recognition s'en sert pour partager ce qui est entendu entre pièces reliées, et d'autres intégrations peuvent s'en servir aussi. Vous pouvez quand même décrire les pièces ici, dans l'onglet Sources.",
+        "setup_home_structure": "Home Structure est installée : ajoutez-la dans Paramètres, Appareils et services, puis décrivez-y votre logement. Sound Recognition s'en servira.",
+        "describe_home_structure": "Home Structure est configurée mais ne décrit encore rien. Décrivez-y quelles pièces sont voisines et ce qui les sépare : Sound Recognition s'en servira.",
     },
 }
 
 
-def recommendations(hass: HomeAssistant, cfg: dict, lang: str) -> list[dict]:
+def recommendations(hass: HomeAssistant, cfg: dict, lang: str, hs_status: str = "ready", hs_described: bool = True) -> list[dict]:
     """What only Home Assistant can see: sources without a room, and rooms with devices that could be used."""
     txt = {**TEXTS["en"], **TEXTS.get(lang, {})}
     area_names = {a["area_id"]: a["name"] for a in areas(hass)}
     out = []
+    if any(s.get("enabled", True) and s.get("area") for s in cfg.get("sources", [])) and not cfg.get("area_links"):
+        rule = {"not_installed": "install_home_structure", "not_configured": "setup_home_structure"}.get(hs_status)
+        if rule is None and not hs_described:
+            rule = "describe_home_structure"
+        if rule:
+            out.append({"rule": rule, "level": "info", "source": "", "classes": [], "message": txt[rule], "apply": None})
     for src in cfg.get("sources", []):
         if not src.get("enabled", True):
             continue

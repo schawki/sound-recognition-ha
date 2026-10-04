@@ -32,16 +32,32 @@ Give a source a Home Assistant room (`sources[].area`) and the integration finds
 
 Nothing is changed until you enable it for the source: `sources[].devices: {enabled: true, max_offset: 0.15, exclude: [], include: []}`. Then, while a device plays, the thresholds of the sounds that look like it are raised, between half and the full `max_offset` depending on the volume (60 % when the device does not report one); muted or off devices count for nothing. Vacuum cleaners count for 80 %, switches and fans for 60 %. The strongest cause wins, they do not add up.
 
-**Connected rooms** (`area_links`, Sources tab): a living room and a hall with no wall are one space, and a kitchen door that is often open lets sound through.
+**Connected rooms.** A living room and a hall with no wall are one space, and a kitchen door that is often open lets sound through. The description of the home (which rooms are next to each other, what separates them, which sensor says if it is open) belongs to a separate integration, [Home Structure](https://github.com/schawki/ha-home-structure), so that other integrations can use it too. Sound Recognition reads it when it is installed and only decides what each kind of separation means for sound:
+
+| Separation | open | closed |
+|---|---|---|
+| open space | 100 % | – |
+| opening without a door | 90 % | – |
+| door | 70 % | 15 % |
+| glass or sliding door | 70 % | 25 % |
+| window | 60 % | 10 % |
+| roller shutter (alone) | 60 % | 10 % |
+| plain wall | 5 % | 5 % |
+
+A state that cannot be read (no sensor, unavailable) counts as the average of open and closed, and partly open as well. Several separations between the same two rooms: the most open wins; a roller shutter in front of a window or door multiplies it (open ×1, partly ×0.75, closed ×0.5). A plain wall lets almost nothing through and is not followed. Up to two connections are followed from a room, factors multiply.
+
+Without Home Structure, the Sources tab first recommends installing it (and says why), then lets you describe the rooms there anyway: the same kinds of separation, with an optional sensor (`binary_sensor` or `cover`). Once Home Structure describes something it takes over, and the button **Copy the rooms described here into Home Structure** moves what you had entered.
 
 ```yaml
-area_links:
-  - {a: salon, b: entree, type: open}                                  # 100 %
-  - {a: entree, b: cuisine, type: door, sensor: binary_sensor.porte}   # open about 70 %, closed about 15 %
+area_links:    # only used when Home Structure is not installed or describes nothing
+  - {a: salon, b: entree, type: open_space}
+  - {a: entree, b: cuisine, type: door, sensor: binary_sensor.porte}   # open 70 %, closed 15 %
   - {a: entree, b: cuisine, type: door}                                # no sensor: about 42 %
 ```
 
-The devices of a connected room count for the source in proportion to what passes (up to two links, factors multiply). The factors can be changed with `open_factor` and `closed_factor`. A door sensor that is unavailable counts as the average. A sound heard by *another* source of a connected room (a television detected by the living-room microphone) also raises this source, by `context_boost` times that share: it is the same switch, there is nothing else to enable. The total never exceeds `analysis.total_boost_cap` (0.30), and safety sounds stay capped at `safety_boost_cap`.
+Types: `open_space`, `opening`, `door`, `glass_door`, `window`, `shutter`, `wall` (`open` is the former name of `open_space`). `open_factor` and `closed_factor` replace the two shares of a link.
+
+The devices of a connected room count for the source in proportion to what passes. A sound heard by *another* source of a connected room (a television detected by the living-room microphone) also raises this source, by `context_boost` times that share: it is the same switch, there is nothing else to enable. The total never exceeds `analysis.total_boost_cap` (0.30), and safety sounds stay capped at `safety_boost_cap`. Increases under 0.01 are ignored.
 
 The integration recomputes within a second of any change and sends the result to the service with a 60 second lifetime, renewed every 20 seconds: if Home Assistant stops, the thresholds go back to normal by themselves. The Overview tab shows what raises each source (for example “TV Salon · 100 % +0.08”), and hidden sounds name their cause (devices in the room, sound heard in a neighbouring room).
 
