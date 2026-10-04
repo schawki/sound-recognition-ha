@@ -230,9 +230,32 @@
     "advice": {
       "title": "Conseil de reconnaissance de sons",
       "description": "**{source}** : {message}"
+    },
+    "stale_entities": {
+      "title": "Entités Sound Recognition inutilisées",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Entités Sound Recognition inutilisées",
+            "description": "{count} entités ne sont plus fournies par la configuration actuelle (un son ou une source a été retiré) et restent indisponibles : {entities}.\n\nLes supprimer, ou les conserver (par exemple parce qu'une automatisation ou un tableau de bord y fait encore référence) ? Les entités conservées ne seront plus proposées.",
+            "data": {
+              "action": "Que faire ?"
+            }
+          }
+        },
+        "abort": {
+          "not_loaded": "L'intégration n'est pas chargée ; réessayez quand elle l'est."
+        }
+      }
     }
   },
   "selector": {
+    "stale_action": {
+      "options": {
+        "remove": "Les supprimer",
+        "keep": "Les conserver"
+      }
+    },
     "advice_level": {
       "options": {
         "default": "Valeur du catalogue",

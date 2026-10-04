@@ -230,9 +230,32 @@
     "advice": {
       "title": "Sound recognition advice",
       "description": "**{source}**: {message}"
+    },
+    "stale_entities": {
+      "title": "Unused Sound Recognition entities",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Unused Sound Recognition entities",
+            "description": "{count} entities are no longer provided by the current configuration (a sound or a source was removed) and stay unavailable: {entities}.\n\nRemove them, or keep them (for example because an automation or dashboard still refers to them)? Kept entities are not asked about again.",
+            "data": {
+              "action": "What to do"
+            }
+          }
+        },
+        "abort": {
+          "not_loaded": "The integration is not loaded; try again once it is."
+        }
+      }
     }
   },
   "selector": {
+    "stale_action": {
+      "options": {
+        "remove": "Remove them",
+        "keep": "Keep them"
+      }
+    },
     "advice_level": {
       "options": {
         "default": "Catalog default",

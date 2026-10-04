@@ -355,39 +355,91 @@ async def test_panel_survives_reload_and_goes_with_the_last_entry(hass):
 
 
 # ------------------------------------------------------------------------------------------------ stale entities
-async def test_entities_of_removed_sounds_and_sources_are_cleaned_up(hass):
+from custom_components.sound_recognition.repairs import issue_id as stale_issue_id
+
+
+def stale_issue(hass, entry):
+    return ir.async_get(hass).async_get_issue(DOMAIN, stale_issue_id(entry.entry_id))
+
+
+async def make_stale(hass):
+    """Sets up, then switches two sounds off and reloads (what every saved change does)."""
     entry = await setup_entry(hass)
     reg = er.async_get(hass)
     mid = lambda m: m.strip("/").replace("/", "_")
-    bark, smoke = eid(hass, "binary_sensor", entry, f"kitchen_{mid(BARK)}"), eid(hass, "binary_sensor", entry, f"kitchen_{mid(SMOKE)}")
-    assert bark and smoke
-    reg.async_update_entity(smoke, name="My smoke alarm")                  # the user renamed this one: it is never removed
-    foreign = reg.async_get_or_create("binary_sensor", "other_integration", "kitchen_bark", suggested_object_id="not_ours")
-
-    # the sound is switched off and a new source appears, then the entry reloads (what every saved change does)
+    bark = eid(hass, "binary_sensor", entry, f"kitchen_{mid(BARK)}")
+    smoke = eid(hass, "binary_sensor", entry, f"kitchen_{mid(SMOKE)}")
+    assert bark and smoke and stale_issue(hass, entry) is None
     fs.STATE.cfg["classes"]["Bark"] = {"enabled": False}
     fs.STATE.cfg["classes"]["Smoke detector, smoke alarm"] = {"enabled": False}
     assert await hass.config_entries.async_reload(entry.entry_id)
     await hass.async_block_till_done()
-    assert reg.async_get(bark) is None                                       # gone, instead of staying unavailable
-    assert reg.async_get(smoke) is not None                                  # renamed by the user: kept
-    assert reg.async_get(foreign.entity_id) is not None                      # not ours: untouched
+    return entry, reg, bark, smoke
+
+
+async def run_fix(hass, hass_client, entry, action):
+    http = await hass_client()
+    resp = await http.post("/api/repairs/issues/fix", json={"handler": DOMAIN, "issue_id": stale_issue_id(entry.entry_id)})
+    flow = await resp.json()
+    assert flow["step_id"] == "init" and flow["description_placeholders"]["count"] == "2"
+    resp = await http.post(f"/api/repairs/issues/fix/{flow['flow_id']}", json={"action": action})
+    assert (await resp.json())["type"] == "create_entry"
+
+
+async def test_removed_sounds_raise_a_repair_instead_of_being_deleted(hass):
+    entry, reg, bark, smoke = await make_stale(hass)
+    assert reg.async_get(bark) and reg.async_get(smoke)                      # nothing is deleted behind the user's back
+    issue = stale_issue(hass, entry)
+    assert issue and issue.is_fixable and issue.translation_placeholders["count"] == "2"
+    foreign = reg.async_get_or_create("binary_sensor", "other_integration", "kitchen_bark", suggested_object_id="not_ours")
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    assert reg.async_get(foreign.entity_id)                                  # not ours: never touched nor counted
+    assert stale_issue(hass, entry).translation_placeholders["count"] == "2"
+
+
+async def test_repair_remove(hass, hass_client):
+    entry, reg, bark, smoke = await make_stale(hass)
+    await run_fix(hass, hass_client, entry, "remove")
+    assert reg.async_get(bark) is None and reg.async_get(smoke) is None
+    assert stale_issue(hass, entry) is None
     assert eid(hass, "binary_sensor", entry, "kitchen_connection") and eid(hass, "sensor", entry, "advice")
 
-    # the source itself is removed: all its entities go, the service ones stay
-    fs.STATE.cfg["sources"] = []
+
+async def test_repair_keep_is_not_asked_again(hass, hass_client):
+    entry, reg, bark, smoke = await make_stale(hass)
+    await run_fix(hass, hass_client, entry, "keep")
+    assert reg.async_get(bark) and reg.async_get(smoke) and stale_issue(hass, entry) is None
     assert await hass.config_entries.async_reload(entry.entry_id)
     await hass.async_block_till_done()
-    assert eid(hass, "binary_sensor", entry, "kitchen_connection") is None and eid(hass, "event", entry, "kitchen_event") is None
-    assert eid(hass, "sensor", entry, "advice")
+    assert stale_issue(hass, entry) is None                                  # kept: no new question
+    fs.STATE.cfg["sources"] = []                                             # something else goes away later: asked again, only about that
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    issue = stale_issue(hass, entry)
+    assert issue and int(issue.translation_placeholders["count"]) >= 2
+    assert reg.async_get(bark) and reg.async_get(smoke)
 
 
-async def test_nothing_is_removed_when_the_configuration_is_unreadable(hass):
+async def test_issue_goes_when_nothing_is_stale_and_on_unload(hass):
+    entry, reg, bark, smoke = await make_stale(hass)
+    assert stale_issue(hass, entry)
+    fs.STATE.cfg["classes"]["Bark"] = {"enabled": True}
+    fs.STATE.cfg["classes"]["Smoke detector, smoke alarm"] = {"enabled": True}
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    assert stale_issue(hass, entry) is None                                  # the sounds are back: nothing to ask
+    fs.STATE.cfg["classes"]["Bark"] = {"enabled": False}
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    assert stale_issue(hass, entry)
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    assert stale_issue(hass, entry) is None
+
+
+async def test_nothing_is_claimed_when_the_configuration_is_unreadable(hass):
     from custom_components.sound_recognition.helpers import expected_unique_ids
+    from custom_components.sound_recognition.repairs import stale_entries
     entry = await setup_entry(hass)
-    assert expected_unique_ids("e", {}, {}) == {"e_advice"}                  # why the cleanup refuses to run without a "sources" key
-    before = {e.entity_id for e in er.async_entries_for_config_entry(er.async_get(hass), entry.entry_id)}
-    entry.runtime_data.coordinator.service_config = {}
-    from custom_components.sound_recognition import _remove_stale_entities
-    _remove_stale_entities(hass, entry, entry.runtime_data.coordinator)
-    assert before == {e.entity_id for e in er.async_entries_for_config_entry(er.async_get(hass), entry.entry_id)}
+    assert expected_unique_ids("e", {}, {}) == {"e_advice"}                  # why an unreadable configuration must be refused
+    coordinator = entry.runtime_data.coordinator
+    assert stale_entries(hass, entry, {}, coordinator.index) == []
+    assert stale_entries(hass, entry, coordinator.service_config, {}) == []

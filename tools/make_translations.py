@@ -86,8 +86,22 @@ EN = {
         "event": {"sound": {"name": "Sound detection", "state_attributes": {"event_type": {"state": {"detection": "Detection", "clip_ready": "Clip ready"}}}}},
         "sensor": {"level": {"name": "Sound level"}, "advice": {"name": "Advice and warnings"}},
     },
-    "issues": {"advice": {"title": "Sound recognition advice", "description": "**{source}**: {message}"}},
+    "issues": {
+        "advice": {"title": "Sound recognition advice", "description": "**{source}**: {message}"},
+        "stale_entities": {
+            "title": "Unused Sound Recognition entities",
+            "fix_flow": {
+                "step": {"init": {
+                    "title": "Unused Sound Recognition entities",
+                    "description": "{count} entities are no longer provided by the current configuration (a sound or a source was removed) and stay unavailable: {entities}.\n\nRemove them, or keep them (for example because an automation or dashboard still refers to them)? Kept entities are not asked about again.",
+                    "data": {"action": "What to do"},
+                }},
+                "abort": {"not_loaded": "The integration is not loaded; try again once it is."},
+            },
+        },
+    },
     "selector": {
+        "stale_action": {"options": {"remove": "Remove them", "keep": "Keep them"}},
         "advice_level": {"options": {"default": "Catalog default", "info": "Information", "warning": "Warning", "danger": "Danger", "ignore": "Ignore (hide)"}},
         "source_type": {"options": {"rtsp": "RTSP stream", "go2rtc": "go2rtc / camera", "alsa_rpi": "Raspberry Pi microphone", "esphome": "ESPHome (not available yet)", "file": "Audio file (tests)"}},
         "schedule_mode": {"options": {"continuous": "Continuous (all the time)", "scheduled": "Scheduled (time window)"}},
@@ -175,8 +189,22 @@ FR = {
         "event": {"sound": {"name": "Détection de son", "state_attributes": {"event_type": {"state": {"detection": "Détection", "clip_ready": "Clip prêt"}}}}},
         "sensor": {"level": {"name": "Niveau sonore"}, "advice": {"name": "Conseils et avertissements"}},
     },
-    "issues": {"advice": {"title": "Conseil de reconnaissance de sons", "description": "**{source}** : {message}"}},
+    "issues": {
+        "advice": {"title": "Conseil de reconnaissance de sons", "description": "**{source}** : {message}"},
+        "stale_entities": {
+            "title": "Entités Sound Recognition inutilisées",
+            "fix_flow": {
+                "step": {"init": {
+                    "title": "Entités Sound Recognition inutilisées",
+                    "description": "{count} entités ne sont plus fournies par la configuration actuelle (un son ou une source a été retiré) et restent indisponibles : {entities}.\n\nLes supprimer, ou les conserver (par exemple parce qu'une automatisation ou un tableau de bord y fait encore référence) ? Les entités conservées ne seront plus proposées.",
+                    "data": {"action": "Que faire ?"},
+                }},
+                "abort": {"not_loaded": "L'intégration n'est pas chargée ; réessayez quand elle l'est."},
+            },
+        },
+    },
     "selector": {
+        "stale_action": {"options": {"remove": "Les supprimer", "keep": "Les conserver"}},
         "advice_level": {"options": {"default": "Valeur du catalogue", "info": "Information", "warning": "Avertissement", "danger": "Danger", "ignore": "Ignorer (masquer)"}},
         "source_type": {"options": {"rtsp": "Flux RTSP", "go2rtc": "go2rtc / caméra", "alsa_rpi": "Micro de Raspberry Pi", "esphome": "ESPHome (pas encore disponible)", "file": "Fichier audio (tests)"}},
         "schedule_mode": {"options": {"continuous": "Continue (en permanence)", "scheduled": "Planifiée (plage horaire)"}},
