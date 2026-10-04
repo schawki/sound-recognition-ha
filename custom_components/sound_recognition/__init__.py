@@ -23,6 +23,7 @@ from . import websocket_api as panel_ws
 from .const import CLIP_SIGN_HOURS, CLIP_URL_TEMPLATE, CLIP_VIEW_URL, DOMAIN, PANEL_STATIC_URL, PANEL_URL_PATH, PLATFORMS
 from .coordinator import SoundRecCoordinator
 from .dynamic import DynamicManager
+from .entity import register_source_devices
 from .repairs import clear_stale_issue, sync_stale_issue
 
 _LOGGER = logging.getLogger(__name__)
@@ -97,6 +98,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: SoundRecConfigEntry) -> 
         config_entry_id=entry.entry_id, identifiers={(DOMAIN, entry.entry_id)}, name="Sound Recognition",
         manufacturer="Sound Recognition", model="Classification service", sw_version=coordinator.version,
     )
+    register_source_devices(hass, entry.entry_id, [s for s in coordinator.service_config.get("sources", []) if s.get("enabled", True)])
     await _async_register_panel(hass)
     if not hass.data.get(f"{DOMAIN}_view"):
         hass.http.register_view(SoundRecClipView())

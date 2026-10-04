@@ -540,3 +540,12 @@ async def test_install_refused_when_not_capable_or_busy(hass):
     entry = await setup_entry(hass)
     with pytest.raises(SoundRecError):
         await entry.runtime_data.coordinator.updates.async_start()
+
+
+async def test_source_device_is_linked_to_the_service_device(hass):
+    from homeassistant.helpers import device_registry as dr
+    entry = await setup_entry(hass)
+    reg = dr.async_get(hass)
+    service = reg.async_get_device(identifiers={(DOMAIN, entry.entry_id)})
+    source = reg.async_get_device(identifiers={(DOMAIN, f"{entry.entry_id}_kitchen")})
+    assert service and source and source.via_device_id == service.id and source.name == "Kitchen"

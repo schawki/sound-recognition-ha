@@ -1,6 +1,6 @@
 [project]
 name = "soundrec"
-version = "0.2.0"
+version = "0.2.1"
 description = "Sound recognition service for Home Assistant: classifies audio streams with YAMNet and serves detections over a local API"
 requires-python = ">=3.11"
 license = { text = "MIT" }
