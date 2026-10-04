@@ -119,7 +119,8 @@ with sync_playwright() as p:
     k = next(s for s in saved["sources"] if s["id"] == "kitchen")
     ok(k["name"] == "Kitchen ESP32" and k["classes"] == {"Smoke detector, smoke alarm": {"enabled": True}} and k["schedule"]["windows"] == [{"days": ["mon", "tue", "wed", "thu", "fri"], "from": "08:00", "to": "18:10"}], "edit keeps class settings and untouched windows")
     ok(saved["api"]["token"] == "***" and saved["classes"] == {"Bark": {"enabled": True}}, "rest of the configuration is sent back unchanged")
-    ok("Advice for this source" not in text(pg, ".notice")[0], "no advice shown for another source")
+    ok("Gap in the schedule" not in text(pg, ".notice")[0], "no advice shown for another source")
+    ok(pg.locator(".notice li").count() == 1 and "Same advice for" in text(pg, ".notice")[0], "three sounds with the same advice become one line that names the others")
     # add a source with a painted schedule
     pg.click("button[data-action=add]")
     ok(pg.locator("select[name=type]").input_value() == "go2rtc", "the form starts on go2rtc")
@@ -184,6 +185,8 @@ with sync_playwright() as p:
         ("Garage mic", "rtsp://192.168.1.5:8554/garage", "go2rtc"), ("salon", "rtsp://192.168.1.5:8554/salon", "go2rtc"),
         ("Porch", "rtsp://10.0.0.7/porch", "go2rtc"), ("Cellar", "rtsp://10.0.0.8:554/s1", "go2rtc"), ("attic", "rtsp://10.0.0.9/attic", "go2rtc")],
        "five sources are added with one save (names from the stream, the row or the address)")
+    ok(pg.locator(".notice li").count() <= 3 and text(pg, ".notice")[0].count("sensitive to television") == 1 and text(pg, ".notice")[0].count("Same advice for") == 1, "the same advice on five new sources is shown once, not five times")
+    ok("Same advice for" in text(pg, ".notice")[0], "and names the other sounds")
     ok(len({x["id"] for x in pg.evaluate("window.__state.saves.at(-1).sources")}) == len(pg.evaluate("window.__state.saves.at(-1).sources")), "ids stay unique")
     pg.click("button[data-action=add]")
     ok(pg.locator("select[name=type]").input_value() == "go2rtc", "the next form starts on the last type used")

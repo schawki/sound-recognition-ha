@@ -4,7 +4,8 @@ import { repeat } from "lit/directives/repeat.js";
 import type { PanelApi } from "./api";
 import type { T } from "./i18n";
 import { cellsToWindows, hoursPerWeek, windowsToCells } from "./schedule";
-import type { Advice, Go2rtcStreams, ServiceConfig, SourceCfg } from "./types";
+import { groupAdvice, type NoticeItem } from "./advice-group";
+import type { Advice, Catalog, Go2rtcStreams, ServiceConfig, SourceCfg } from "./types";
 import "./schedule-grid";
 
 const TYPES: [string, "typeRtsp" | "typeGo2rtc" | "typeAlsa" | "typeEsphome" | "typeFile"][] = [
@@ -46,7 +47,8 @@ export class SourcesView extends LitElement {
   @state() private config: ServiceConfig | null = null;
   @state() private form: Form | null = null;
   @state() private errors: string[] = [];
-  @state() private notice: { text: string; advice: Advice[] } | null = null;
+  @state() private notice: { text: string; items: NoticeItem[]; sources: number } | null = null;
+  private classNames: Map<string, string> | null = null;
   @state() private confirming: string | null = null;
   @state() private busy = false;
   @state() private loadError = false;
@@ -140,7 +142,7 @@ export class SourcesView extends LitElement {
   }
 
   // ------------------------------------------------------------------ actions
-  private async commit(next: SourceCfg[], focusId?: string): Promise<boolean> {
+  private async commit(next: SourceCfg[], focus: string | string[] = []): Promise<boolean> {
     if (!this.config) return false;
     this.busy = true;
     this.errors = [];
@@ -153,7 +155,9 @@ export class SourcesView extends LitElement {
       }
       await this.api.save(candidate);
       this.config = candidate;
-      this.notice = { text: this.t("saved"), advice: check.warnings.filter((w) => w.source === focusId) };
+      const ids = new Set(Array.isArray(focus) ? focus : [focus]);
+      const advice = check.warnings.filter((w: Advice) => ids.has(w.source));
+      this.notice = { text: this.t("saved"), items: await this.noticeItems(advice, [...ids], next), sources: ids.size };
       return true;
     } catch (err) {
       this.errors = [(err as { message?: string }).message ?? String(err)];
@@ -161,6 +165,21 @@ export class SourcesView extends LitElement {
     } finally {
       this.busy = false;
     }
+  }
+
+  private async noticeItems(advice: Advice[], ids: string[], all: SourceCfg[]): Promise<NoticeItem[]> {
+    if (!advice.length) return [];
+    if (!this.classNames) {
+      try {
+        const cat: Catalog = await this.api.catalog();
+        this.classNames = new Map(cat.classes.map((c) => [c.mid, c.name]));
+      } catch {
+        this.classNames = new Map();
+      }
+    }
+    const names = this.classNames;
+    const sname = (id: string) => all.find((x) => x.id === id)?.name ?? id;
+    return groupAdvice(advice, sname, (mid) => names.get(mid) ?? mid, ids);
   }
 
   private async submit(e: Event): Promise<void> {
@@ -174,7 +193,7 @@ export class SourcesView extends LitElement {
     if (!f.isNew) {
       const existing = this.sources.find((s) => s.id === f.id);
       const updated = this.fromForm({ ...f }, existing);
-      if (await this.commit(this.sources.map((s) => (s.id === f.id ? updated : s)), f.id)) this.form = null;
+      if (await this.commit(this.sources.map((s) => (s.id === f.id ? updated : s)), [f.id])) this.form = null;
       return;
     }
     // new sources: the checked go2rtc streams, then the typed or pasted rows; one check and one save for all of them
@@ -190,7 +209,7 @@ export class SourcesView extends LitElement {
       const name = w.name.trim() || nameFromUrl(w.url) || this.t("sourceDefaultName");
       made.push(this.fromForm({ ...f, id: this.uniqueId(name, made.map((m) => m.id)), name, url: w.url }));
     }
-    if (await this.commit([...this.sources, ...made], made[0].id)) {
+    if (await this.commit([...this.sources, ...made], made.map((m) => m.id))) {
       lastType = f.type;
       this.form = null;
     }
@@ -199,7 +218,7 @@ export class SourcesView extends LitElement {
   private async toggleEnabled(s: SourceCfg): Promise<void> {
     const flipped = { ...s };
     if (s.enabled === false) delete flipped.enabled; else flipped.enabled = false;
-    await this.commit(this.sources.map((x) => (x.id === s.id ? flipped : x)), s.id);
+    await this.commit(this.sources.map((x) => (x.id === s.id ? flipped : x)), [s.id]);
   }
 
   private async removeSource(id: string): Promise<void> {
@@ -225,11 +244,22 @@ export class SourcesView extends LitElement {
     if (this.loadError) return html`<p class="note error">${t("unreachable")}</p>`;
     if (!this.config) return html`<p class="note">${t("loading")}</p>`;
     return html`
-      ${this.notice ? html`<div class="notice"><div>${this.notice.text}</div>
-        ${this.notice.advice.length ? html`<strong>${t("adviceAfterSave")}</strong><ul>${this.notice.advice.map((a) => html`<li>${a.message}</li>`)}</ul>` : nothing}
-        <button class="link" @click=${() => (this.notice = null)}>${t("dismiss")}</button></div>` : nothing}
+      ${this.notice ? this.renderNotice(this.notice) : nothing}
       ${this.form ? this.renderForm(this.form) : this.renderList()}
     `;
+  }
+
+  private renderNotice(n: NonNullable<typeof this.notice>) {
+    const t = this.t;
+    const line = (i: NoticeItem) => html`<li class=${i.level}>${i.message}
+      ${i.sources.length ? html`<span class="dim"> — ${t("onlyOnSources", { s: i.sources.join(", ") })}</span>` : nothing}
+      ${i.also.length ? html`<div class="dim">${t("sameAdviceFor", { c: i.also.join(", ") })}</div>` : nothing}</li>`;
+    const urgent = n.items.filter((i) => i.level !== "info"), minor = n.items.filter((i) => i.level === "info");
+    return html`<div class="notice"><div>${n.text}</div>
+      ${urgent.length ? html`<strong>${t("adviceAfterSave")}</strong><ul data-advice=urgent>${urgent.map(line)}</ul>` : nothing}
+      ${minor.length && !urgent.length ? html`<strong>${t("adviceAfterSave")}</strong><ul data-advice=minor>${minor.map(line)}</ul>` : nothing}
+      ${minor.length && urgent.length ? html`<details><summary>${t("moreAdvice", { n: minor.length })}</summary><ul data-advice=minor>${minor.map(line)}</ul></details>` : nothing}
+      <button class="link" @click=${() => (this.notice = null)}>${t("dismiss")}</button></div>`;
   }
 
   private renderList() {
@@ -405,6 +435,7 @@ export class SourcesView extends LitElement {
     .info .dim { overflow-wrap: anywhere; }
     .actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
     .notice { background: color-mix(in srgb, var(--success-color, #43a047) 18%, var(--card-background-color)); border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; }
+    .notice details { margin: 6px 0; } .notice summary { cursor: pointer; }
     .notice ul, .errors ul { margin: 6px 0 6px 18px; padding: 0; }
     .errors { background: color-mix(in srgb, var(--error-color, #db4437) 15%, var(--card-background-color)); border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; }
     form { display: flex; flex-direction: column; gap: 14px; max-width: 760px; background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: 12px; padding: 16px; }

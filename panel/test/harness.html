@@ -42,6 +42,7 @@
     if (!errors.length) {
       warnings.push({ rule: "schedule_gap_safety", kind: "auto", level: "warning", source: (cfg.sources || []).slice(-1)[0]?.id, classes: [], message: "Gap in the schedule" });
       const smokeOn = (cfg.classes || {})["Smoke detector, smoke alarm"]?.enabled;
+      for (const src of cfg.sources || []) for (const mid of ["/m/05tny_", SMOKE, "/m/01b82r"]) warnings.push({ rule: "missing_context", kind: "auto", level: "info", source: src.id, classes: [mid], message: `“${mid}” is sensitive to television, radio or music: add context classes.` });
       if (smokeOn) warnings.push({ rule: "fire_only", kind: "rule", level: "danger", source: "kitchen", classes: [SMOKE], message: "Add the beeps class too" });
     }
     return { errors, warnings };
