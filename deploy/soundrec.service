@@ -11,6 +11,9 @@ Group=soundrec
 Environment=SOUNDREC_CONFIG=/etc/soundrec/config.yaml
 Environment=SOUNDREC_MODEL=/opt/soundrec/models/yamnet.tflite
 Environment=SOUNDREC_CATALOG=/opt/soundrec/catalog
+Environment=SOUNDREC_BUILD=/opt/soundrec/BUILD
+Environment=SOUNDREC_UPDATE_REQUEST=/var/lib/soundrec/update-request
+Environment=SOUNDREC_UPDATE_STATUS=/var/lib/soundrec-update
 ExecStart=/opt/soundrec/venv/bin/python -m soundrec
 Restart=on-failure
 RestartSec=5

@@ -6,6 +6,7 @@
 # Overridable for tests / special setups (environment variables):
 #   SOUNDREC_ROOT (/opt/soundrec)  SOUNDREC_ETC (/etc/soundrec)  SOUNDREC_VAR (/var/lib/soundrec)  SOUNDREC_USER (soundrec)
 #   SOUNDREC_PORT (8765)  SOUNDREC_TZ (system time zone)  SKIP_APT=1  SKIP_SYSTEMD=1  MODEL_FILE=/path/to/yamnet.tflite
+#   SOUNDREC_REMOTE_UPDATE=0   do not install the helper that lets Home Assistant update the service (default 1)
 set -euo pipefail
 
 MODEL_URL="${MODEL_URL:-https://raw.githubusercontent.com/larsyde/tflite-models-audioset-yamnet/master/yamnet.tflite}"
@@ -57,6 +58,12 @@ cp -a "$REPO/catalog" "$ROOT/catalog"
 [ -d "$ROOT/venv" ] || python3 -m venv "$ROOT/venv"
 "$ROOT/venv/bin/pip" install --quiet --upgrade pip
 "$ROOT/venv/bin/pip" install --quiet --no-cache-dir --upgrade "$ROOT/src"
+
+# what is installed (read by the service, shown in Home Assistant)
+{ printf 'commit=%s\n' "$(git -C "$REPO" rev-parse HEAD 2>/dev/null || echo unknown)"
+  printf 'release=%s\n' "$(git -C "$REPO" describe --tags --always 2>/dev/null || echo unknown)"
+  printf 'built=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"; } > "$ROOT/BUILD"
+chmod 0644 "$ROOT/BUILD"
 
 # ------------------------------------------------------------------------------------------------ model
 MODEL="$ROOT/models/yamnet.tflite"
@@ -111,6 +118,28 @@ sed -e "s#^User=.*#User=$USER_NAME#" -e "s#^Group=.*#Group=$USER_NAME#" \
     -e "s#/opt/soundrec#$ROOT#g" -e "s#/etc/soundrec#$ETC#g" -e "s#/var/lib/soundrec#$VAR#g" \
     "$HERE/soundrec.service" > /etc/systemd/system/soundrec.service
 rm -rf /etc/systemd/system/soundrec.service.d
+
+# Updates from Home Assistant: the service (unprivileged) only drops a request file; this root helper does the update.
+STATUS="$VAR-update"
+if [ "${SOUNDREC_REMOTE_UPDATE:-1}" = "1" ] && [ -d "$REPO/.git" ]; then
+  say "Enabling updates from Home Assistant (disable with SOUNDREC_REMOTE_UPDATE=0)"
+  install -d -m 0755 -o root -g root "$STATUS"
+  install -d -m 0755 -o "$USER_NAME" -g "$USER_NAME" "$VAR/update-request"
+  install -m 0755 "$HERE/soundrec-update.sh" /usr/local/sbin/soundrec-update
+  { echo "REPO='$REPO'"; echo "REQUEST_DIR='$VAR/update-request'"; echo "STATUS_DIR='$STATUS'"
+    for v in SOUNDREC_ROOT SOUNDREC_ETC SOUNDREC_VAR SOUNDREC_USER SOUNDREC_PORT SOUNDREC_TZ; do
+      [ -n "${!v:-}" ] && echo "export $v='${!v}'"
+    done; } > /etc/soundrec-updater.env
+  chmod 0644 /etc/soundrec-updater.env
+  sed -e "s#/var/lib/soundrec#$VAR#g" "$HERE/soundrec-update.path" > /etc/systemd/system/soundrec-update.path
+  cp "$HERE/soundrec-update.service" /etc/systemd/system/soundrec-update.service
+  touch "$STATUS/capable"
+  systemctl daemon-reload
+  systemctl enable --now soundrec-update.path >/dev/null 2>&1 || true
+else
+  systemctl disable --now soundrec-update.path >/dev/null 2>&1 || true
+  rm -f "$STATUS/capable" /etc/systemd/system/soundrec-update.path /etc/systemd/system/soundrec-update.service
+fi
 systemctl daemon-reload
 systemctl enable soundrec.service >/dev/null 2>&1
 systemctl restart soundrec.service

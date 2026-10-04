@@ -1,0 +1,7 @@
+[Unit]
+Description=Update the sound recognition service to its latest release
+Documentation=https://github.com/schawki/sound-recognition-ha
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/soundrec-update

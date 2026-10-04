@@ -23,3 +23,15 @@ def test_unit_matches_installer_paths():
     unit = (ROOT / "deploy/soundrec.service").read_text()
     assert "ExecStart=/opt/soundrec/venv/bin/python -m soundrec" in unit
     assert "/etc/soundrec/config.yaml" in unit
+
+
+def test_updater_units_match_installer_and_service():
+    d = ROOT / "deploy"
+    service, install = (d / "soundrec.service").read_text(), (d / "install.sh").read_text()
+    path, helper_unit = (d / "soundrec-update.path").read_text(), (d / "soundrec-update.service").read_text()
+    assert "PathExists=/var/lib/soundrec/update-request/request" in path
+    assert "ExecStart=/usr/local/sbin/soundrec-update" in helper_unit and "/usr/local/sbin/soundrec-update" in install
+    for var in ("SOUNDREC_UPDATE_REQUEST", "SOUNDREC_UPDATE_STATUS", "SOUNDREC_BUILD"):
+        assert var in service, var
+    assert "SOUNDREC_REMOTE_UPDATE" in install and "/etc/soundrec-updater.env" in install
+    assert (d / "soundrec-update.sh").stat().st_mode & 0o111

@@ -1,0 +1,9 @@
+[Unit]
+Description=Update requests from the sound recognition service
+
+[Path]
+PathExists=/var/lib/soundrec/update-request/request
+Unit=soundrec-update.service
+
+[Install]
+WantedBy=multi-user.target

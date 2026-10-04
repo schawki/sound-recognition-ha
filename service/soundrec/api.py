@@ -6,7 +6,8 @@ import json
 
 from aiohttp import web, WSMsgType
 
-from . import __version__, catalog as cm, config as cfgmod, settings as st, advisor
+from .updater import Updater
+from . import API_LEVEL, __version__, catalog as cm, config as cfgmod, settings as st, advisor
 
 VERSION_PREFIX = "/api/v1"
 
@@ -35,7 +36,24 @@ def _masked(cfg):
 
 
 async def health(req):
-    return web.json_response({"status": "ok", "version": __version__})
+    up = req.app["updater"]
+    build = up.build()
+    return web.json_response({"status": "ok", "version": __version__, "api_level": API_LEVEL, "commit": build.get("commit", "")[:7],
+                              "release": build.get("release", ""), "update": {"capable": up.capable}})
+
+
+async def update_status(req):
+    return web.json_response(req.app["updater"].status())
+
+
+async def update_start(req):
+    """Asks the root helper to move the installation to the latest tagged release (202), if it is there (501) and idle (409)."""
+    result = req.app["updater"].request()
+    if result == "unavailable":
+        return web.json_response({"error": "updates from Home Assistant are not enabled on this installation (see deploy/DEPLOY.md)"}, status=501)
+    if result == "busy":
+        return web.json_response({"error": "an update is already requested or running", **req.app["updater"].status()}, status=409)
+    return web.json_response(req.app["updater"].status(), status=202)
 
 
 async def languages(req):
@@ -183,12 +201,13 @@ async def ws(req):
     return sock
 
 
-def make_app(engine):
+def make_app(engine, updater=None):
     app = web.Application(middlewares=[auth], client_max_size=2 * 1024 * 1024)
     app["engine"] = engine
+    app["updater"] = updater or Updater.from_env()
     p = VERSION_PREFIX
     app.add_routes([
-        web.get(f"{p}/health", health), web.get(f"{p}/languages", languages), web.get(f"{p}/catalog", catalog),
+        web.get(f"{p}/health", health), web.get(f"{p}/update", update_status), web.post(f"{p}/update", update_start), web.get(f"{p}/languages", languages), web.get(f"{p}/catalog", catalog),
         web.get(f"{p}/config", get_config), web.put(f"{p}/config", put_config), web.post(f"{p}/config/validate", validate_config),
         web.get(f"{p}/warnings", warnings), web.get(f"{p}/sources", sources), web.get(f"{p}/resolved", resolved),
         web.get(f"{p}/events", events), web.get(f"{p}/recommendations", recommendations), web.put(f"{p}/sources/{{sid}}/external", set_external), web.get(f"{p}/stats", stats),
