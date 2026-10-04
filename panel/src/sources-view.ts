@@ -5,7 +5,7 @@ import type { PanelApi } from "./api";
 import type { T } from "./i18n";
 import { cellsToWindows, hoursPerWeek, windowsToCells } from "./schedule";
 import { groupAdvice, type NoticeItem } from "./advice-group";
-import type { Advice, Catalog, Go2rtcStreams, ServiceConfig, SourceCfg } from "./types";
+import type { Advice, Catalog, Environment, Go2rtcStreams, ServiceConfig, SourceCfg } from "./types";
 import "./schedule-grid";
 
 const TYPES: [string, "typeRtsp" | "typeGo2rtc" | "typeAlsa" | "typeEsphome" | "typeFile"][] = [
@@ -19,6 +19,7 @@ interface Form {
   rows: Row[]; picked: Record<string, string>;
   offset: string; minVolume: string; scheduled: boolean; cells: boolean[];
   clipsAllowed: boolean; clipsMaxDays: string;
+  environment: string; adaptive: boolean; adaptiveMax: string;
 }
 
 let rowKey = 0;
@@ -52,6 +53,7 @@ export class SourcesView extends LitElement {
   @state() private confirming: string | null = null;
   @state() private busy = false;
   @state() private loadError = false;
+  @state() private environments: Environment[] = [];
   @state() private g2: { url: string; streams: Go2rtcStreams["streams"]; loading: boolean; error: string; tried: boolean } = { url: "", streams: [], loading: false, error: "", tried: false };
 
   connectedCallback(): void {
@@ -63,6 +65,7 @@ export class SourcesView extends LitElement {
     try {
       this.config = await this.api.config();
       this.loadError = false;
+      void this.api.catalog().then((c) => { this.environments = c.environments ?? []; }, () => undefined);
     } catch {
       this.loadError = true;
     }
@@ -103,11 +106,12 @@ export class SourcesView extends LitElement {
       minVolume: s.min_volume_dbfs == null ? "" : String(s.min_volume_dbfs),
       scheduled: sched?.mode === "scheduled", cells: windowsToCells(sched?.windows ?? []),
       clipsAllowed: s.clips?.allowed !== false, clipsMaxDays: s.clips?.max_retention_days == null ? "" : String(s.clips.max_retention_days),
+      environment: s.environment ?? "", adaptive: s.adaptive?.enabled === true, adaptiveMax: s.adaptive?.max_offset == null ? "" : String(s.adaptive.max_offset),
     };
   }
 
   private blankForm(): Form {
-    return { id: "", isNew: true, name: "", type: lastType, url: "", enabled: true, rows: [newRow()], picked: {}, offset: "", minVolume: "", scheduled: false, cells: new Array(336).fill(false), clipsAllowed: true, clipsMaxDays: "" };
+    return { id: "", isNew: true, name: "", type: lastType, url: "", enabled: true, rows: [newRow()], picked: {}, offset: "", minVolume: "", scheduled: false, cells: new Array(336).fill(false), clipsAllowed: true, clipsMaxDays: "", environment: "", adaptive: false, adaptiveMax: "" };
   }
 
   /** Applies the form on a copy of the stored source, so fields the form does not know (class settings, advice) are kept. */
@@ -124,6 +128,12 @@ export class SourcesView extends LitElement {
       s.schedule = untouched ? existing!.schedule! : { mode: "scheduled", windows };
     } else {
       s.schedule = { mode: "continuous" };
+    }
+    if (f.environment) s.environment = f.environment; else delete s.environment;
+    const max = parseFloat(f.adaptiveMax);
+    if (f.adaptive || (existing?.adaptive && Object.keys(existing.adaptive).length)) {
+      s.adaptive = { ...(existing?.adaptive ?? {}), enabled: f.adaptive };
+      if (f.adaptiveMax.trim() !== "" && Number.isFinite(max)) s.adaptive.max_offset = max; else delete s.adaptive.max_offset;
     }
     const clips: NonNullable<SourceCfg["clips"]> = {};
     if (!f.clipsAllowed) clips.allowed = false;
@@ -346,6 +356,22 @@ export class SourcesView extends LitElement {
     </fieldset>`;
   }
 
+  /** Kind of place (recommendations) and adaptive sensitivity of the source. */
+  private renderPlace(f: Form) {
+    const t = this.t;
+    const env = this.environments.find((e) => e.id === f.environment);
+    return html`<fieldset class="place"><legend>${t("placeLabel")}</legend>
+      <label>${t("placeLabel")}<select name="environment" aria-label=${t("placeLabel")} @change=${(e: Event) => this.set("environment", (e.target as HTMLSelectElement).value)}>
+        <option value="" ?selected=${f.environment === ""}>${t("placeNone")}</option>
+        ${this.environments.map((x) => html`<option value=${x.id} ?selected=${f.environment === x.id}>${x.name}</option>`)}</select>
+        <small>${env ? env.why : t("placeHelp")}</small></label>
+      ${env ? html`<details class="tips" data-tips><summary>${t("placeTips")}</summary><ul>${env.tips.map((x) => html`<li>${x}</li>`)}</ul></details>` : nothing}
+      <label class="inline"><input type="checkbox" name="adaptive" .checked=${f.adaptive} @change=${(e: Event) => this.set("adaptive", (e.target as HTMLInputElement).checked)} />${t("adaptiveLabel")}</label>
+      <small>${t("adaptiveHelp")}</small>
+      ${f.adaptive ? html`<label>${t("adaptiveMax")}<input name="adaptiveMax" type="number" step="0.05" min="0" max="0.4" placeholder="0.15" .value=${f.adaptiveMax} @input=${(e: Event) => this.set("adaptiveMax", (e.target as HTMLInputElement).value)} /></label>` : nothing}
+    </fieldset>`;
+  }
+
   private renderForm(f: Form) {
     const t = this.t;
     return html`
@@ -359,6 +385,7 @@ export class SourcesView extends LitElement {
         ${f.type === "go2rtc" ? this.renderGo2rtc(f) : nothing}
         ${f.isNew ? this.renderRows(f) : html`
         <label>${t("address")}<input name="url" required .value=${f.url} @input=${(e: Event) => this.set("url", (e.target as HTMLInputElement).value)} /><small>${t("addressHelp")}</small></label>`}
+        ${this.renderPlace(f)}
         ${f.isNew
           ? html`<details class="adv"><summary>${t("advancedSettings")}</summary><div class="advbody">
         <label class="inline"><input type="checkbox" name="enabled" .checked=${f.enabled} @change=${(e: Event) => this.set("enabled", (e.target as HTMLInputElement).checked)} />${t("enabled")}</label>

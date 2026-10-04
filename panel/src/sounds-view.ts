@@ -117,10 +117,41 @@ export class SoundsView extends LitElement {
   private filtered(): CatalogClass[] {
     const q = norm(this.query.trim());
     const list = this.catalog!.classes.filter((c) =>
+      !this.inhibitors().has(c.mid) &&
       (!this.category || c.category === this.category) && (!this.interest || c.interest === this.interest) &&
       (!q || norm(c.name).includes(q) || norm(c.audioset_name).includes(q) || norm(c.note_text ?? "").includes(q)) &&
       (!this.onlyEnabled || this.isOn(c)));
     return list.sort((a, b) => INTEREST_ORDER[a.interest] - INTEREST_ORDER[b.interest] || a.name.localeCompare(b.name, this.language));
+  }
+
+  /** The sounds that raise the thresholds of look-alike sounds while they are heard (television, radio, music…). */
+  private inhibitors(): Set<string> {
+    return new Set(this.catalog!.classes.flatMap((c) => c.inhibiting_contexts ?? []));
+  }
+
+  private contextClasses(): CatalogClass[] {
+    const q = norm(this.query.trim());
+    const inh = this.inhibitors();
+    return this.catalog!.classes.filter((c) => inh.has(c.mid) && (!q || norm(c.name).includes(q) || norm(c.audioset_name).includes(q)) && (!this.onlyEnabled || this.isOn(c)))
+      .sort((a, b) => a.name.localeCompare(b.name, this.language));
+  }
+
+  /** Context sounds gathered in one place, with what fits the kind of place of the chosen source. */
+  private renderContext() {
+    const t = this.t;
+    const list = this.contextClasses();
+    if (!list.length) return nothing;
+    const src = this.scope === null ? undefined : this.sources.find((x) => x.id === this.scope);
+    const env = this.catalog!.environments?.find((e) => e.id === src?.environment);
+    const wanted = env ? this.catalog!.classes.filter((c) => env.contexts.includes(c.mid)) : [];
+    const missing = src ? wanted.filter((c) => !this.sourceOn(c, src)) : [];
+    return html`<section class="ctx" data-context-group>
+      <h3>${t("contextTitle")}</h3>
+      <p class="dim">${t("contextHelp")}</p>
+      ${env && wanted.length ? html`<p class="rec" data-context-rec>${t("contextRecommended", { p: env.name, c: wanted.map((c) => c.name).join(", ") })}
+        ${missing.length ? html`<button data-action="enable-contexts" @click=${() => missing.forEach((c) => this.toggleSource(c, src!.id, true))}>${t("contextEnable")}</button>` : nothing}</p>` : nothing}
+      <ul class="list">${list.map((c) => this.row(c, true))}</ul>
+    </section>`;
   }
 
   render() {
@@ -161,17 +192,18 @@ export class SoundsView extends LitElement {
         <label class="inline"><input type="checkbox" name="onlyEnabled" .checked=${this.onlyEnabled} @change=${(e: Event) => { this.onlyEnabled = (e.target as HTMLInputElement).checked; this.limit = PAGE; }} />${t("onlyEnabled")}</label>
         <button data-action="recommended" @click=${() => this.enableRecommended()}>${t("enableRecommended")}</button>
       </div>
+      ${this.renderContext()}
       <p class="dim">${t("soundsCount", { n: all.length })}</p>
       ${shown.length === 0 ? html`<p class="note">${t("noMatch")}</p>` : html`<ul class="list">${shown.map((c) => this.row(c))}</ul>`}
       ${all.length > shown.length ? html`<div class="more"><button data-action="more" @click=${() => (this.limit += PAGE)}>${t("showMore")}</button></div>` : nothing}`;
   }
 
-  private row(c: CatalogClass) {
+  private row(c: CatalogClass, inCtx = false) {
     const t = this.t;
     const on = this.isOn(c);
     const inheritedHint = this.scope !== null && !("enabled" in getBlock(this.draft!, this.scope, c, this.byKey)) && on;
     return html`
-      <li data-mid=${c.mid} class=${on ? "on" : ""}>
+      <li data-mid=${c.mid} class="${on ? "on" : ""}${inCtx ? " inctx" : ""}">
         <label class="check">
           ${this.scope === null
             ? html`<input type="checkbox" name="global" .checked=${this.globalOn(c)} aria-label=${c.name} @change=${(e: Event) => this.toggleGlobal(c, (e.target as HTMLInputElement).checked)} />`
@@ -206,6 +238,8 @@ export class SoundsView extends LitElement {
     .chips { display: flex; gap: 4px; flex-wrap: wrap; }
     .chip { padding: 3px 10px; border-radius: 999px; font-size: 0.8rem; background: var(--secondary-background-color); color: var(--secondary-text-color); }
     .chip.on { background: var(--primary-color); color: var(--text-primary-color, #fff); border-color: transparent; }
+    .ctx { background: color-mix(in srgb, var(--primary-color) 8%, var(--card-background-color)); border: 1px solid var(--divider-color); border-radius: 12px; padding: 4px 14px 14px; margin: 8px 0 14px; }
+    .ctx h3 { margin: 10px 0 4px; font-size: 1rem; font-weight: 500; } .ctx .rec { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 6px 0; }
     .more { display: flex; justify-content: center; margin: 14px 0; }
     .notice { background: color-mix(in srgb, var(--success-color, #43a047) 18%, var(--card-background-color)); border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; }
     .errors { background: color-mix(in srgb, var(--error-color, #db4437) 15%, var(--card-background-color)); border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; }

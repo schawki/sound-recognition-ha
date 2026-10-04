@@ -8,6 +8,7 @@ export interface SourceStatus {
   id: string; name: string; type: string; enabled: boolean;
   connected: boolean; error: string | null; level_dbfs: number | null; below_gate: boolean;
   active_classes: string[]; last_window?: unknown; windows: number; inferences: number;
+  active_contexts?: string[]; ambient_dbfs?: number | null; baseline_dbfs?: number | null; adaptive_enabled?: boolean; adaptive_offset?: number;
 }
 
 export interface Advice { rule: string; kind: string; level: "info" | "warning" | "danger"; source: string; classes: string[]; safety?: boolean; message: string }
@@ -15,6 +16,7 @@ export interface Advice { rule: string; kind: string; level: "info" | "warning" 
 export interface SoundEvent {
   id: string; ts: number; source: string; mid: string; name?: string; class?: string; score: number;
   duration_s?: number; clip?: string | null; clip_url?: string; clip_expires?: string | null;
+  threshold?: number; feedback?: string | null;
 }
 
 export interface Overview {
@@ -27,10 +29,19 @@ export interface CatalogClass {
   mid: string; name: string; audioset_name: string; category: string; role: string; interest: "monitor" | "optional" | "context" | "ignore";
   privacy: "normal" | "sensitive" | "confidential"; clip_forbidden: boolean; suggestions: Suggestions; note_text?: string;
   false_positives: { level: "low" | "medium" | "high"; cause_labels: string[] }; usages: string[]; descendants: string[]; groups: string[];
+  inhibiting_contexts: string[];
 }
+export interface Environment { id: string; contexts: string[]; adaptive: boolean; name: string; why: string; tips: string[] }
 export interface Catalog {
   classes: CatalogClass[]; categories: Record<string, string>; usages: Record<string, string>; setting_help: Record<string, string>;
+  environments: Environment[];
 }
+
+/** What a recommendation changes once the administrator applies it (merged into the stored configuration). */
+export interface Patch { source: string; source_patch?: Record<string, unknown>; class_patch?: Record<string, ClassBlock> }
+export interface Recommendation { rule: string; level: "info" | "warning" | "danger"; source: string; classes: string[]; message: string; apply: Patch | null }
+export interface StatBlock { total: number; by_source: Record<string, number>; by_class: { source: string; mid: string; class: string; count: number }[]; hourly: number[] }
+export interface Stats { hours: number; since: number; detections: StatBlock; masked: StatBlock; false: StatBlock }
 
 export interface ClassBlock {
   enabled?: boolean; threshold?: number; min_duration_s?: number; cooldown_s?: number; pre_roll_s?: number; post_roll_s?: number;
@@ -46,7 +57,9 @@ export type LiveMessage =
   | { type: "hello" | "status"; sources: SourceStatus[] }
   | { type: "active"; source: string; active_classes: string[] }
   | { type: "source_state"; source: string; state: string; error?: string | null }
-  | { type: "detection"; id: string; source: string; mid: string; name?: string; class: string; score: number; duration_s: number; detected_at: string }
+  | { type: "detection"; id: string; source: string; mid: string; name?: string; class: string; score: number; duration_s: number; detected_at: string; threshold?: number; offset?: number }
+  | { type: "masked"; id: string; source: string; mid: string; name?: string; class: string; score: number; threshold: number; base_threshold: number; offset: number; reasons: string[]; detected_at: string }
+  | { type: "context"; source: string; active_contexts: string[]; ambient_dbfs: number | null; baseline_dbfs: number | null; adaptive_enabled: boolean; adaptive_offset: number }
   | { type: "clip_ready"; id: string; source: string; mid: string; clip: string; clip_url: string; expires_at: string };
 
 export interface ScheduleWindow { days?: string[]; from: string; to: string }
@@ -54,6 +67,7 @@ export interface Schedule { mode: "continuous" | "scheduled"; windows?: Schedule
 export interface SourceCfg {
   id: string; name?: string; type: string; url: string; enabled?: boolean; threshold_offset?: number;
   min_volume_dbfs?: number | null; schedule?: Schedule; clips?: { allowed?: boolean; max_retention_days?: number };
+  environment?: string; adaptive?: { enabled?: boolean; max_offset?: number };
   advice?: Record<string, AdviceSetting>;
   [extra: string]: unknown;
 }

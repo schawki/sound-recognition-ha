@@ -3,6 +3,7 @@ import { property, state } from "lit/decorators.js";
 import type { PanelApi } from "./api";
 import type { T } from "./i18n";
 import { relativeTime } from "./util";
+import { applyAndSave } from "./patch";
 import type { Advice, Catalog, LiveMessage, SoundEvent, SourceStatus } from "./types";
 
 const MIN_DB = -90;
@@ -15,6 +16,9 @@ export class LiveView extends LitElement {
   @state() private events: SoundEvent[] = [];
   @state() private advice: Advice[] = [];
   @state() private names = new Map<string, string>();
+  @state() private marking: string | null = null;
+  @state() private markError = "";
+  private audio = new Map<string, string>();
   @state() private error: "unreachable" | "not_loaded" | null = null;
   @state() private ready = false;
   private unsub?: () => void;
@@ -41,6 +45,7 @@ export class LiveView extends LitElement {
       this.sources = ov.sources;
       this.advice = ov.warnings;
       this.names = new Map((cat as Catalog).classes.map((c) => [c.mid, c.name]));
+      this.audio = new Map((cat as Catalog).classes.map((c) => [c.mid, c.audioset_name]));
       this.events = events;
       this.error = null;
       this.ready = true;
@@ -67,7 +72,7 @@ export class LiveView extends LitElement {
         this.sources = this.sources.map((s) => (s.id === m.source ? { ...s, connected: m.state === "connected", error: m.error ?? null } : s));
         break;
       case "detection":
-        this.events = [{ id: m.id, ts: Date.parse(m.detected_at) / 1000, source: m.source, mid: m.mid, name: m.name, class: m.class, score: m.score, duration_s: m.duration_s }, ...this.events].slice(0, 100);
+        this.events = [{ id: m.id, ts: Date.parse(m.detected_at) / 1000, source: m.source, mid: m.mid, name: m.name, class: m.class, score: m.score, duration_s: m.duration_s, threshold: m.threshold }, ...this.events].slice(0, 100);
         break;
       case "clip_ready":
         this.events = this.events.map((e) => (e.id === m.id ? { ...e, clip: m.clip, clip_url: m.clip_url } : e));
@@ -132,12 +137,50 @@ export class LiveView extends LitElement {
       </section>`;
   }
 
+  private proposal(e: SoundEvent): number {
+    return Math.min(0.95, Math.round((Math.max(e.score, e.threshold ?? 0) + 0.03) * 100) / 100);
+  }
+
+  /** Marks a detection as false; with `raise`, also raises the threshold of that sound on that source just above this score. */
+  private async mark(e: SoundEvent, raise: boolean): Promise<void> {
+    this.markError = "";
+    try {
+      if (raise) {
+        const errs = await applyAndSave(this.api, { source: e.source, class_patch: { [e.mid]: { threshold: this.proposal(e) } } }, (mid) => this.audio.get(mid));
+        if (errs.length) { this.markError = errs.join("; "); return; }
+      }
+      await this.api.feedback(e.id, true);
+      this.events = this.events.map((x) => (x.id === e.id ? { ...x, feedback: "false" } : x));
+      this.marking = null;
+    } catch (err) {
+      this.markError = (err as { message?: string }).message ?? String(err);
+    }
+  }
+
+  private async unmark(e: SoundEvent): Promise<void> {
+    try {
+      await this.api.feedback(e.id, false);
+      this.events = this.events.map((x) => (x.id === e.id ? { ...x, feedback: null } : x));
+    } catch (err) {
+      this.markError = (err as { message?: string }).message ?? String(err);
+    }
+  }
+
   private eventRow(e: SoundEvent) {
     const t = this.t;
+    const isFalse = e.feedback === "false";
     return html`
-      <li data-event=${e.id}>
+      <li data-event=${e.id} class=${isFalse ? "false" : ""}>
         <div class="what"><strong>${e.name ?? this.classLabel(e.mid, e.class)}</strong><span class="dim">${this.sourceName(e.source)} · ${this.relative(e.ts)}</span></div>
         <span class="score" title=${t("score")}>${Math.round(e.score * 100)}%</span>
+        <div class="fb">${isFalse
+          ? html`<span class="chip off" data-false-chip>${t("markedFalse")}</span><button class="link" data-action="unmark" @click=${() => void this.unmark(e)}>${t("undo")}</button>`
+          : this.marking === e.id
+            ? html`<button data-action="mark-only" @click=${() => void this.mark(e, false)}>${t("markFalse")}</button>
+                <button class="primary" data-action="mark-raise" @click=${() => void this.mark(e, true)}>${t("markFalseRaise", { v: this.proposal(e).toFixed(2), s: this.sourceName(e.source) })}</button>
+                <button class="link" data-action="mark-cancel" @click=${() => (this.marking = null)}>${t("cancel")}</button>
+                ${this.markError ? html`<span class="error">${this.markError}</span>` : nothing}`
+            : html`<button class="link" data-action="false" @click=${() => { this.markError = ""; this.marking = e.id; }}>${t("notRealSound")}</button>`}</div>
         ${e.clip_url ? html`<audio controls preload="none" src=${e.clip_url} aria-label=${t("play")}></audio>` : html`<span class="dim">${t("noClip")}</span>`}
       </li>`;
   }
@@ -167,6 +210,12 @@ export class LiveView extends LitElement {
     .what { display: flex; flex-direction: column; min-width: 0; }
     .score { font-variant-numeric: tabular-nums; color: var(--secondary-text-color); }
     audio { grid-column: 1 / -1; width: 100%; height: 34px; }
+    .fb { grid-column: 1 / -1; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .fb .error { color: var(--error-color, #db4437); font-size: 0.85rem; }
+    button { font: inherit; cursor: pointer; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--divider-color); background: var(--card-background-color); color: var(--primary-text-color); }
+    button.primary { background: var(--primary-color); color: var(--text-primary-color, #fff); border-color: transparent; }
+    button.link { border: 0; background: none; color: var(--primary-color); padding: 2px 0; font-size: 0.85rem; }
+    li.false { opacity: 0.75; }
     @media (prefers-reduced-motion: reduce) { .bar { transition: none; } }
   `;
 }

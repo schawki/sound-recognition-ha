@@ -4,14 +4,15 @@ import { PanelApi } from "./api";
 import { translator } from "./i18n";
 import type { Hass } from "./types";
 import "./live-view";
+import "./insights-view";
 import "./sources-view";
 import "./sounds-view";
 import "./advice-view";
 import "./clips-view";
 
-type Tab = "live" | "sources" | "sounds" | "advice" | "clips";
-const TABS: [Tab, "live" | "sourcesTab" | "soundsTab" | "adviceTab" | "clipsTab"][] = [
-  ["live", "live"], ["sources", "sourcesTab"], ["sounds", "soundsTab"], ["advice", "adviceTab"], ["clips", "clipsTab"],
+type Tab = "live" | "insights" | "sources" | "sounds" | "advice" | "clips";
+const TABS: [Tab, "live" | "insightsTab" | "sourcesTab" | "soundsTab" | "adviceTab" | "clipsTab"][] = [
+  ["live", "live"], ["insights", "insightsTab"], ["sources", "sourcesTab"], ["sounds", "soundsTab"], ["advice", "adviceTab"], ["clips", "clipsTab"],
 ];
 
 class SoundRecognitionPanel extends LitElement {
@@ -44,6 +45,7 @@ class SoundRecognitionPanel extends LitElement {
   private view(t: ReturnType<typeof translator>) {
     const common = { api: this.api, t, language: this.uiLang };
     switch (this.tab) {
+      case "insights": return html`<sound-recognition-insights .api=${common.api} .t=${t} .language=${common.language}></sound-recognition-insights>`;
       case "sources": return html`<sound-recognition-sources .api=${common.api} .t=${t} .language=${common.language}></sound-recognition-sources>`;
       case "sounds": return html`<sound-recognition-sounds .api=${common.api} .t=${t} .language=${common.language}></sound-recognition-sounds>`;
       case "advice": return html`<sound-recognition-advice .api=${common.api} .t=${t} .language=${common.language}></sound-recognition-advice>`;

@@ -14,9 +14,9 @@ Recognises sounds (smoke alarm, baby cry, doorbell, breaking glass, barking…) 
 
 - Sources: any URL ffmpeg can read (RTSP from go2rtc or cameras, Raspberry Pi with go2rtc, files for tests). ESPHome sources: not yet.
 - Settings per source, per class and per source × class: threshold, minimum volume (dBFS), schedules or continuous monitoring, minimum duration, cooldown, pre/post-roll, clip retention. See `docs/source-settings.en.md`.
-- Context classes (television, radio, music) raise other thresholds while they are active.
+- Context sounds (television, radio, music; fireworks and firecrackers for gunshots) raise the thresholds of look-alike sounds while they are heard. Safety sounds (smoke alarm, glass, screams, baby cry…) are raised by at most `analysis.safety_boost_cap` (0.05 by default; 0 = never). Each source can be given a kind of place (living room, kitchen, bedroom, outdoors…) to get recommendations, and an optional **adaptive sensitivity** that raises thresholds while the room is much noisier than usual. Sounds hidden this way are counted, never lost silently. See `docs/context-and-adaptive.en.md`.
 - Clips of conversations are never kept: the catalog forbids it and the service enforces it.
-- API (all under `/api/v1`, bearer token): `health`, `languages`, `catalog?lang=`, `config` (GET/PUT), `config/validate` (dry run with warnings), `warnings`, `sources`, `resolved`, `events`, `clips/{path}`, `ws` (live events).
+- API (all under `/api/v1`, bearer token): `health`, `languages`, `catalog?lang=`, `config` (GET/PUT), `config/validate` (dry run with warnings), `warnings`, `recommendations`, `stats?hours=`, `sources`, `resolved`, `events`, `events/{id}/feedback` (POST `{"false": true}`), `clips/{path}`, `ws` (live events).
 
 ## Measured
 
@@ -37,7 +37,7 @@ Code: MIT. YAMNet: Google, Apache-2.0 ([source](https://github.com/tensorflow/mo
 
 ## Panel (sidebar)
 
-The integration adds a **Sound Recognition** panel to the Home Assistant sidebar (administrators only). It has a live view (sources with level and connection state, sounds active right now, recent detections with clip playback) a Sources tab (add, edit, disable and remove sources, with a week grid to choose when each one listens) and a Sounds tab (search the 521 classes, enable them for all sources or per source, tune each one with the effective values and their origin shown, and see the advice before saving), an Advice tab (change the level of each advice globally or per source, or hide it; safety advice needs a confirmation to be hidden) and a Clips tab (find and play saved clips by source and sound). Everything works with the keyboard, in light and dark themes and on a phone.
+The integration adds a **Sound Recognition** panel to the Home Assistant sidebar (administrators only). It has a live view (sources with level and connection state, sounds active right now, recent detections with clip playback and a “not a real sound” button that can raise the threshold for you), an **Overview** tab (what each source hears and how its thresholds react right now, the numbers of the last 24 hours with hidden and false detections, recommendations you can apply with one click, advice, and a live timeline), a Sources tab (add, edit, disable and remove sources, with a week grid to choose when each one listens) and a Sounds tab (search the 521 classes, enable them for all sources or per source, tune each one with the effective values and their origin shown, and see the advice before saving), an Advice tab (change the level of each advice globally or per source, or hide it; safety advice needs a confirmation to be hidden) and a Clips tab (find and play saved clips by source and sound). Everything works with the keyboard, in light and dark themes and on a phone.
 
 The panel source is in `panel/` (Lit + TypeScript). The bundled file `custom_components/sound_recognition/frontend/sound-recognition-panel.js` is committed because HACS does not run builds. To change the panel:
 

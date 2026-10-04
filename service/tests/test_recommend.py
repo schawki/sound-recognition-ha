@@ -127,3 +127,10 @@ async def test_api_recommendations_stats_and_feedback(client):
     assert any(e["id"] == "living_tv" for e in cat["environments"])
     src = (await (await client.get("/api/v1/sources", headers=H)).json())["sources"][0]
     assert {"active_contexts", "ambient_dbfs", "baseline_dbfs", "adaptive_enabled", "adaptive_offset"} <= set(src)
+
+
+def test_environment_contexts_are_real_inhibiting_sounds():
+    inhibitors = {m for c in CAT.raw["classes"] for m in c["inhibiting_contexts"]}
+    for e in CAT.raw["environments"]:
+        assert set(e["contexts"]) <= inhibitors, e["id"]          # only sounds that really change thresholds are recommended
+        assert e["en"]["tips"] and e["fr"]["tips"] and len(e["en"]["tips"]) == len(e["fr"]["tips"])
