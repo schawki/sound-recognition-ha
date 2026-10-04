@@ -83,3 +83,17 @@ def test_environment_and_adaptive_validation():
     assert any("unknown environment" in e for e in errs) and any("adaptive" in e for e in errs)
     cfg = _cfg(analysis={**cfgmod.DEFAULTS["analysis"], "safety_boost_cap": 2})
     assert any("safety_boost_cap" in e for e in cfgmod.validate(cfg, CAT))
+
+
+def test_area_devices_and_links_validation():
+    cfg = _cfg()
+    cfg["sources"][0].update(area="salon", devices={"enabled": True, "max_offset": 0.2, "exclude": ["media_player.old"], "include": ["fan.hood"]})
+    cfg["area_links"] = [{"a": "salon", "b": "entree", "type": "open"},
+                         {"a": "cuisine", "b": "entree", "type": "door", "sensor": "binary_sensor.porte", "open_factor": 0.8, "closed_factor": 0.1}]
+    assert cfgmod.validate(cfg, CAT) == []
+    cfg["sources"][0]["devices"] = {"enabled": "yes", "oops": 1}
+    cfg["sources"][1]["devices"] = {"exclude": ["nodot"], "max_offset": 3}
+    cfg["area_links"] = [{"a": "x", "b": "x", "type": "open"}, {"a": "x", "b": "y", "type": "wall"}, {"a": "x", "b": "y", "type": "open", "sensor": "binary_sensor.d"}]
+    errs = cfgmod.validate(cfg, CAT)
+    assert sum("devices" in e for e in errs) >= 3 and sum("area_links" in e for e in errs) >= 3
+    assert any("total_boost_cap" in e for e in cfgmod.validate(_cfg(analysis={**cfgmod.DEFAULTS["analysis"], "total_boost_cap": 5}), CAT))

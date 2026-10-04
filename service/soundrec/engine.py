@@ -98,7 +98,7 @@ class Engine:
             if active != last["active"]:  # push changes immediately so clients need not wait for the periodic status
                 last["active"] = active
                 self._publish({"type": "active", "source": pipe.sid, "active_classes": active})
-            ctx = (tuple(pipe.state["active_contexts"]), round(pipe.state["adaptive_offset"], 2))
+            ctx = (tuple(pipe.state["active_contexts"]), round(pipe.state["adaptive_offset"], 2), round(pipe.state["external_offset"], 2))
             if ctx != last["context"]:
                 last["context"] = ctx
                 self._publish({"type": "context", "source": pipe.sid, **self._context(pipe)})
@@ -146,7 +146,8 @@ class Engine:
     def _context(pipe):
         s = pipe.state
         return {"active_contexts": s["active_contexts"], "ambient_dbfs": s["ambient_dbfs"], "baseline_dbfs": s["baseline_dbfs"],
-                "adaptive_enabled": s["adaptive_enabled"], "adaptive_offset": s["adaptive_offset"]}
+                "adaptive_enabled": s["adaptive_enabled"], "adaptive_offset": s["adaptive_offset"],
+                "external_offset": s["external_offset"], "external_reasons": s["external_reasons"], "external_detail": s["external_detail"]}
 
     def status(self):
         out = []
@@ -161,12 +162,21 @@ class Engine:
                 base.update({"connected": False, "error": None if not base["enabled"] else "starting", "level_dbfs": None,
                              "below_gate": False, "active_classes": [], "last_window": None, "windows": 0, "inferences": 0,
                              "active_contexts": [], "ambient_dbfs": None, "baseline_dbfs": None, "adaptive_enabled": False,
-                             "adaptive_offset": 0.0})
+                             "adaptive_offset": 0.0, "external_offset": 0.0, "external_reasons": [],
+                             "external_detail": []})
             out.append(base)
         return out
 
     def warnings(self, lang="en", overrides=True):
         return advisor.compute(self.cfg, lang, self.catalog_root, overrides)
+
+    def set_external(self, sid, offset, reasons, detail, ttl_s):
+        """Offset pushed by the integration for one source. Returns False when the source is not running."""
+        pipe = self.pipes.get(sid)
+        if pipe is None:
+            return False
+        pipe.set_external(offset, reasons, detail, ttl_s, _now())
+        return True
 
     def recommendations(self, lang="en"):
         since = _now().timestamp() - recommend.FALSE_DAYS * 86400

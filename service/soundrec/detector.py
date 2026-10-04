@@ -25,7 +25,8 @@ class SourcePipeline:
         self.state = {"connected": False, "error": None, "level_dbfs": None, "below_gate": False,
                       "active_classes": [], "last_window": None, "windows": 0, "inferences": 0,
                       "active_contexts": [], "ambient_dbfs": None, "baseline_dbfs": None, "adaptive_offset": 0.0,
-                      "adaptive_enabled": False}
+                      "adaptive_enabled": False, "external_offset": 0.0, "external_reasons": [], "external_detail": []}
+        self.external = {"offset": 0.0, "reasons": [], "detail": [], "expires": 0.0}
         self.ambient = AmbientTracker()
         self._runs = {}      # mid -> run state
         self._shadow = {}    # mid -> detections that only the raised threshold stopped (counted, never reported as detections)
@@ -42,6 +43,7 @@ class SourcePipeline:
         self.hop = max(1, int(a["hop_s"] * SAMPLE_RATE))
         self.boost, self.hold_s = a["context_boost"], a["hold_s"]
         self.safety_cap = a.get("safety_boost_cap", 0.05)
+        self.total_cap = a.get("total_boost_cap", 0.30)
         ad = self.source.get("adaptive") or {}
         self.adaptive_on, self.max_offset = bool(ad.get("enabled")), ad.get("max_offset", 0.15)
         self.state["adaptive_enabled"] = self.adaptive_on
@@ -55,6 +57,10 @@ class SourcePipeline:
             for mid in list(table):
                 if mid not in self.resolved:
                     del table[mid]
+
+    def set_external(self, offset, reasons, detail, ttl_s, now):
+        """Threshold increase decided outside (devices playing sound, neighbouring rooms); it lapses after ttl_s seconds."""
+        self.external = {"offset": float(offset), "reasons": list(reasons), "detail": list(detail), "expires": now.timestamp() + ttl_s}
 
     # ---------------------------------------------------------------- feed
     def feed(self, pcm, now):
@@ -89,6 +95,11 @@ class SourcePipeline:
         base = self.ambient.baseline
         st_["baseline_dbfs"] = None if base is None else round(base, 1)
         st_["adaptive_offset"] = amb_off
+        live = t_end.timestamp() < self.external["expires"]
+        ext_off = self.external["offset"] if live else 0.0
+        st_["external_offset"] = ext_off
+        st_["external_reasons"] = self.external["reasons"] if live else []
+        st_["external_detail"] = self.external["detail"] if live else []
         local = self._local_naive(t_end)
         active = {m: r for m, r in self.resolved.items() if st.is_active(r["schedule"], local)}
         passing = {m: r for m, r in active.items() if r["min_volume_dbfs"] is None or level >= r["min_volume_dbfs"]}
@@ -119,8 +130,13 @@ class SourcePipeline:
                 if amb_off:
                     reasons.append("ambient")
                     total += amb_off
+                if ext_off:
+                    reasons.extend(st_["external_reasons"] or ["device"])
+                    total += ext_off
             if total and self._safety.get(m):
                 total = min(total, self.safety_cap)       # a safety sound is never made much harder to hear
+            elif total:
+                total = min(total, self.total_cap)        # and the causes together never raise the others beyond the total cap
             thr = min(0.99, base + total)
             if score >= thr:
                 self._shadow.pop(m, None)

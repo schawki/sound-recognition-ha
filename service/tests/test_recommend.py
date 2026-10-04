@@ -134,3 +134,18 @@ def test_environment_contexts_are_real_inhibiting_sounds():
     for e in CAT.raw["environments"]:
         assert set(e["contexts"]) <= inhibitors, e["id"]          # only sounds that really change thresholds are recommended
         assert e["en"]["tips"] and e["fr"]["tips"] and len(e["en"]["tips"]) == len(e["fr"]["tips"])
+
+
+async def test_api_external_offset(client):
+    ok = {"offset": 0.1, "reasons": ["device"], "detail": [{"label": "TV", "value": 0.1}], "ttl_s": 60}
+    await client.engine.start()
+    try:
+        assert (await client.put("/api/v1/sources/salon/external", json=ok, headers=H)).status == 200
+        src = (await (await client.get("/api/v1/sources", headers=H)).json())["sources"][0]
+        assert src["external_offset"] == 0.0                  # applied at the next audio window (the stand-in source sends none)
+        assert (await client.put("/api/v1/sources/nope/external", json=ok, headers=H)).status == 404
+        assert (await client.put("/api/v1/sources/salon/external", json={**ok, "offset": 5}, headers=H)).status == 400
+        assert (await client.put("/api/v1/sources/salon/external", json={**ok, "ttl_s": 1}, headers=H)).status == 400
+        assert (await client.put("/api/v1/sources/salon/external", json=ok)).status == 401
+    finally:
+        await client.engine.stop()

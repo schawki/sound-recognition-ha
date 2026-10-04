@@ -212,3 +212,27 @@ async def test_engine_publishes_active_changes(tmp_path, monkeypatch):
     active = [m["active_classes"] for m in msgs if m["type"] == "active"]
     assert [bark] in active and active[-1] == []              # turned on, then off again
     assert any(m["type"] == "detection" for m in msgs)
+
+
+def test_external_offset_from_the_integration_expires_and_is_capped():
+    cls = {"Bark": {"enabled": True, "min_duration_s": 0}, "Screaming": {"enabled": True, "min_duration_s": 0}}   # thresholds 0.5 and 0.6
+    cfg = make_cfg(cls)
+    p = SourcePipeline(cfg["sources"][0], cfg, CAT, Fake({"Bark": 0.6, "Screaming": 0.64}))
+    p.set_external(0.2, ["device"], [{"label": "TV (salon)", "value": 0.2}], 60, T0)
+    ev = run(p, 3)
+    assert det(ev) == []                                                       # Bark 0.6 < 0.7; Screaming 0.64 < 0.65 (safety cap: +0.05 only)
+    masked = {e["class"]: e for e in ev if e["type"] == "masked"}
+    assert masked["Bark"]["threshold"] == 0.7 and masked["Screaming"]["threshold"] == 0.65 and masked["Bark"]["reasons"] == ["device"]
+    assert p.state["external_offset"] == 0.2 and p.state["external_detail"][0]["label"] == "TV (salon)"
+    ev = run(p, 3, start=T0 + dt.timedelta(seconds=120))                       # lapsed: the integration stopped talking
+    assert {e["class"] for e in det(ev)} == {"Bark", "Screaming"}
+    assert p.state["external_offset"] == 0.0 and p.state["external_detail"] == []
+    p.set_external(0.9, ["shared"], [], 60, T0 + dt.timedelta(seconds=120))      # absurd value: the total cap (0.30) applies
+    p.feed(loud(16000), T0 + dt.timedelta(seconds=124))
+    assert p.state["external_offset"] == 0.9
+    p2 = SourcePipeline(cfg["sources"][0], cfg, CAT, Fake({"Bark": 0.79}))
+    p2.set_external(0.9, ["shared"], [], 60, T0)
+    assert det(run(p2, 3)) == []                                                 # 0.5 + 0.30 = 0.80 > 0.79
+    p3 = SourcePipeline(cfg["sources"][0], cfg, CAT, Fake({"Bark": 0.81}))
+    p3.set_external(0.9, ["shared"], [], 60, T0)
+    assert len(det(run(p3, 3))) == 1

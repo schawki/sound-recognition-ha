@@ -17,7 +17,7 @@ DEFAULTS = {
     "language": "en",
     "timezone": None,
     "api": {"host": "0.0.0.0", "port": 8765, "token": None},
-    "analysis": {"hop_s": 0.48, "context_boost": 0.15, "hold_s": 2.0, "safety_boost_cap": 0.05},
+    "analysis": {"hop_s": 0.48, "context_boost": 0.15, "hold_s": 2.0, "safety_boost_cap": 0.05, "total_boost_cap": 0.30},
     "storage": {"clips_dir": "/data/clips", "db_path": "/data/events.sqlite", "ring_seconds": 30, "events_retention_days": 30},
     "defaults": {"min_volume_dbfs": -60, "schedule": {"mode": "continuous"}, "clips": {"allowed": True, "max_retention_days": 30}},
     "classes": {},
@@ -105,6 +105,47 @@ def _check_advice(blk, where, rule_ids, errs):
             errs.append(f"{where}.{rid}: only 'level' and 'confirm' (true/false) are allowed")
 
 
+def _check_devices(s, w, errs):
+    """`area` (a Home Assistant area id) and `devices` are read by the integration; the service only checks their shape."""
+    if "area" in s and s["area"] is not None and not isinstance(s["area"], str):
+        errs.append(f"{w}.area must be text")
+    if "devices" not in s:
+        return
+    d = s["devices"]
+    if not isinstance(d, dict) or set(d) - {"enabled", "max_offset", "exclude", "include"}:
+        errs.append(f"{w}.devices: only 'enabled', 'max_offset', 'exclude' and 'include' are allowed")
+        return
+    if not isinstance(d.get("enabled", False), bool):
+        errs.append(f"{w}.devices.enabled must be true or false")
+    if "max_offset" in d and not _num(d["max_offset"], 0, 0.4):
+        errs.append(f"{w}.devices.max_offset must be between 0 and 0.4")
+    for key in ("exclude", "include"):
+        if key in d and (not isinstance(d[key], list) or not all(isinstance(x, str) and "." in x for x in d[key])):
+            errs.append(f"{w}.devices.{key} must be a list of entity ids")
+
+
+def _check_area_links(links, errs):
+    if links is None:
+        return
+    if not isinstance(links, list):
+        errs.append("area_links must be a list")
+        return
+    for i, l in enumerate(links):
+        w = f"area_links[{i}]"
+        if not isinstance(l, dict) or set(l) - {"a", "b", "type", "sensor", "open_factor", "closed_factor"}:
+            errs.append(f"{w}: only a, b, type, sensor, open_factor and closed_factor are allowed")
+            continue
+        if not all(isinstance(l.get(k), str) and l.get(k) for k in ("a", "b")) or l.get("a") == l.get("b"):
+            errs.append(f"{w}: a and b must be two different areas")
+        if l.get("type") not in ("open", "door"):
+            errs.append(f"{w}.type must be 'open' or 'door'")
+        if l.get("sensor") is not None and (l.get("type") != "door" or not isinstance(l["sensor"], str) or "." not in l["sensor"]):
+            errs.append(f"{w}.sensor is an entity id and only applies to doors")
+        for k in ("open_factor", "closed_factor"):
+            if k in l and not _num(l[k], 0, 1):
+                errs.append(f"{w}.{k} must be between 0 and 1")
+
+
 def advice_rule_ids(catalog):
     raw = catalog.raw
     return {x["id"] for k in ("groups", "rules", "auto_rules") for x in raw.get(k, [])}
@@ -142,6 +183,9 @@ def validate(cfg, catalog: Catalog):
         errs.append("analysis.context_boost must be between 0 and 1")
     if not _num(cfg["analysis"].get("safety_boost_cap"), 0, 1):
         errs.append("analysis.safety_boost_cap must be between 0 and 1")
+    if not _num(cfg["analysis"].get("total_boost_cap"), 0, 1):
+        errs.append("analysis.total_boost_cap must be between 0 and 1")
+    _check_area_links(cfg.get("area_links"), errs)
     d = cfg["defaults"]
     if d.get("min_volume_dbfs") is not None and not _num(d["min_volume_dbfs"], -90, 0):
         errs.append("defaults.min_volume_dbfs must be between -90 and 0 (or null)")
@@ -181,6 +225,7 @@ def validate(cfg, catalog: Catalog):
             if not isinstance(ad, dict) or set(ad) - {"enabled", "max_offset"} or not isinstance(ad.get("enabled", False), bool) \
                     or ("max_offset" in ad and not _num(ad["max_offset"], 0, 0.4)):
                 errs.append(f"{w}.adaptive: only 'enabled' (true/false) and 'max_offset' (0 to 0.4) are allowed")
+        _check_devices(s, w, errs)
         if "advice" in s:
             _check_advice(s["advice"], f"{w}.advice", rule_ids, errs)
         clips = s.get("clips") or {}

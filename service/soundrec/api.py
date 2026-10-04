@@ -103,6 +103,23 @@ async def events(req):
     return web.json_response({"events": rows})
 
 
+async def set_external(req):
+    """The integration pushes the threshold increase it computed for a source: {offset, reasons, detail, ttl_s}."""
+    try:
+        body = await req.json()
+        offset = float(body["offset"])
+        ttl = float(body.get("ttl_s", 60))
+        reasons = [str(r) for r in body.get("reasons", [])][:5]
+        detail = [{"label": str(d["label"])[:80], "value": float(d["value"])} for d in body.get("detail", [])][:20]
+        if not 0 <= offset <= 1 or not 5 <= ttl <= 600:
+            raise ValueError
+    except Exception:
+        return web.json_response({"error": "body must be {offset: 0..1, reasons?, detail?: [{label, value}], ttl_s?: 5..600}"}, status=400)
+    if not req.app["engine"].set_external(req.match_info["sid"], offset, reasons, detail, ttl):
+        return web.json_response({"error": "unknown or stopped source"}, status=404)
+    return web.json_response({"ok": True})
+
+
 async def recommendations(req):
     return web.json_response({"recommendations": req.app["engine"].recommendations(_lang(req))})
 
@@ -174,7 +191,7 @@ def make_app(engine):
         web.get(f"{p}/health", health), web.get(f"{p}/languages", languages), web.get(f"{p}/catalog", catalog),
         web.get(f"{p}/config", get_config), web.put(f"{p}/config", put_config), web.post(f"{p}/config/validate", validate_config),
         web.get(f"{p}/warnings", warnings), web.get(f"{p}/sources", sources), web.get(f"{p}/resolved", resolved),
-        web.get(f"{p}/events", events), web.get(f"{p}/recommendations", recommendations), web.get(f"{p}/stats", stats),
+        web.get(f"{p}/events", events), web.get(f"{p}/recommendations", recommendations), web.put(f"{p}/sources/{{sid}}/external", set_external), web.get(f"{p}/stats", stats),
         web.post(f"{p}/events/{{id}}/feedback", feedback), web.get(f"{p}/clips/{{rel:.+}}", clip), web.get(f"{p}/ws", ws),
     ])
     return app
