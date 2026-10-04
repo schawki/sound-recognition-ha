@@ -43,6 +43,14 @@ class SoundRecCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         c = self.index.get("by_mid", {}).get(mid)
         return c["name"] if c else mid
 
+    @property
+    def inhibitors(self) -> set[str]:
+        """Classes that, once heard, explain other sounds (television, music...)."""
+        found: set[str] = set()
+        for c in self.index.get("by_mid", {}).values():
+            found.update(c.get("inhibiting_contexts") or [])
+        return found
+
     async def _async_setup(self) -> None:
         try:
             self.version = (await self.client.health()).get("version")
@@ -97,6 +105,12 @@ class SoundRecCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             else:
                 cur["connected"] = msg["state"] == "connected"
                 cur["error"] = msg.get("error")
+            srcs[msg["source"]] = cur
+            data = {**data, "sources": srcs}
+        elif kind == "context":
+            srcs = dict(data["sources"])
+            cur = dict(srcs.get(msg["source"], {}))
+            cur.update({k: v for k, v in msg.items() if k not in ("type", "source")})
             srcs[msg["source"]] = cur
             data = {**data, "sources": srcs}
         elif kind in ("detection", "clip_ready"):

@@ -85,6 +85,11 @@ class SoundRecClient:
     async def event_feedback(self, event_id: str, false: bool) -> dict:
         return await self._request("POST", f"/events/{event_id}/feedback", json={"false": false})
 
+    async def set_external(self, sid: str, offset: float, reasons: list[str], detail: list[dict], ttl_s: float = 60) -> dict:
+        """Threshold increase computed by the integration for a source; the service forgets it after ttl_s seconds."""
+        return await self._request("PUT", f"/sources/{sid}/external",
+                                   json={"offset": offset, "reasons": reasons, "detail": detail, "ttl_s": ttl_s})
+
     async def resolved(self, source: str, mid: str) -> dict:
         return await self._request("GET", "/resolved", params={"source": source, "class": mid})
 

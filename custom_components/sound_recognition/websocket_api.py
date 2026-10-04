@@ -9,6 +9,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
+from . import devices as dev
 from .api import InvalidConfig, SoundRecError
 from .const import DOMAIN, SIGNAL_LIVE
 from .go2rtc import CONF_GO2RTC_URL, Go2RtcError, fetch_streams, normalize_url
@@ -136,7 +137,37 @@ async def ws_events(hass, connection, msg, entry):
 @websocket_api.async_response
 @_with_entry
 async def ws_recommendations(hass, connection, msg, entry):
-    connection.send_result(msg["id"], {"recommendations": await entry.runtime_data.client.recommendations(_lang(hass, connection, msg))})
+    lang = _lang(hass, connection, msg)
+    rows = await entry.runtime_data.client.recommendations(lang)
+    cfg = entry.runtime_data.coordinator.service_config
+    connection.send_result(msg["id"], {"recommendations": rows + dev.recommendations(hass, cfg, lang)})
+
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/areas"})
+@websocket_api.require_admin
+@callback
+def ws_areas(hass, connection, msg):
+    connection.send_result(msg["id"], {"areas": dev.areas(hass)})
+
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/openings"})
+@websocket_api.require_admin
+@callback
+def ws_openings(hass, connection, msg):
+    connection.send_result(msg["id"], {"openings": dev.openings(hass)})
+
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/devices", vol.Required("area_id"): str,
+                                  vol.Optional("links", default=[]): list})
+@websocket_api.require_admin
+@callback
+def ws_devices(hass, connection, msg):
+    """Devices of a room and of the rooms linked to it (the links as they are being edited in the panel, if any)."""
+    names = {a["area_id"]: a["name"] for a in dev.areas(hass)}
+    rows = []
+    for area in sorted(dev.reachable_areas(msg["area_id"], msg["links"])):
+        rows += [{**d, "area_id": area, "area": names.get(area, area)} for d in dev.discover(hass, area)]
+    connection.send_result(msg["id"], {"devices": rows})
 
 
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/stats", **ENTRY,
@@ -204,7 +235,7 @@ async def ws_go2rtc_streams(hass, connection, msg, entry):
     connection.send_result(msg["id"], {"configured": True, "url": base, "streams": streams})
 
 
-COMMANDS = (ws_go2rtc_streams, ws_overview, ws_catalog, ws_warnings, ws_config, ws_config_validate, ws_config_save, ws_resolved, ws_events, ws_recommendations, ws_stats, ws_event_feedback, ws_subscribe)
+COMMANDS = (ws_go2rtc_streams, ws_overview, ws_catalog, ws_warnings, ws_config, ws_config_validate, ws_config_save, ws_resolved, ws_events, ws_recommendations, ws_areas, ws_openings, ws_devices, ws_stats, ws_event_feedback, ws_subscribe)
 
 
 def async_register(hass: HomeAssistant) -> None:

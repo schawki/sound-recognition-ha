@@ -7,13 +7,13 @@ from soundrec import advisor, catalog as cm, config as cfgmod, recommend, settin
 from custom_components.sound_recognition.api import CannotConnect, InvalidAuth, InvalidConfig
 
 CAT = st.Catalog(cm.load_raw())
-STATE = SimpleNamespace(cfg=None, down=False, token="tok", handler=None, stop=None, status={}, events=[], feedback={})
+STATE = SimpleNamespace(cfg=None, down=False, token="tok", handler=None, stop=None, status={}, events=[], feedback={}, pushed={})
 
 
 def reset(cfg=None):
     STATE.cfg = cfgmod._merge(cfgmod.DEFAULTS, cfg or {})
     STATE.cfg["api"]["token"] = STATE.token
-    STATE.down, STATE.handler, STATE.stop, STATE.status, STATE.events, STATE.feedback = False, None, asyncio.Event(), {}, [], {}
+    STATE.down, STATE.handler, STATE.stop, STATE.status, STATE.events, STATE.feedback, STATE.pushed = False, None, asyncio.Event(), {}, [], {}, {}
 
 
 class FakeClient:
@@ -85,6 +85,11 @@ class FakeClient:
         zeros = [0] * hours
         block = lambda n: {"total": n, "by_source": {"kitchen": n} if n else {}, "by_class": [], "hourly": zeros[:-1] + [n]}
         return {"hours": hours, "since": 0, "detections": block(3), "masked": block(1), "false": block(0)}
+
+    async def set_external(self, sid, offset, reasons, detail, ttl_s=60):
+        self._check()
+        STATE.pushed[sid] = {"offset": offset, "reasons": reasons, "detail": detail, "ttl_s": ttl_s}
+        return {"ok": True}
 
     async def event_feedback(self, event_id, false):
         self._check()
