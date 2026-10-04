@@ -336,3 +336,15 @@ async def test_go2rtc_fetch_against_a_real_server(socket_enabled):
         assert [s["name"] for s in got] == ["A_cam", "b_cam"] and got[0]["url"] == "rtsp://127.0.0.1:8554/A_cam"
         with pytest.raises(Go2RtcError):
             await fetch_streams(session, f"http://127.0.0.1:{server.port + 1}")   # nothing listens there
+
+
+async def test_panel_survives_reload_and_goes_with_the_last_entry(hass):
+    entry = await setup_entry(hass)
+    panels = lambda: hass.data["frontend_panels"]
+    assert "sound-recognition" in panels()
+    assert await hass.config_entries.async_reload(entry.entry_id)       # every saved change reloads the entry
+    await hass.async_block_till_done()
+    assert "sound-recognition" in panels()                              # not removed, or the browser is sent to the home page
+    assert await hass.config_entries.async_remove(entry.entry_id)
+    await hass.async_block_till_done()
+    assert "sound-recognition" not in panels()

@@ -104,10 +104,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: SoundRecConfigEntry) -> 
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: SoundRecConfigEntry) -> bool:
+    """The panel stays registered: removing it on every reload (each saved change reloads the entry) sends the browser to the home page."""
     ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if ok:
         entry.runtime_data.coordinator.clear_issues()
-        loaded = [e for e in hass.config_entries.async_entries(DOMAIN) if e.entry_id != entry.entry_id and e.state.recoverable is False]
-        if not loaded and hass.data.pop(f"{DOMAIN}_panel", None):
-            frontend.async_remove_panel(hass, PANEL_URL_PATH)
     return ok
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: SoundRecConfigEntry) -> None:
+    """Last entry deleted: take the panel out of the sidebar."""
+    if not [e for e in hass.config_entries.async_entries(DOMAIN) if e.entry_id != entry.entry_id] and hass.data.pop(f"{DOMAIN}_panel", None):
+        frontend.async_remove_panel(hass, PANEL_URL_PATH)
