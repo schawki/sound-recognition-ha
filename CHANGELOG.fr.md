@@ -2,6 +2,14 @@
 
 Les versions sont étiquetées `vX.Y.Z` ; le service se met à jour depuis Home Assistant vers la dernière étiquette.
 
+## 0.9.0
+
+- Un conseil entre sons proches offre maintenant un choix au lieu d'un simple texte : un bouton par son activé, *Garder X seul*, qui désactive les autres. Le son que recommande le catalogue passe en premier, en bouton principal. Cela couvre les sons de sonnette proches, les sons de chien (*Dog*, *Bark*, canidés), les sons de verre, les cris et les hurlements, et toute classe qui en contient une autre (parent et enfant, sans recommandation).
+- *Music* : un bouton, garder *Music* comme contexte et désactiver ses sous-classes. Une classe trop large (par exemple *Dog*) : un bouton qui la désactive et active ses sous-classes.
+- Après un choix, le conseil quitte *À faire* et apparaît dans *Appliqués* avec sa date et *Annuler*. Les sons que le choix a désactivés le restent après *Annuler*, car leur valeur de base est « désactivé » : la carte le dit avant le clic, et on les réactive depuis l'onglet Sons.
+- Niveau d'API 6 du service (`choices` sur les avertissements) : mettez à jour le service depuis Home Assistant après l'intégration. Sans cela le panneau fonctionne mais n'affiche pas les boutons de choix. Dans les Réparations, ces conseils restent de simples alertes.
+- Les règles du catalogue le disent une seule fois : `choose: {recommended: <son>}` pour un choix entre les sons de la règle, `fix` pour un geste unique ; `tools/validate.py` vérifie les deux.
+
 ## 0.8.1
 
 - Correction de la validation de Home Assistant (hassfest, rouge depuis la 0.6.4) : une alerte des Réparations est soit réparable, soit accompagnée d'une description, jamais les deux. Le conseil qui a un bouton *Réparer* a maintenant sa propre entrée, dont la confirmation montre le conseil puis ce qui va changer. Un test garde désormais cette règle.

@@ -12,7 +12,9 @@ export interface SourceStatus {
   external_offset?: number; external_reasons?: string[]; external_detail?: { label: string; value: number }[];
 }
 
-export interface Advice { rule: string; kind: string; level: "info" | "warning" | "danger"; source: string; classes: string[]; safety?: boolean; message: string; apply?: Patch | null; applied?: boolean }
+/** A way out of an advice between close sounds: keep this one, switch the others off. */
+export interface Choice { keep: string; recommended?: boolean; apply: Patch }
+export interface Advice { rule: string; kind: string; level: "info" | "warning" | "danger"; source: string; classes: string[]; safety?: boolean; message: string; apply?: Patch | null; applied?: boolean; choices?: Choice[] }
 
 export interface SoundEvent {
   id: string; ts: number; source: string; mid: string; name?: string; class?: string; score: number;

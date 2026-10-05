@@ -2,6 +2,14 @@
 
 Releases are tagged `vX.Y.Z`; the service updates itself from Home Assistant to the latest tag.
 
+## 0.9.0
+
+- Advice between close sounds now offers a choice instead of plain text: one button per sound that is on, *Keep X only*, which switches the others off. The sound the catalog recommends comes first, as the main button. It covers close doorbell sounds, dog sounds (*Dog*, *Bark*, canids), glass sounds, shouts and screams, and any class that contains another one (parent and child, with no recommendation).
+- *Music*: one button, keep *Music* as context and switch its sub-classes off. A broad class (such as *Dog*): one button that switches it off and switches on its sub-classes.
+- After a choice the advice leaves *To do* and appears under *Applied* with its date and *Undo*. Sounds the choice switched off stay off after *Undo*, because their base value is off: the card says so before you click, and they come back from the Sounds tab.
+- Service API level 6 (`choices` on warnings): update the service from Home Assistant after updating the integration. Without it the panel works but shows no choice buttons. In Repairs these advice stay plain alerts.
+- Catalog rules say it once: `choose: {recommended: <sound>}` for a choice between the sounds of the rule, `fix` for a single gesture; `tools/validate.py` checks both.
+
 ## 0.8.1
 
 - Fix for the Home Assistant validation (hassfest, red since 0.6.4): an issue in Repairs is either fixable or has a description, never both. The advice that has a *Fix* button now has its own entry whose confirmation shows the advice, then what will change. A test now guards this rule.

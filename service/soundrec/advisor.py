@@ -43,6 +43,16 @@ def _gesture(sid, fix, enabled, res):
     return {"source": sid, "class_patch": cp}, all(ok(m, k, v) for m, b in cp.items() for k, v in b.items())
 
 
+def _keep_choices(sid, hit, recommended, enabled, res):
+    """One gesture per sound that is on: keep it, switch the other close sounds off. The recommended one comes first."""
+    out = []
+    for keep in sorted(hit, key=lambda m: m != recommended):
+        patch, _ = _gesture(sid, {"disable": [m for m in hit if m != keep]}, enabled, res)
+        if patch:
+            out.append({"keep": keep, "recommended": keep == recommended, "apply": patch})
+    return out
+
+
 def _apply_overrides(cfg, catalog, out):
     """Apply `advice` overrides (source level wins over global). `ignore` on a safety warning needs confirm: true."""
     srcs = {s["id"]: s for s in cfg.get("sources", [])}
@@ -86,9 +96,11 @@ def compute(cfg, lang="en", root=None, overrides=True):
                 res[mid] = r
         enabled = set(res)
 
-        def add(rule, kind, level, classes, message, fix=None):
+        def add(rule, kind, level, classes, message, fix=None, keep=None):
             row = {"rule": rule, "kind": kind, "level": level, "source": sid, "classes": list(classes), "message": message,
-                   "apply": None, "applied": False}
+                   "apply": None, "applied": False, "choices": []}
+            if keep is not None:          # a choice between close sounds: no single gesture, one per sound to keep
+                row["choices"] = _keep_choices(sid, list(classes), keep.get("recommended"), enabled, res)
             if fix:                       # a warning that has a gesture: the patch the panel applies, and whether it is already in place
                 row["apply"], row["applied"] = _gesture(sid, fix, enabled, res)
             out.append(row)
@@ -103,7 +115,7 @@ def compute(cfg, lang="en", root=None, overrides=True):
             hit = [m for m in r["classes"] if m in enabled]
             ok = {"all": len(hit) == len(r["classes"]), "at_least_two": len(hit) >= 2, "any": len(hit) >= 1}[r["match"]]
             if ok:
-                add(r["id"], "rule", r["level"], hit, r["message"], r.get("fix"))
+                add(r["id"], "rule", r["level"], hit, r["message"], r.get("fix"), r.get("choose"))
         # automatic rules
         for mid in enabled:
             c, r = by[mid], res[mid]
@@ -111,7 +123,7 @@ def compute(cfg, lang="en", root=None, overrides=True):
             for other in c["descendants"]:
                 if other in enabled:
                     add("parent_child", "auto", autos["parent_child"]["level"], [mid, other],
-                        _fmt(autos["parent_child"]["message"], parent=name, child=by[other]["name"]))
+                        _fmt(autos["parent_child"]["message"], parent=name, child=by[other]["name"]), keep={})
             if c["clip_forbidden"] and _explicit_retention(cfg, src, mid):
                 add("clip_forbidden", "auto", "danger", [mid], _fmt(autos["clip_forbidden"]["message"], **{"class": name}),
                     {"set": {mid: {"clip_retention_days": 0}}} if _retention_on_source(cfg, src, mid) else None)
@@ -122,7 +134,8 @@ def compute(cfg, lang="en", root=None, overrides=True):
             if c["role"] == "generic":
                 ex = ", ".join(by[d]["name"] for d in c["descendants"][:3])
                 add("generic_class", "auto", autos["generic_class"]["level"], [mid],
-                    _fmt(autos["generic_class"]["message"], **{"class": name}, examples=ex))
+                    _fmt(autos["generic_class"]["message"], **{"class": name}, examples=ex),
+                    {"disable": [mid], "enable": c["descendants"][:3]})
             if c["inhibiting_contexts"] and not any(x in enabled for x in c["inhibiting_contexts"]):
                 add("missing_context", "auto", autos["missing_context"]["level"], [mid],
                     _fmt(autos["missing_context"]["message"], **{"class": name}),
@@ -136,7 +149,7 @@ def compute(cfg, lang="en", root=None, overrides=True):
                     "message": _fmt(a["message"], **{"class": by[c["mid"]]["name"]}, source=srcname[sid], **params),
                     # the gap in a safety class's schedule is closed by giving it a continuous schedule of its own
                     "apply": {"source": sid, "class_patch": {c["mid"]: {"schedule": {"mode": "continuous"}}}} if rule == "schedule_gap_safety" else None,
-                    "applied": False})
+                    "applied": False, "choices": []})
     return _apply_overrides(cfg, catalog, out) if overrides else _apply_overrides({**cfg, "advice": {}, "sources": [{**s, "advice": {}} for s in cfg.get("sources", [])]}, catalog, out)
 
 

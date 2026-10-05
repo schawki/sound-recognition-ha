@@ -222,3 +222,43 @@ def test_traces_of_applied_advice_are_kept_and_checked(tmp_path):
     assert any("needs a 'rule' and a 'patch'" in e for e in errs) and any("level must be" in e for e in errs)
     cfg["sources"][0]["applied_advice"] = "no"
     assert any("must be a list" in e for e in cfgmod.validate(cfg, CAT))
+
+
+# ---- choices between close sounds
+BARK, DOG, CANIDS = "/m/05tny_", "/m/0bt9lr", "/m/01z5f"
+DOORBELL, BELL = "/m/03wwcy", "/m/0395lw"
+MUSIC, SONG, SINGING = "/m/04rlf", "/m/074ft", "/m/015lz1"
+
+
+def test_close_sounds_offer_one_choice_per_sound_with_the_recommended_one_first():
+    cfg = _on(DOG, BARK, CANIDS)
+    w = _rules(cfg, "dog_duplicates")["a"]
+    assert w["apply"] is None and not w["applied"]
+    assert [c["keep"] for c in w["choices"]] == [BARK, DOG, CANIDS] and [c["recommended"] for c in w["choices"]] == [True, False, False]
+    keep_bark = w["choices"][0]["apply"]
+    assert keep_bark["source"] == "a" and keep_bark["class_patch"] == {DOG: {"enabled": False}, CANIDS: {"enabled": False}}
+    assert "a" not in _rules(_apply(cfg, {"apply": keep_bark}), "dog_duplicates")           # one sound left: no more advice
+    assert cfgmod.validate(_apply(cfg, {"apply": keep_bark}), CAT) == []
+
+
+def test_only_the_sounds_that_are_on_can_be_kept():
+    w = _rules(_on(DOORBELL, BELL), "doorbell_duplicates")["a"]
+    assert [c["keep"] for c in w["choices"]] == [DOORBELL, BELL] and w["choices"][0]["apply"]["class_patch"] == {BELL: {"enabled": False}}
+
+
+def test_parent_and_child_offer_both_ways_and_no_recommendation():
+    parent, child = "/m/0bt9lr", "/m/05tny_"                                                # Dog contains Bark
+    rows = [w for w in advisor.compute(_on(parent, child)) if w["rule"] == "parent_child" and w["source"] == "a"]
+    assert len(rows) == 1 and {c["keep"] for c in rows[0]["choices"]} == {parent, child} and not any(c["recommended"] for c in rows[0]["choices"])
+
+
+def test_music_has_one_gesture_and_the_generic_class_one_too():
+    w = _rules(_on(MUSIC, SONG, SINGING), "music_classes")["a"]
+    assert w["choices"] == [] and w["apply"]["class_patch"][MUSIC] == {"enabled": True} and w["apply"]["class_patch"][SONG] == {"enabled": False}
+    rows = [w for w in advisor.compute(_on(DOG)) if w["rule"] == "generic_class" and w["source"] == "a"]    # Dog is a broad parent class
+    cp = rows[0]["apply"]["class_patch"]
+    assert cp[DOG] == {"enabled": False} and sum(1 for v in cp.values() if v == {"enabled": True}) == 3
+
+
+def test_every_row_has_a_choices_list():
+    assert all(isinstance(w["choices"], list) for w in advisor.compute(_on(SPEECH, SMOKE, BEEP, DOG, BARK)))

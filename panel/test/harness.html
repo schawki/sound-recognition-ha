@@ -58,8 +58,12 @@
     { rule: "speech_target", kind: "rule", level: "warning", source: "garden", classes: ["/m/09x0r"], safety: false, message: "Speech classes detect conversations." },
     { rule: "generic_class", kind: "auto", level: "info", source: "garden", classes: ["/m/05tny_"], safety: false, message: "Bark is generic." },
   ];
+  if (q.get("choices")) rawAdvice.push({ rule: "dog_duplicates", kind: "rule", level: "info", source: "garden", classes: ["/m/0bt9lr", "/m/05tny_"], safety: false, message: "Dog contains Bark: a bark triggers both. Keep Bark.",
+    choices: [{ keep: "/m/05tny_", recommended: true, apply: { source: "garden", class_patch: { "/m/0bt9lr": { enabled: false } } } }, { keep: "/m/0bt9lr", recommended: false, apply: { source: "garden", class_patch: { "/m/05tny_": { enabled: false } } } }] });
   if (q.get("fix") === "1") rawAdvice.push({ rule: "detonations_fireworks", kind: "rule", level: "warning", source: "garden", classes: ["/m/032s66"], safety: false, message: "Fireworks look like gunshots.", apply: { source: "garden", class_patch: { [TV]: { enabled: true } } }, applied: false });
   if (q.get("fix") === "2") rawAdvice.push({ rule: "detonations_fireworks", kind: "rule", level: "warning", source: "kitchen", classes: ["/m/032s66"], safety: false, message: "Fireworks look like gunshots.", apply: { source: "kitchen", class_patch: { [TV]: { enabled: true } } }, applied: false });
+  // what the service computes: a choice between close sounds is gone once one of the two is switched off on the source
+  const gone = (w) => w.rule === "dog_duplicates" && ["/m/0bt9lr", "/m/05tny_"].some((m) => (((state.config.sources.find((s) => s.id === w.source) || {}).classes || {})[m] || {}).enabled === false);
   const withApplied = (r) => {                       // what the service computes: the patch is already in the saved configuration
     const src = (state.config.sources || []).find((x) => x.id === r.source) || {};
     return { ...r, applied: !!r.apply && Object.keys(r.apply.class_patch || {}).every((mid) => { const name = fullCatalog.classes.find((c) => c.mid === mid)?.audioset_name; return [mid, name].some((k) => (src.classes || {})[k]?.enabled === true); }) };
@@ -121,7 +125,7 @@
     "sound_recognition/config": () => JSON.parse(JSON.stringify(state.config)),
     "sound_recognition/config_validate": (m) => validate(m.config),
     "sound_recognition/config_save": (m) => { const v = validate(m.config); if (v.errors.length) throw { code: "invalid_config", message: v.errors.join("; ") }; state.config = m.config; state.saves.push(m.config); return { ok: true }; },
-    "sound_recognition/warnings": (m) => ({ warnings: (m.overrides === false ? rawAdvice : rawAdvice.filter((w) => {
+    "sound_recognition/warnings": (m) => ({ warnings: (m.overrides === false ? rawAdvice.filter((w) => !gone(w)) : rawAdvice.filter((w) => !gone(w)).filter((w) => {
       const own = ((state.config.sources.find((s) => s.id === w.source) || {}).advice || {})[w.rule];
       const e = own !== undefined ? own : (state.config.advice || {})[w.rule];
       const level = typeof e === "string" ? e : e && e.level; const confirm = e && typeof e === "object" && e.confirm;

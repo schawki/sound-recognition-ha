@@ -36,6 +36,9 @@ for r in cat['rules']:
     for m in r['classes']:
         if m not in mset: E(f"rule {r['id']}: {m}")
     fx = r.get('fix') or {}
+    ch = r.get('choose')
+    if ch is not None and (set(ch) - {'recommended'} or ch.get('recommended') not in r['classes']): E(f"rule {r['id']}: choose")
+    if ch is not None and fx: E(f"rule {r['id']}: choose and fix are exclusive")
     for k in fx:
         if k not in ('enable', 'disable', 'set'): E(f"rule {r['id']}: fix key {k}")
     for m in list(fx.get('enable', [])) + list(fx.get('disable', [])) + list(fx.get('set', {})):

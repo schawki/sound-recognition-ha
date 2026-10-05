@@ -8,7 +8,7 @@ import { describeBase, describeChanges } from "./advice-text";
 import { clone } from "./classes";
 import { applyAndSave, applyPatch, removePatch, undoAndSave } from "./patch";
 import type { Key, T } from "./i18n";
-import type { Advice, AdviceLevel, AdviceSetting, Catalog, Recommendation, ServiceConfig, SourceCfg, Suggestions } from "./types";
+import type { Advice, AdviceLevel, AdviceSetting, Catalog, Patch, Recommendation, ServiceConfig, SourceCfg, Suggestions } from "./types";
 
 const LEVELS: AdviceLevel[] = ["default", "info", "warning", "danger", "ignore"];
 type Choice = AdviceLevel | "inherit";
@@ -130,13 +130,13 @@ export class AdviceView extends LitElement {
     window.setTimeout(() => { this.flash = null; }, 2600);
   }
 
-  private async apply(it: Item): Promise<void> {
-    if (!it.apply) return;
+  private async apply(it: Item, chosen: Patch | null = it.apply): Promise<void> {
+    if (!chosen) return;
     this.applying = it.key;
     this.errors = [];
     this.undone = null;
     // the patch carries what the trace of the advice needs, so it can be shown and undone later
-    const patch = { ...it.apply, rule: it.rule, message: it.message, level: it.level, classes: it.classes };
+    const patch = { ...chosen, rule: it.rule, message: it.message, level: it.level, classes: it.classes };
     try {
       const errs = await applyAndSave(this.api, patch, (mid) => this.audio.get(mid));
       if (errs.length) { this.errors = errs; return; }
@@ -221,11 +221,13 @@ export class AdviceView extends LitElement {
   private itemCard(it: Item) {
     const t = this.t;
     const w = it.advice;
-    const status = it.applied ? "applied" : it.apply ? "todo" : "info";
+    const status = it.applied ? "applied" : it.apply || it.choices.length ? "todo" : "info";
     const confirming = w && this.pending && this.pending.rule === w.rule && (this.pending.sid === null || this.pending.sid === w.source);
     const busy = this.applying !== null || this.undoing !== null;
     const changes = it.changes ? describeChanges(it.changes, this.names, t) : [];
     const base = it.applied && it.undo && this.draft ? describeBase(it.undo, this.names, this.suggest, this.draft, t) : [];
+    const switchesOff = (p: Patch | null | undefined) => Object.values(p?.class_patch ?? {}).some((b) => b.enabled === false);
+    const note = it.applied ? switchesOff(it.undo) : it.choices.length > 0 || switchesOff(it.apply);   // undoing cannot switch a sound back on
     return html`
       <li class="advice ${it.applied ? "done" : it.level} ${this.flash === it.key ? "flash" : ""}" data-key=${it.key} data-rule=${it.rule} data-source=${it.source} data-kind=${it.kind} data-status=${status}>
         <div class="meta">${it.applied ? nothing : html`<span class="badge ${it.level}">${t(`level_${it.level}` as Key)}</span>`}${this.where(it)}</div>
@@ -234,13 +236,18 @@ export class AdviceView extends LitElement {
           <ul>${changes.map((c) => html`<li>${c}</li>`)}</ul></div>` : nothing}
         ${base.length ? html`<div class="does base" data-undo-puts><span class="label">${t("adviceUndoPuts")}</span>
           <ul>${base.map((c) => html`<li>${c}</li>`)}</ul></div>` : nothing}
+        ${it.choices.length ? html`<div class="does choices" data-choices-list><span class="label">${t("adviceChoose")}</span>
+          <ul>${it.choices.map((c) => html`<li data-keep=${c.keep}>
+            <button class=${c.recommended ? "primary" : ""} data-action="choose" ?disabled=${busy} @click=${() => void this.apply(it, c.apply)}>${this.applying === it.key ? t("applying") : t("adviceKeep", { name: this.names.get(c.keep) ?? c.keep })}${c.recommended ? html` <small>(${t("adviceRecommended")})</small>` : nothing}</button>
+            <span class="dim">${describeChanges(c.apply, this.names, t).join(" · ")}</span></li>`)}</ul></div>` : nothing}
+        ${note ? html`<div class="dim" data-off-note>${t("adviceOffNote")}</div>` : nothing}
         <div class="actions">
           ${it.applied
             ? html`<span class="state" data-state-label="applied">${it.at ? t("adviceAppliedOn", { d: this.day(it.at) }) : `✓ ${t("adviceApplied")}`}</span>
               ${it.undo ? html`<button data-action="undo" ?disabled=${busy} @click=${() => void this.undo(it)}>${this.undoing === it.key ? t("adviceUndoing") : t("adviceUndo")}</button>` : nothing}`
             : it.apply
               ? html`<button class="primary" data-action="apply" ?disabled=${busy} @click=${() => void this.apply(it)}>${this.applying === it.key ? t("applying") : t("apply")}</button>`
-              : html`<span class="dim" data-nothing>${t("adviceNothing")}</span>`}
+              : it.choices.length ? nothing : html`<span class="dim" data-nothing>${t("adviceNothing")}</span>`}
           ${w && !it.applied ? html`<button class="link" data-action="hide" @click=${() => this.choose(w.rule, w.source, "ignore")}>${t("adviceHide")}</button>` : nothing}
         </div>
         ${w ? html`<details class="display" data-display ?open=${!!confirming}><summary>${t("adviceDisplay")}</summary>
@@ -313,6 +320,8 @@ export class AdviceView extends LitElement {
     .meta { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
     .label { display: inline-block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: .04em; color: var(--secondary-text-color); margin-right: 6px; }
     .does { font-size: 0.9rem; } .does ul { margin: 4px 0 0 18px; padding: 0; } .does.base { color: var(--secondary-text-color); }
+    .does.choices ul { list-style: none; margin-left: 0; display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+    .does.choices li { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; } .does.choices small { opacity: .85; }
     .actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 2px; }
     .state { color: var(--success-color, #43a047); font-size: 0.9rem; white-space: nowrap; }
     section[data-section] > h2 { margin: 22px 0 10px; }

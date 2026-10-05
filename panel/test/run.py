@@ -823,6 +823,29 @@ with sync_playwright() as p:
     ok(pg.locator("sound-recognition-advice .savebar").count() == 1, "undo: hiding it is a change to save")
     pg.close()
 
+    # advice between close sounds: one button per sound to keep
+    pg = new("?choices=1", "light", 1200, 900)
+    pg.wait_for_selector("sound-recognition-live .card")
+    pg.click("button[data-tab=advice]")
+    pg.wait_for_selector("li.advice[data-rule=dog_duplicates]")
+    c = "li.advice[data-rule=dog_duplicates]"
+    ok(pg.locator(c).get_attribute("data-status") == "todo" and pg.locator(c + " button[data-action=apply]").count() == 0, "choices: the advice is to do, without a single Apply button")
+    labels = text(pg, c + " button[data-action=choose]")
+    ok(len(labels) == 2 and labels[0].startswith("Keep Bark only") and "recommended" in labels[0] and labels[1] == "Keep Dog only", f"choices: one button per sound, the recommended one first ({labels!r})")
+    ok("Dog: switched off" in text(pg, c + " [data-choices-list] li")[0], "choices: each says what it changes")
+    ok(pg.locator(c + " [data-off-note]").count() == 1, "choices: says that undoing cannot switch sounds back on")
+    pg.locator(c).scroll_into_view_if_needed()
+    pg.locator(c).screenshot(path=os.path.join(OUT, "advice-choices.png"))
+    n_saves = pg.evaluate("window.__state.saves.length")
+    pg.locator(c + " li[data-keep='/m/05tny_'] button").click()
+    pg.wait_for_function(f"window.__state.saves.length > {n_saves}")
+    g = next(x for x in pg.evaluate("window.__state.saves.at(-1)")["sources"] if x["id"] == "garden")
+    ok(g["classes"]["/m/0bt9lr"] == {"enabled": False} and g["applied_advice"][0]["rule"] == "dog_duplicates", "choices: the chosen gesture is saved, with its trace")
+    pg.wait_for_selector(c + "[data-status=applied]", state="attached")
+    ok(pg.locator(c).count() == 1 and pg.locator(c + " button[data-action=choose]").count() == 0 and pg.locator(c + " button[data-action=undo]").count() == 1, "choices: one card left, in Applied, with Undo")
+    ok("Dog: switched off" in text(pg, c + " [data-changes]")[0], "choices: the card says what the choice changed")
+    pg.close()
+
     # an advice applied earlier whose cause is gone from the list stays visible, with its undo
     pg = new("?trace=1", "light", 1200, 900)
     pg.wait_for_selector("sound-recognition-live .card")
