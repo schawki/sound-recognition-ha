@@ -2,6 +2,19 @@
 
 Releases are tagged `vX.Y.Z`; the service updates itself from Home Assistant to the latest tag.
 
+## 0.7.0
+
+- More advice now has an *Apply* button (and a *Fix* button in Home Assistant Repairs), when the warning says exactly what to do:
+  - a threshold that is too low for a sound often triggered by mistake goes back to the suggested one;
+  - a safety sound whose source schedule has gaps gets a continuous schedule of its own;
+  - a sound sensitive to television, radio or music gets its inhibiting contexts switched on (*Television* and *Radio* for the sounds that react to them);
+  - *Baby cry* asked to hold for 2 seconds when a cat is also listened to;
+  - *Beep* switched off and 3 seconds required for *Smoke detector*; *Fire* and *Crackle* switched off as fire alerts;
+  - a clip retention that the catalog forbids is removed from the source (when the global setting does not ask for it too).
+- When the gesture switches something on or sets a duration the advice stays, marked *Already applied*. When it removes the cause (a sound switched off, a threshold corrected) the advice leaves the list.
+- The confirmation of the Repairs fix now lists each change (*Beep: switched off*, *Smoke detector: minimum duration 3 s*...), not only the sounds switched on.
+- Catalog rules can now carry a gesture made of `enable`, `disable` and `set` (duration, threshold, cooldown, retention); `tools/validate.py` checks it. The advice API format is unchanged, no service update is required beyond the version.
+
 ## 0.6.5
 
 - The alert at the top of the Live view counts what the Advice tab shows first (advice to do and warnings), no longer the advice that is already applied: it used to announce an advice you could not find. A hidden advice is never counted.

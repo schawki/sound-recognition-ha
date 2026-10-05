@@ -91,15 +91,18 @@ rules:
   match: all
   classes: [/m/01y3hg, /m/02fs_r]
   level: warning
+  fix: {disable: [/m/02fs_r], set: {/m/01y3hg: {min_duration_s: 3}}}
 - id: fire_only
   match: any
   classes: [/m/02_41, /m/07pzfmf]
   level: warning
+  fix: {disable: [/m/02_41, /m/07pzfmf]}
 - id: detonations_fireworks
   match: any
   classes: [/m/032s66, /m/014zdl, /m/0g6b5, /g/122z_qxw]
   level: warning
   fix: {enable: [/m/0g6b5, /g/122z_qxw]}      # the gesture that answers the warning: switch these sounds on as contexts
+  # a fix is {enable: [mids], disable: [mids], set: {mid: {field: value}}}; disable and set only touch sounds already on
 - id: doorbell_duplicates
   match: at_least_two
   classes: [/m/03wwcy, /m/07r67yg, /m/07phxs1, /m/0395lw, /m/0f8s22]
@@ -112,6 +115,7 @@ rules:
   match: at_least_two
   classes: [/t/dd00002, /m/07qrkrw, /m/07r81j2]
   level: warning
+  fix: {set: {/t/dd00002: {min_duration_s: 2}}}
 - id: multiple_shouts
   match: at_least_two
   classes: [/m/07p6fty, /m/07sr1lc, /m/03qc9zr, /t/dd00135]
@@ -140,6 +144,7 @@ rules:
   match: any
   classes: [/m/03qc9zr, /m/032s66, /m/05tny_, /m/03wwcy, /m/07rn7sz]
   level: info
+  fix: {enable: [/m/07c52, /m/06bz3]}
 auto_rules:
 - {id: parent_child, level: info}
 - {id: clip_forbidden, level: danger}

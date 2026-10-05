@@ -35,8 +35,14 @@ for r in cat['rules']:
     if r['match'] not in enums['rule_match'] or r['level'] not in enums['level']: E(f"rule {r['id']}")
     for m in r['classes']:
         if m not in mset: E(f"rule {r['id']}: {m}")
-    for m in (r.get('fix') or {}).get('enable', []):
+    fx = r.get('fix') or {}
+    for k in fx:
+        if k not in ('enable', 'disable', 'set'): E(f"rule {r['id']}: fix key {k}")
+    for m in list(fx.get('enable', [])) + list(fx.get('disable', [])) + list(fx.get('set', {})):
         if m not in mset: E(f"rule {r['id']}: fix {m}")
+    for m, vals in (fx.get('set') or {}).items():
+        for k in vals:
+            if k not in ('min_duration_s', 'threshold', 'cooldown_s', 'clip_retention_days'): E(f"rule {r['id']}: fix field {k}")
 
 # -------- langues
 PH = re.compile(r'\{(\w+)\}')

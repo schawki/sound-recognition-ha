@@ -239,7 +239,7 @@
         "step": {
           "confirm": {
             "title": "Apply this advice",
-            "description": "On **{source}**, this will switch on: {sounds}.\n\nThe change is saved in the Sound Recognition configuration, the same as the Apply button of the panel."
+            "description": "On **{source}**, this will change:\n\n{changes}\n\nThe change is saved in the Sound Recognition configuration, the same as the Apply button of the panel."
           }
         },
         "abort": {

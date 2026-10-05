@@ -581,7 +581,7 @@ async def test_an_advice_with_a_gesture_is_fixable_and_the_flow_applies_it(hass,
     http = await hass_client()
     resp = await http.post("/api/repairs/issues/fix", json={"handler": DOMAIN, "issue_id": issue.issue_id})
     flow = await resp.json()
-    assert flow["step_id"] == "confirm" and flow["description_placeholders"]["source"] == "Kitchen" and "Fireworks" in flow["description_placeholders"]["sounds"]
+    assert flow["step_id"] == "confirm" and flow["description_placeholders"]["source"] == "Kitchen" and "- Fireworks: switched on" in flow["description_placeholders"]["changes"]
     assert not fs.STATE.cfg["sources"][0]["classes"].get(FIREWORKS)                        # nothing changes before the confirmation
     resp = await http.post(f"/api/repairs/issues/fix/{flow['flow_id']}", json={})
     assert (await resp.json())["type"] == "create_entry"

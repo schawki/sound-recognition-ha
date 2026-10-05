@@ -12,7 +12,7 @@ from homeassistant.helpers import selector as sel
 from .api import SoundRecError
 from .const import DOMAIN
 from .helpers import expected_unique_ids
-from .patch import apply_patch
+from .patch import apply_patch, describe_patch
 
 CONF_KEPT = "kept_entities"
 SHOWN = 8
@@ -96,10 +96,10 @@ class AdviceFixFlow(RepairsFlow):
         audio = {c["mid"]: c.get("audioset_name") or c["name"] for c in co.catalog.get("classes", [])}
         names = {c["mid"]: c["name"] for c in co.catalog.get("classes", [])}
         if user_input is None:
-            sounds = ", ".join(names.get(m, m) for m in (self.patch.get("class_patch") or {})) or "—"
+            changes = describe_patch(self.patch, names, co.lang)
             src = next((s for s in co.service_config.get("sources", []) if s["id"] == self.patch.get("source")), {})
             return self.async_show_form(step_id="confirm", data_schema=vol.Schema({}),
-                                        description_placeholders={"source": src.get("name") or self.patch.get("source", ""), "sounds": sounds})
+                                        description_placeholders={"source": src.get("name") or self.patch.get("source", ""), "changes": changes})
         try:
             cfg = apply_patch(await co.client.get_config(), self.patch, audio)
             check = await co.client.validate_config(cfg, co.lang)

@@ -239,7 +239,7 @@
         "step": {
           "confirm": {
             "title": "Appliquer ce conseil",
-            "description": "Sur **{source}**, cela va activer : {sounds}.\n\nLe changement est enregistré dans la configuration de Sound Recognition, comme avec le bouton Appliquer du panneau."
+            "description": "Sur **{source}**, cela va changer :\n\n{changes}\n\nLe changement est enregistré dans la configuration de Sound Recognition, comme avec le bouton Appliquer du panneau."
           }
         },
         "abort": {

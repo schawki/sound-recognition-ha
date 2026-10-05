@@ -20,3 +20,12 @@ def test_source_settings_are_merged_and_the_input_is_not_changed():
 
 def test_an_unknown_source_changes_nothing():
     assert apply_patch(CFG, {"source": "zzz", "class_patch": {"/m/1": {"enabled": True}}}) == CFG
+
+
+def test_describe_patch_in_words():
+    from custom_components.sound_recognition.patch import describe_patch
+    patch = {"source": "a", "class_patch": {"x": {"enabled": False}, "y": {"min_duration_s": 3}, "z": {"schedule": {"mode": "continuous"}}}}
+    names = {"x": "Beep", "y": "Smoke detector", "z": "Fire alarm"}
+    assert describe_patch(patch, names) == "- Beep: switched off\n- Smoke detector: minimum duration 3 s\n- Fire alarm: continuous schedule"
+    assert describe_patch(patch, names, "fr").splitlines()[0] == "- Beep: désactivé"
+    assert describe_patch(patch, names, "de").splitlines()[0] == "- Beep: switched off"

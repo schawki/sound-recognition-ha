@@ -2,6 +2,19 @@
 
 Les versions sont étiquetées `vX.Y.Z` ; le service se met à jour depuis Home Assistant vers la dernière étiquette.
 
+## 0.7.0
+
+- Davantage de conseils ont un bouton *Appliquer* (et un bouton *Réparer* dans les Réparations de Home Assistant), quand l'avertissement dit exactement quoi faire :
+  - un seuil trop bas pour un son souvent déclenché à tort revient au seuil conseillé ;
+  - un son de sécurité dont l'horaire de la source a des trous reçoit son propre horaire continu ;
+  - un son sensible à la télévision, à la radio ou à la musique voit ses contextes inhibiteurs activés (*Télévision* et *Radio* pour les sons qui y réagissent) ;
+  - *Baby cry* doit tenir 2 secondes quand un chat est aussi écouté ;
+  - *Beep* est désactivé et 3 secondes sont exigées pour *Smoke detector* ; *Fire* et *Crackle* sont désactivés comme alertes incendie ;
+  - une rétention de clip que le catalogue interdit est retirée de la source (si le réglage global ne la demande pas aussi).
+- Quand le geste active quelque chose ou fixe une durée, le conseil reste, marqué *Déjà appliqué*. Quand il supprime la cause (un son désactivé, un seuil corrigé), le conseil quitte la liste.
+- La confirmation du correctif des Réparations liste maintenant chaque changement (*Beep : désactivé*, *Smoke detector : durée minimale 3 s*...), et plus seulement les sons activés.
+- Les règles du catalogue peuvent porter un geste fait de `enable`, `disable` et `set` (durée, seuil, délai, rétention) ; `tools/validate.py` le vérifie. Le format de l'API des conseils ne change pas : aucune mise à jour du service n'est nécessaire hormis la version.
+
 ## 0.6.5
 
 - L'alerte en haut de la vue En direct compte ce que l'onglet Conseils montre en premier (conseils à faire et avertissements), et plus les conseils déjà appliqués : elle annonçait un conseil introuvable. Un conseil masqué n'est jamais compté.
