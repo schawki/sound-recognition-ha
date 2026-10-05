@@ -206,7 +206,7 @@ async def ws_clips_delete(hass, connection, msg, entry):
 async def ws_recommendations(hass, connection, msg, entry):
     lang = _lang(hass, connection, msg)
     rows = await entry.runtime_data.client.recommendations(lang)
-    cfg = entry.runtime_data.coordinator.service_config
+    cfg = await entry.runtime_data.client.get_config()          # fresh: a saved change reloads the entry later, the cached copy can still be the old one
     hs = await structure_link.status(hass)
     _, origin = await structure_link.effective_links(hass, cfg)
     mine = dev.recommendations(hass, cfg, lang, hs, origin == "home_structure")
@@ -214,7 +214,8 @@ async def ws_recommendations(hass, connection, msg, entry):
         cat = await entry.runtime_data.client.catalog(lang)
         rules = await hass.async_add_executor_job(home_rules.load_rules)
         st = await structure_link.structure(hass)
-        mine += home_rules.compute(cfg, st, lang, rules, {c["mid"]: c["name"] for c in cat.get("classes", [])})
+        mine += home_rules.compute(cfg, st, lang, rules, {c["mid"]: c["name"] for c in cat.get("classes", [])},
+                                  {c["mid"]: {c["mid"], c.get("audioset_name") or c["name"]} for c in cat.get("classes", [])})
         placed = home_rules.places_for(cfg, st, rules)
         mine += home_rules.set_room_type_rows(cfg, st, lang, rules)
         # the room described in Home Structure decides the place: the generic request to choose one only stays for rooms it does not know

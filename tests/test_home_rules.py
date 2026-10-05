@@ -109,3 +109,18 @@ def test_french_and_disabled_sources_and_no_structure():
     assert "Rue (Rue)" in r["home_noise_from_outside"]["message"] and "communique avec" in r["home_noise_from_outside"]["message"]
     assert rows(cfg(("chambre", {"enabled": False}))) == [] and rows(cfg(("chambre", {})), structure=None) == []
     assert rows(cfg(("nowhere", {}))) == []                                             # a room Home Structure does not know
+
+
+def test_a_sound_enabled_under_its_audioset_name_counts_as_done():
+    """The panel writes an enabled flag under the key already used in the configuration, which can be the AudioSet name rather than the id."""
+    keys = {FIREWORKS: {FIREWORKS, "Fireworks"}, FIRECRACKER: {FIRECRACKER, "Firecracker"}}
+    c = cfg(("chambre", {"adaptive": {"enabled": True}, "classes": {"Fireworks": {"enabled": True}, "Firecracker": {"enabled": True}}}))
+    names = {FIREWORKS: "Fireworks", FIRECRACKER: "Firecracker"}
+    assert not any(k.startswith("home_fireworks") for k in by(hr.compute(c, HOME, "en", RULES, names, keys)))
+    assert "home_fireworks_outside" in by(hr.compute(c, HOME, "en", RULES, names))       # without the names the old behaviour: the recommendation stays
+
+
+def test_a_choice_of_the_source_wins_over_the_global_one_like_in_the_service():
+    c = cfg(("chambre", {"adaptive": {"enabled": True}, "classes": {FIREWORKS: {"enabled": False}, FIRECRACKER: {"enabled": True}}}))
+    c["classes"] = {FIREWORKS: {"enabled": True}}
+    assert by(rows(c))["home_fireworks_outside"]["classes"] == [FIREWORKS]

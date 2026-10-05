@@ -40,10 +40,13 @@ def place_for(rules: dict, space: dict) -> str | None:
     return rules["places"].get(_kind_of(space) or "")
 
 
-def _enabled(cfg: dict, src: dict, mid: str) -> bool:
+def _enabled(cfg: dict, src: dict, keys) -> bool:
+    """Same precedence as the service: an explicit choice of the source wins over the global one, and a sound may be keyed by its id or by its AudioSet name."""
+    keys = {keys} if isinstance(keys, str) else set(keys)
     for block in (src.get("classes") or {}, cfg.get("classes") or {}):
-        if (block.get(mid) or {}).get("enabled") is True:
-            return True
+        for k in keys:
+            if "enabled" in (block.get(k) or {}):
+                return block[k]["enabled"] is True
     return False
 
 
@@ -86,13 +89,15 @@ def set_room_type_rows(cfg: dict, structure: dict | None, lang: str, rules: dict
     return out
 
 
-def compute(cfg: dict, structure: dict | None, lang: str, rules: dict, class_names: dict[str, str] | None = None) -> list[dict]:
+def compute(cfg: dict, structure: dict | None, lang: str, rules: dict, class_names: dict[str, str] | None = None,
+            class_keys: dict[str, set[str]] | None = None) -> list[dict]:
     """Recommendation rows (same shape as the others) for the sources whose room is described in Home Structure.
 
     `class_names` (catalog id -> name) come from the catalog of the service, in the language asked."""
     if not structure:
         return []
     class_names = class_names or {}
+    class_keys = class_keys or {}
     spaces = {s["id"]: s for s in structure.get("spaces", [])}
     txt = {**rules["texts"]["en"], **rules["texts"].get(lang, {})}
     blocking = tuple(rules.get("blocking", ["wall"]))
@@ -111,7 +116,7 @@ def compute(cfg: dict, structure: dict | None, lang: str, rules: dict, class_nam
             near = [o for o, _ in links if _kind_of(o) in rule["next_to"]]
             if not near:
                 continue
-            contexts = [m for m in rule.get("contexts", []) if not _enabled(cfg, src, m)]
+            contexts = [m for m in rule.get("contexts", []) if not _enabled(cfg, src, class_keys.get(m, {m}) | {m})]
             adaptive = bool(rule.get("adaptive")) and not (src.get("adaptive") or {}).get("enabled")
             if not contexts and not adaptive:
                 continue

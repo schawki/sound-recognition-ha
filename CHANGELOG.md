@@ -2,6 +2,10 @@
 
 Releases are tagged `vX.Y.Z`; the service updates itself from Home Assistant to the latest tag.
 
+## 0.6.2
+
+- Fix: a recommendation drawn from the home (such as enabling the sounds of a TV next door) stayed in the list after being applied. The list now reads the saved configuration instead of a copy kept before the integration reloads, and recognises a sound switched on under its AudioSet name as well as under its id; a choice made on the source wins over the global one, as in the service.
+
 ## 0.6.1
 
 - Fix: opening a panel right after an update no longer logs a "custom element already defined" error in the browser.

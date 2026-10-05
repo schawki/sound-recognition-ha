@@ -2,6 +2,10 @@
 
 Les versions sont étiquetées `vX.Y.Z` ; le service se met à jour depuis Home Assistant vers la dernière étiquette.
 
+## 0.6.2
+
+- Correction : une recommandation tirée de la maison (par exemple activer les sons d'une TV voisine) restait dans la liste après avoir été appliquée. La liste lit maintenant la configuration enregistrée plutôt qu'une copie gardée avant le rechargement de l'intégration, et reconnaît un son activé sous son nom AudioSet comme sous son identifiant ; un choix fait sur la source l'emporte sur le choix global, comme dans le service.
+
 ## 0.6.1
 
 - Correction : ouvrir un panneau juste après une mise à jour ne produit plus l'erreur « custom element already defined » dans le navigateur.
