@@ -144,7 +144,8 @@ class SoundRecCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 severity=ir.IssueSeverity.ERROR if w["level"] == "danger" else ir.IssueSeverity.WARNING,
                 translation_key="advice",
                 translation_placeholders={"source": names.get(w["source"], w["source"]), "message": w["message"]},
-                data={"entry_id": self.config_entry.entry_id, "kind": "advice", "apply": patch} if patch else None,
+                data={"entry_id": self.config_entry.entry_id, "kind": "advice",
+                      "apply": {**patch, "rule": w["rule"], "message": w["message"], "level": w["level"], "classes": w["classes"]}} if patch else None,
             )
         for iid in self._issues - set(wanted):
             ir.async_delete_issue(self.hass, DOMAIN, iid)

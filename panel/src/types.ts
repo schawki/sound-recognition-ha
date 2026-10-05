@@ -44,7 +44,16 @@ export interface Catalog {
 }
 
 /** What a recommendation changes once the administrator applies it (merged into the stored configuration). */
-export interface Patch { source: string; source_patch?: Record<string, unknown>; class_patch?: Record<string, ClassBlock> }
+export interface Patch {
+  source: string; source_patch?: Record<string, unknown>; class_patch?: Record<string, ClassBlock>;
+  /** Set when the patch answers an advice: what is kept on the source so the advice can be undone (see AppliedAdvice). */
+  rule?: string; message?: string; level?: "info" | "warning" | "danger"; classes?: string[];
+}
+/** A trace kept on the source of an advice applied with its button: what changed, and when. Undoing removes those settings. */
+export interface AppliedAdvice {
+  rule: string; classes: string[]; at: string; level: "info" | "warning" | "danger"; message: string;
+  patch: { source_patch?: Record<string, unknown>; class_patch?: Record<string, ClassBlock> };
+}
 export interface Recommendation { rule: string; level: "info" | "warning" | "danger"; source: string; classes: string[]; message: string; apply: Patch | null; applied?: boolean }
 export interface StatBlock { total: number; by_source: Record<string, number>; by_class: { source: string; mid: string; class: string; count: number }[]; hourly: number[] }
 export interface Stats { hours: number; since: number; detections: StatBlock; masked: StatBlock; false: StatBlock }
@@ -75,7 +84,7 @@ export interface SourceCfg {
   min_volume_dbfs?: number | null; schedule?: Schedule; clips?: { allowed?: boolean; max_retention_days?: number };
   environment?: string; adaptive?: { enabled?: boolean; max_offset?: number };
   area?: string; devices?: { enabled?: boolean; max_offset?: number; exclude?: string[]; include?: string[] };
-  advice?: Record<string, AdviceSetting>;
+  advice?: Record<string, AdviceSetting>; applied_advice?: AppliedAdvice[];
   [extra: string]: unknown;
 }
 export type AdviceLevel = "default" | "info" | "warning" | "danger" | "ignore";

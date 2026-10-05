@@ -29,6 +29,11 @@
     ],
   };
   state.saves = [];
+  if (q.get("trace")) {                                 // an advice applied earlier whose cause is gone from the list (a sound switched off)
+    const k = state.config.sources[0];
+    k.classes["/m/02fs_r"] = { enabled: false };
+    k.applied_advice = [{ rule: "fire_beeps", classes: ["/m/02fs_r"], at: "2026-10-03T10:00:00Z", level: "warning", message: "Beep also triggers on microwave ovens: do not use it as a fire alert.", patch: { class_patch: { "/m/02fs_r": { enabled: false } } } }];
+  }
   const hsLinks = [{ a: "salon", b: "entree", a_name: "Salon", b_name: "Entrée", type: "open_space", sensor: null, state: "open" }, { a: "entree", b: "hall", a_name: "Entrée", b_name: "Entrée (extérieur)", type: "door", sensor: "sensor.hs_porte", state: "closed" }];
   const hs = q.get("hs");
   const hsPlan = { spaces: [{ id: "area:salon", name: "Salon", kind: "room", room_type: "living_room", in_home: true, x: 24, y: 24 }, { id: "area:entree", name: "Entrée", kind: "room", in_home: true, x: 314, y: 24 },

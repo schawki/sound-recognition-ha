@@ -2,6 +2,15 @@
 
 Releases are tagged `vX.Y.Z`; the service updates itself from Home Assistant to the latest tag.
 
+## 0.8.0
+
+- The Advice tab is rebuilt around decisions. A summary at the top (*3 to do · 5 applied · 2 hidden*) and a filter by source, then four sections: *To do*, *Information*, *Applied*, *Hidden*.
+- Every advice now says **why** (the problem), **what its button changes** (one line per setting, for example *Smoke detector: minimum duration 3 s*) and **where it stands**.
+- **Undo** on every applied advice: it takes the settings of the advice off the source, so the base value of the catalog (or your global setting) applies again; the card says what will come back before you click. Afterwards the advice is back in *To do*, and you can hide it right away. For an advice that switched a sound off, the base value is *off*: undoing does not switch it back on (use the Sounds tab).
+- An advice applied with its button leaves a small trace on its source (`applied_advice` in the configuration: rule, message, date, settings). That is what keeps an advice visible under *Applied* once its cause is gone from the list, with the date. The same trace is written by the *Fix* button of Home Assistant Repairs. Advice applied before this version has no date; it is shown while its warning is, and undone the same way.
+- Hiding moved out of the folded settings: *Hide* on the card, *Show again* in the *Hidden* section. The level of each advice (information, warning, danger) is still adjustable, folded under *Importance*.
+- No service API change: the service only checks the trace in the configuration.
+
 ## 0.7.0
 
 - More advice now has an *Apply* button (and a *Fix* button in Home Assistant Repairs), when the warning says exactly what to do:

@@ -206,3 +206,19 @@ def test_forbidden_clip_gesture_removes_the_retention_only_when_it_sits_on_the_s
     assert "a" not in _rules(_apply(cfg, w), "clip_forbidden")
     cfg["classes"] = {SPEECH: {"clip_retention_days": 7}}                                       # the global block asks for it too: a source patch cannot answer
     assert _rules(cfg, "clip_forbidden")["a"]["apply"] is None
+
+
+def test_traces_of_applied_advice_are_kept_and_checked(tmp_path):
+    import yaml
+    cfg = _cfg()
+    cfg["sources"][0]["applied_advice"] = [{"rule": "baby_cat", "classes": [BABY], "at": "2026-10-05T20:00:00+00:00", "level": "warning", "message": "m",
+                                            "patch": {"class_patch": {BABY: {"min_duration_s": 2}}}}]
+    assert cfgmod.validate(cfg, CAT) == []
+    p = tmp_path / "config.yaml"
+    cfgmod.save(str(p), cfg)
+    assert cfgmod.load(str(p))["sources"][0]["applied_advice"][0]["rule"] == "baby_cat"                 # survives the save and the load
+    cfg["sources"][0]["applied_advice"] = [{"rule": "baby_cat"}, {"rule": "x", "patch": {}, "level": "loud"}]
+    errs = cfgmod.validate(cfg, CAT)
+    assert any("needs a 'rule' and a 'patch'" in e for e in errs) and any("level must be" in e for e in errs)
+    cfg["sources"][0]["applied_advice"] = "no"
+    assert any("must be a list" in e for e in cfgmod.validate(cfg, CAT))

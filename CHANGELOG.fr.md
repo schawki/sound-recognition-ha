@@ -2,6 +2,15 @@
 
 Les versions sont étiquetées `vX.Y.Z` ; le service se met à jour depuis Home Assistant vers la dernière étiquette.
 
+## 0.8.0
+
+- L'onglet Conseils est reconstruit autour des décisions. Un résumé en haut (*3 à faire · 5 appliqués · 2 masqués*) et un filtre par source, puis quatre sections : *À faire*, *Informations*, *Appliqués*, *Masqués*.
+- Chaque conseil dit maintenant **pourquoi** (le problème), **ce que change son bouton** (une ligne par réglage, par exemple *Smoke detector : durée minimale 3 s*) et **où il en est**.
+- **Annuler** sur chaque conseil appliqué : cela retire les réglages du conseil de la source, donc la valeur de base du catalogue (ou votre réglage global) s'applique de nouveau ; la carte dit ce qui va revenir avant que vous cliquiez. Ensuite le conseil retourne dans *À faire* et vous pouvez le masquer tout de suite. Pour un conseil qui a désactivé un son, la valeur de base est *désactivé* : annuler ne le réactive pas (passez par l'onglet Sons).
+- Un conseil appliqué avec son bouton laisse une petite trace sur sa source (`applied_advice` dans la configuration : règle, message, date, réglages). C'est ce qui garde un conseil visible dans *Appliqués* une fois sa cause disparue de la liste, avec sa date. La même trace est écrite par le bouton *Réparer* des Réparations de Home Assistant. Un conseil appliqué avant cette version n'a pas de date ; il est montré tant que son avertissement l'est, et s'annule de la même façon.
+- Le masquage sort des réglages repliés : *Masquer* sur la carte, *Réafficher* dans la section *Masqués*. Le niveau de chaque conseil (information, avertissement, danger) reste réglable, replié sous *Importance*.
+- Aucun changement d'API du service : il ne fait que vérifier la trace dans la configuration.
+
 ## 0.7.0
 
 - Davantage de conseils ont un bouton *Appliquer* (et un bouton *Réparer* dans les Réparations de Home Assistant), quand l'avertissement dit exactement quoi faire :

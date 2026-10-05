@@ -3,6 +3,7 @@ Same rules as the panel: the blocks of a source may be keyed by sound id or by A
 from __future__ import annotations
 
 import copy
+from datetime import datetime, timezone
 
 
 def apply_patch(cfg: dict, patch: dict, audio_names: dict[str, str] | None = None) -> dict:
@@ -20,7 +21,18 @@ def apply_patch(cfg: dict, patch: dict, audio_names: dict[str, str] | None = Non
         classes[key] = {**(classes.get(key) or {}), **block}
     if classes:
         src["classes"] = classes
+    if patch.get("rule"):             # a patch that answers an advice leaves a trace on the source, so the panel can show it and undo it
+        changes = {k: patch[k] for k in ("source_patch", "class_patch") if patch.get(k)}
+        ident = advice_id(patch["rule"], changes)
+        trace = {"rule": patch["rule"], "classes": list(patch.get("classes") or (patch.get("class_patch") or {})), "at": datetime.now(timezone.utc).isoformat(),
+                 "level": patch.get("level") or "info", "message": patch.get("message") or "", "patch": changes}
+        src["applied_advice"] = [a for a in src.get("applied_advice") or [] if advice_id(a.get("rule"), a.get("patch") or {}) != ident] + [trace]
     return new
+
+
+def advice_id(rule: str, patch: dict) -> str:
+    """Same identity as the panel: the rule and what it touches."""
+    return f"{rule}|{','.join(sorted(patch.get('class_patch') or {}))}|{','.join(sorted(patch.get('source_patch') or {}))}"
 
 
 # What a patch changes, in words (the confirmation of the Repairs fix). English first, French as the translation; other languages fall back to English.

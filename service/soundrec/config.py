@@ -106,6 +106,22 @@ def _check_advice(blk, where, rule_ids, errs):
             errs.append(f"{where}.{rid}: only 'level' and 'confirm' (true/false) are allowed")
 
 
+def _check_applied_advice(items, where, errs):
+    """Traces of the advice applied with its button: [{rule, classes, at, level, message, patch}]."""
+    if not isinstance(items, list):
+        errs.append(f"{where}: must be a list")
+        return
+    for i, a in enumerate(items):
+        if not isinstance(a, dict) or not isinstance(a.get("rule"), str) or not isinstance(a.get("patch"), dict):
+            errs.append(f"{where}[{i}]: needs a 'rule' and a 'patch'")
+            continue
+        for k, kind in (("classes", list), ("at", str), ("message", str)):
+            if k in a and not isinstance(a[k], kind):
+                errs.append(f"{where}[{i}].{k} has the wrong type")
+        if "level" in a and a["level"] not in ("info", "warning", "danger"):
+            errs.append(f"{where}[{i}].level must be info, warning or danger")
+
+
 def _check_devices(s, w, errs):
     """`area` (a Home Assistant area id) and `devices` are read by the integration; the service only checks their shape."""
     if "area" in s and s["area"] is not None and not isinstance(s["area"], str):
@@ -204,6 +220,8 @@ def validate(cfg, catalog: Catalog):
                     or ("max_offset" in ad and not _num(ad["max_offset"], 0, 0.4)):
                 errs.append(f"{w}.adaptive: only 'enabled' (true/false) and 'max_offset' (0 to 0.4) are allowed")
         _check_devices(s, w, errs)
+        if "applied_advice" in s:
+            _check_applied_advice(s["applied_advice"], f"{w}.applied_advice", errs)
         if "advice" in s:
             _check_advice(s["advice"], f"{w}.advice", rule_ids, errs)
         clips = s.get("clips") or {}

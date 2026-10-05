@@ -587,6 +587,9 @@ async def test_an_advice_with_a_gesture_is_fixable_and_the_flow_applies_it(hass,
     assert (await resp.json())["type"] == "create_entry"
     classes = fs.STATE.cfg["sources"][0]["classes"]
     assert classes[FIREWORKS] == {"enabled": True} and classes[FIRECRACKER] == {"enabled": True} and classes[GUNSHOT] == {"enabled": True}
+    trace = fs.STATE.cfg["sources"][0]["applied_advice"]                                    # kept so the panel can show it and undo it
+    assert len(trace) == 1 and trace[0]["rule"] == "detonations_fireworks" and trace[0]["patch"]["class_patch"].keys() == {FIREWORKS, FIRECRACKER}
+    assert trace[0]["message"] and trace[0]["at"] and trace[0]["level"] == "warning"
     await hass.async_block_till_done()
     assert advice_issues(hass, "detonations_fireworks") == []                              # applied: the alert is gone
 

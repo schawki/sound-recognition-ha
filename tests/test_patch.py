@@ -29,3 +29,16 @@ def test_describe_patch_in_words():
     assert describe_patch(patch, names) == "- Beep: switched off\n- Smoke detector: minimum duration 3 s\n- Fire alarm: continuous schedule"
     assert describe_patch(patch, names, "fr").splitlines()[0] == "- Beep: désactivé"
     assert describe_patch(patch, names, "de").splitlines()[0] == "- Beep: switched off"
+
+
+def test_a_patch_that_answers_an_advice_leaves_a_trace_replaced_when_applied_again():
+    patch = {"source": "a", "class_patch": {"/m/06bz3": {"enabled": True}}, "rule": "context_recommended", "message": "Add contexts", "level": "info", "classes": ["/m/03qc9zr"]}
+    out = apply_patch(CFG, patch)
+    (trace,) = out["sources"][0]["applied_advice"]
+    assert trace["rule"] == "context_recommended" and trace["classes"] == ["/m/03qc9zr"] and trace["level"] == "info"
+    assert trace["patch"] == {"class_patch": {"/m/06bz3": {"enabled": True}}} and trace["at"]
+    again = apply_patch(out, patch)
+    assert len(again["sources"][0]["applied_advice"]) == 1                                          # same advice: replaced, not added
+    other = apply_patch(again, {**patch, "rule": "other_rule"})
+    assert len(other["sources"][0]["applied_advice"]) == 2
+    assert "applied_advice" not in apply_patch(CFG, {"source": "a", "class_patch": {"/m/06bz3": {"enabled": True}}})["sources"][0]   # no rule, no trace
