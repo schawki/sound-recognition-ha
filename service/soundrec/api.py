@@ -164,6 +164,103 @@ async def feedback(req):
     return web.json_response({"ok": True})
 
 
+CLIP_FILTERS = {"source", "mid", "usage", "since", "until"}
+
+
+def _clip_filter(eng, data):
+    """Filters on clips (source, sound, usage category, period) -> keyword arguments for the store; ValueError when invalid."""
+    unknown = set(data) - CLIP_FILTERS
+    if unknown:
+        raise ValueError(f"unknown filter: {', '.join(sorted(unknown))}")
+    flt = {}
+    if data.get("source"):
+        flt["source"] = str(data["source"])
+    mids = None
+    if data.get("usage"):
+        raw = cm.load_raw(eng.catalog_root)
+        if data["usage"] not in raw["usages"]:
+            raise ValueError(f"unknown usage '{data['usage']}'")
+        mids = {c["mid"] for c in raw["classes"] if data["usage"] in c["usages"]}
+    if data.get("mid"):
+        mids = {str(data["mid"])} if mids is None else mids & {str(data["mid"])}
+    if mids is not None:
+        flt["mids"] = sorted(mids)
+    for k in ("since", "until"):
+        if data.get(k) not in (None, ""):
+            flt[k] = float(data[k])
+    return flt
+
+
+def _clip_rows(eng, rows, names):
+    return [dict(r, name=names.get(r["mid"], r["class"]), size=eng.clips.size(r["clip"])) for r in rows]
+
+
+async def clips_list(req):
+    """Clips kept, with their size: filters source, mid, usage, since, until (epoch seconds); paging with limit/offset.
+    Also the total count and size of what matches, and what the clips take on disk."""
+    eng = req.app["engine"]
+    try:
+        flt = _clip_filter(eng, {k: v for k, v in req.query.items() if k in CLIP_FILTERS})
+        limit, offset = max(1, min(int(req.query.get("limit", 100)), 500)), max(0, int(req.query.get("offset", 0)))
+    except ValueError as err:
+        return web.json_response({"error": str(err)}, status=400)
+    names = cm.class_names(_lang(req), eng.catalog_root)
+    loop = asyncio.get_running_loop()
+
+    def work():
+        every = eng.store.clips(**flt)
+        # the sounds to choose from: those of the selection, whatever sound is already chosen
+        pool = eng.store.clips(**_clip_filter(eng, {k: v for k, v in req.query.items() if k in CLIP_FILTERS and k != "mid"}))
+        counts = {}
+        for r in pool:
+            counts[r["mid"]] = counts.get(r["mid"], 0) + 1
+        sounds = sorted(({"mid": m, "name": names.get(m, m), "count": n} for m, n in counts.items()), key=lambda x: x["name"].lower())
+        return every, _clip_rows(eng, every[offset:offset + limit], names), sum(eng.clips.size(r["clip"]) for r in every), eng.clips.usage(), sounds
+    every, page, total_bytes, usage, sounds = await loop.run_in_executor(None, work)
+    return web.json_response({"clips": page, "total": len(every), "total_bytes": total_bytes, "disk": usage, "sounds": sounds})
+
+
+async def clips_delete(req):
+    """Deletes clips: {"ids": [event ids]} or {"filter": {...}} (an empty filter means every clip, referenced or not);
+    "dry_run": true only counts. Detections stay in the history, only their audio goes."""
+    eng = req.app["engine"]
+    try:
+        body = await req.json()
+        dry = body.get("dry_run", False) is True
+        if ("ids" in body) == ("filter" in body):
+            raise ValueError("give either ids or filter")
+        if "ids" in body:
+            if not isinstance(body["ids"], list) or not all(isinstance(i, str) for i in body["ids"]):
+                raise ValueError("ids must be a list of event ids")
+            flt = None
+        else:
+            if not isinstance(body["filter"], dict):
+                raise ValueError("filter must be an object")
+            flt = _clip_filter(eng, body["filter"])
+    except (ValueError, TypeError, json.JSONDecodeError) as err:
+        return web.json_response({"error": str(err) or "invalid body"}, status=400)
+    loop = asyncio.get_running_loop()
+
+    def work():
+        everything = flt == {}
+        if everything:
+            usage = eng.clips.usage()
+            if dry:
+                return usage["clips"], usage["bytes"]
+            count, freed = eng.clips.delete_all()
+            eng.store.forget_clips()
+            return count, freed
+        rows = eng.store.clips_by_ids(body["ids"]) if flt is None else eng.store.clips(**flt)
+        freed = 0
+        for r in rows:
+            freed += eng.clips.size(r["clip"]) if dry else eng.clips.delete(r["clip"])
+        if not dry:
+            eng.store.forget_clips([r["id"] for r in rows])
+        return len(rows), freed
+    count, freed = await loop.run_in_executor(None, work)
+    return web.json_response({"count": count, "bytes": freed, "dry_run": dry})
+
+
 async def clip(req):
     p = req.app["engine"].clips.path(req.match_info["rel"])
     if not p:
@@ -211,6 +308,6 @@ def make_app(engine, updater=None):
         web.get(f"{p}/config", get_config), web.put(f"{p}/config", put_config), web.post(f"{p}/config/validate", validate_config),
         web.get(f"{p}/warnings", warnings), web.get(f"{p}/sources", sources), web.get(f"{p}/resolved", resolved),
         web.get(f"{p}/events", events), web.get(f"{p}/recommendations", recommendations), web.put(f"{p}/sources/{{sid}}/external", set_external), web.get(f"{p}/stats", stats),
-        web.post(f"{p}/events/{{id}}/feedback", feedback), web.get(f"{p}/clips/{{rel:.+}}", clip), web.get(f"{p}/ws", ws),
+        web.post(f"{p}/events/{{id}}/feedback", feedback), web.get(f"{p}/clips", clips_list), web.post(f"{p}/clips/delete", clips_delete), web.get(f"{p}/clips/{{rel:.+}}", clip), web.get(f"{p}/ws", ws),
     ])
     return app

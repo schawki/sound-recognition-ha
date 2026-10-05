@@ -245,6 +245,14 @@ async def test_panel_commands(hass, hass_ws_client):
     assert r["success"] and r["result"]["openings"] == []
     r = await call(type="sound_recognition/devices", area_id="salon")
     assert r["success"] and r["result"]["devices"] == []
+    r = await call(type="sound_recognition/clips", source="salon", usage="animals", limit=20)
+    assert r["success"] and r["result"]["total"] == 1 and r["result"]["clips"][0]["size"] == 32044 and "/api/sound_recognition/" in r["result"]["clips"][0]["clip_url"]
+    assert fs.STATE.clip_calls[-1] == ("list", {"source": "salon", "mid": None, "usage": "animals", "since": None, "until": None, "limit": 20, "offset": 0})
+    r = await call(type="sound_recognition/clips_delete", filter={"usage": "animals"}, dry_run=True)
+    assert r["success"] and r["result"] == {"count": 1, "bytes": 32044, "dry_run": True}
+    assert fs.STATE.clip_calls[-1] == ("delete", {"ids": None, "filter": {"usage": "animals"}, "dry_run": True})
+    assert (await call(type="sound_recognition/clips_delete", ids=["e1"]))["success"] and fs.STATE.clip_calls[-1][1]["ids"] == ["e1"]
+    assert not (await call(type="sound_recognition/clips_delete"))["success"] and not (await call(type="sound_recognition/clips_delete", ids=[], filter={}))["success"]
     r = await call(type="sound_recognition/stats", hours=6)
     assert r["success"] and r["result"]["detections"]["total"] == 3 and len(r["result"]["detections"]["hourly"]) == 6
     assert not (await call(type="sound_recognition/stats", hours=0))["success"]

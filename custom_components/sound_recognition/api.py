@@ -83,6 +83,18 @@ class SoundRecClient:
         params = {"lang": lang, **{k: v for k, v in query.items() if v is not None}}
         return (await self._request("GET", "/events", params=params))["events"]
 
+    async def clips(self, lang: str, **query: Any) -> dict:
+        """Clips kept with their size, filtered (source, mid, usage, since, until) and paged; with totals and disk usage."""
+        params = {"lang": lang, **{k: v for k, v in query.items() if v is not None}}
+        return await self._request("GET", "/clips", params=params)
+
+    async def delete_clips(self, ids: list[str] | None = None, flt: dict | None = None, dry_run: bool = False) -> dict:
+        """Deletes clips by event ids or by filter (an empty filter = all); dry_run only counts them."""
+        body: dict = {"ids": ids} if ids is not None else {"filter": flt or {}}
+        if dry_run:
+            body["dry_run"] = True
+        return await self._request("POST", "/clips/delete", json=body)
+
     async def recommendations(self, lang: str) -> list[dict]:
         return (await self._request("GET", "/recommendations", params={"lang": lang}))["recommendations"]
 

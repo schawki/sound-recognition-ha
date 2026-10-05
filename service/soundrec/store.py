@@ -87,6 +87,49 @@ class EventStore:
             rows = self.db.execute(q, a).fetchall()
         return [dict(zip(COLS, r)) for r in rows]
 
+    # ------------------------------------------------------------------ clip management
+    @staticmethod
+    def _clip_where(source=None, mids=None, since=None, until=None):
+        q, a = " FROM events WHERE clip IS NOT NULL", []
+        if source:
+            q += " AND source = ?"; a.append(source)
+        if mids is not None:
+            q += f" AND mid IN ({','.join('?' * len(mids))})" if mids else " AND 0"; a += list(mids)
+        if since is not None:
+            q += " AND ts >= ?"; a.append(since)
+        if until is not None:
+            q += " AND ts <= ?"; a.append(until)
+        return q, a
+
+    def clips(self, limit=None, offset=0, **flt):
+        """Events that still have a clip, newest first, matching the filters (source, mids, since, until). limit=None: all of them."""
+        q, a = self._clip_where(**flt)
+        q = "SELECT id, ts, source, mid, class, score, clip, clip_expires" + q + " ORDER BY ts DESC"
+        if limit is not None:
+            q += " LIMIT ? OFFSET ?"; a += [max(0, int(limit)), max(0, int(offset))]
+        with self.lock:
+            rows = self.db.execute(q, a).fetchall()
+        return [dict(zip(("id", "ts", "source", "mid", "class", "score", "clip", "clip_expires"), r)) for r in rows]
+
+    def clips_by_ids(self, ids):
+        out = []
+        for i in range(0, len(ids), 500):
+            chunk = ids[i:i + 500]
+            with self.lock:
+                rows = self.db.execute(f"SELECT id, clip FROM events WHERE clip IS NOT NULL AND id IN ({','.join('?' * len(chunk))})", chunk).fetchall()
+            out += [{"id": r[0], "clip": r[1]} for r in rows]
+        return out
+
+    def forget_clips(self, ids=None):
+        """Drops the clip reference of these events (all of them when ids is None); the detections themselves stay."""
+        with self.lock:
+            if ids is None:
+                self.db.execute("UPDATE events SET clip=NULL, clip_expires=NULL WHERE clip IS NOT NULL")
+            for i in range(0, len(ids or []), 500):
+                chunk = ids[i:i + 500]
+                self.db.execute(f"UPDATE events SET clip=NULL, clip_expires=NULL WHERE id IN ({','.join('?' * len(chunk))})", chunk)
+            self.db.commit()
+
     def purge(self, before_ts, now_iso):
         """Deletes old events; drops clip references that have expired."""
         with self.lock:

@@ -20,6 +20,11 @@ export interface SoundEvent {
   threshold?: number; feedback?: string | null;
 }
 
+export interface ClipRow { id: string; ts: number; source: string; mid: string; name: string; class?: string; score: number; clip: string; clip_url: string; clip_expires: string | null; size: number }
+export interface ClipFilter { source?: string; mid?: string; usage?: string; since?: number; until?: number }
+export interface ClipsPage { clips: ClipRow[]; total: number; total_bytes: number; sounds: { mid: string; name: string; count: number }[]; disk: { clips: number; bytes: number; free_bytes: number | null } }
+export interface ClipsDeleted { count: number; bytes: number; dry_run: boolean }
+
 export interface Overview {
   entry_id: string; entries: { entry_id: string; title: string }[]; version: string | null; language: string;
   sources: SourceStatus[]; warnings: Advice[]; config: Record<string, unknown>;

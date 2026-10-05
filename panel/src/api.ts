@@ -1,4 +1,4 @@
-import type { UpdateInfo, Advice, HaArea, HaDevice, HaOpening, StructureInfo, Catalog, Go2rtcStreams, Hass, LiveMessage, Overview, Recommendation, ServiceConfig, SoundEvent, Stats, Validation } from "./types";
+import type { UpdateInfo, Advice, HaArea, HaDevice, HaOpening, StructureInfo, Catalog, Go2rtcStreams, Hass, LiveMessage, Overview, Recommendation, ServiceConfig, SoundEvent, ClipFilter, ClipsDeleted, ClipsPage, Stats, Validation } from "./types";
 
 export class PanelApi {
   constructor(private hass: Hass, public language: string) {}
@@ -18,6 +18,13 @@ export class PanelApi {
   async events(limit = 50): Promise<SoundEvent[]> {
     const r = await this.hass.callWS<{ events: SoundEvent[] }>({ type: "sound_recognition/events", language: this.language, limit });
     return r.events;
+  }
+  clips(filter: ClipFilter, limit = 100, offset = 0): Promise<ClipsPage> {
+    return this.hass.callWS({ type: "sound_recognition/clips", language: this.language, ...filter, limit, offset });
+  }
+  /** Deletes clips by event ids or by filter (an empty filter = all of them); `dryRun` only counts, for the confirmation. */
+  deleteClips(what: { ids: string[] } | { filter: ClipFilter }, dryRun = false): Promise<ClipsDeleted> {
+    return this.hass.callWS({ type: "sound_recognition/clips_delete", ...what, dry_run: dryRun });
   }
   async warnings(overrides = true): Promise<Advice[]> {
     const r = await this.hass.callWS<{ warnings: Advice[] }>({ type: "sound_recognition/warnings", language: this.language, overrides });

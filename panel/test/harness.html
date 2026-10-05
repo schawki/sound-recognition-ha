@@ -35,6 +35,11 @@
     { id: "zone:hall", name: "Entrée (extérieur)", kind: "hall", in_home: false, x: 314, y: 170 }],
     connections: [{ a: "area:salon", b: "area:entree", separations: [{ type: "open_space", state: "open" }] },
       { a: "area:entree", b: "zone:hall", separations: [{ type: "door", state: "closed" }, { type: "glass_door", state: "open", shutter_state: "partial" }, { type: "grille", state: "unknown" }] }] };
+  const DAY = 86400, nowS = Date.now() / 1000, clipsExp = new Date(Date.now() + 5 * 86400000).toISOString();
+  const DOG = fullCatalog.classes.find((c) => c.audioset_name === "Dog").mid;
+  const clip = (id, ago, source, mid, size) => ({ id, ts: nowS - ago, source, mid, name: fullCatalog.classes.find((c) => c.mid === mid).name, score: 0.8, clip: `${source}/${id}.wav`, clip_url: "/clip.wav", clip_expires: clipsExp, size });
+  state.clipRows = q.get("manyclips") ? Array.from({ length: 130 }, (_, i) => clip(`m${i}`, 60 * (i + 1), "garden", "/m/05tny_", 1000)) : [
+    clip("e1", 125, "garden", "/m/05tny_", 2000000), clip("e3", 900, "kitchen", SMOKE, 150000), clip("e4", 5 * DAY, "garden", DOG, 640000), clip("e5", 20 * DAY, "garden", "/m/05tny_", 1000000)];
   state.structure = { status: hs === "setup" ? "not_configured" : hs ? "ready" : "not_installed", origin: hs === "ready" ? "home_structure" : "none", links: hs === "ready" ? hsLinks : [], plan: hs === "ready" && !q.get("oldhs") ? hsPlan : null, url: "https://github.com/schawki/ha-home-structure" };
   const TV = fullCatalog.classes.find((c) => c.audioset_name === "Television").mid;
   state.recs = [
@@ -114,6 +119,25 @@
         g.url = "http://" + m.url.replace(/^https?:\/\//, "").replace(/:\d+$/, "") + ":1984";
       }
       return g.url ? { configured: true, url: g.url, streams: g.streams } : { configured: false, url: "", streams: [] };
+    },
+    "sound_recognition/clips": (m) => {
+      const cls = (mid) => fullCatalog.classes.find((c) => c.mid === mid);
+      const rows = state.clipRows.filter((r) => (!m.source || r.source === m.source) && (!m.mid || r.mid === m.mid) && (!m.usage || (cls(r.mid).usages || []).includes(m.usage))
+        && (m.since == null || r.ts >= m.since) && (m.until == null || r.ts <= m.until)).sort((a, b) => b.ts - a.ts);
+      const pool = state.clipRows.filter((r) => (!m.source || r.source === m.source) && (!m.usage || (cls(r.mid).usages || []).includes(m.usage)) && (m.since == null || r.ts >= m.since) && (m.until == null || r.ts <= m.until));
+      const sounds = [...new Set(pool.map((r) => r.mid))].map((mid) => ({ mid, name: cls(mid).name, count: pool.filter((r) => r.mid === mid).length })).sort((a, b) => a.name.localeCompare(b.name));
+      state.clipCalls = (state.clipCalls || []).concat([["list", m.source || "", m.usage || "", m.mid || "", m.since ?? null, m.until ?? null, m.offset]]);
+      return { clips: rows.slice(m.offset, m.offset + m.limit), total: rows.length, total_bytes: rows.reduce((s, r) => s + r.size, 0), sounds, disk: { clips: state.clipRows.length ? state.clipRows.length + 1 : 0, bytes: state.clipRows.length ? state.clipRows.reduce((s, r) => s + r.size, 0) + 5000 : 0, free_bytes: 8e9 } };
+    },
+    "sound_recognition/clips_delete": (m) => {
+      state.clipCalls = (state.clipCalls || []).concat([["delete", m.ids ? m.ids.join(",") : JSON.stringify(m.filter), m.dry_run]]);
+      let hit;
+      if (m.ids) hit = state.clipRows.filter((r) => m.ids.includes(r.id));
+      else if (Object.keys(m.filter).length === 0) return m.dry_run ? { count: state.clipRows.length + 1, bytes: state.clipRows.reduce((s, r) => s + r.size, 0) + 5000, dry_run: true } : (state.clipRows = [], { count: 6, bytes: 123, dry_run: false });
+      else { const q = m.filter; hit = state.clipRows.filter((r) => (!q.source || r.source === q.source) && (!q.mid || r.mid === q.mid) && (!q.usage || (fullCatalog.classes.find((c) => c.mid === r.mid).usages || []).includes(q.usage)) && (q.since == null || r.ts >= q.since) && (q.until == null || r.ts <= q.until)); }
+      const bytes = hit.reduce((s, r) => s + r.size, 0);
+      if (!m.dry_run) state.clipRows = state.clipRows.filter((r) => !hit.includes(r));
+      return { count: hit.length, bytes, dry_run: m.dry_run };
     },
     "sound_recognition/events": () => ({ events: [
       { id: "e1", ts: now - 125, source: "garden", mid: "/m/05tny_", class: "Bark", score: 0.91, clip: "garden/e1.wav", clip_url: "/clip.wav", clip_expires: new Date(Date.now() + 5 * 86400000).toISOString() },

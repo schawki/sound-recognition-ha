@@ -7,13 +7,13 @@ from soundrec import advisor, catalog as cm, config as cfgmod, recommend, settin
 from custom_components.sound_recognition.api import CannotConnect, InvalidAuth, InvalidConfig, SoundRecError
 
 CAT = st.Catalog(cm.load_raw())
-STATE = SimpleNamespace(update=None, health_extra={}, cfg=None, down=False, token="tok", handler=None, stop=None, status={}, events=[], feedback={}, pushed={})
+STATE = SimpleNamespace(update=None, health_extra={}, cfg=None, down=False, token="tok", handler=None, stop=None, status={}, events=[], feedback={}, pushed={}, clip_calls=[])
 
 
 def reset(cfg=None):
     STATE.cfg = cfgmod._merge(cfgmod.DEFAULTS, cfg or {})
     STATE.cfg["api"]["token"] = STATE.token
-    STATE.down, STATE.handler, STATE.stop, STATE.status, STATE.events, STATE.feedback, STATE.pushed = False, None, asyncio.Event(), {}, [], {}, {}
+    STATE.down, STATE.handler, STATE.stop, STATE.status, STATE.events, STATE.feedback, STATE.pushed, STATE.clip_calls = False, None, asyncio.Event(), {}, [], {}, {}, []
     STATE.update, STATE.health_extra = {"state": "idle", "capable": True}, {}
 
 
@@ -30,7 +30,7 @@ class FakeClient:
     async def health(self):
         if STATE.down:
             raise CannotConnect("down")
-        return {"status": "ok", "version": "0.2.0", "api_level": 2, "commit": "abc1234", "release": "v0.2.0", "update": {"capable": STATE.update["capable"]}, **STATE.health_extra}
+        return {"status": "ok", "version": "0.2.0", "api_level": 3, "commit": "abc1234", "release": "v0.2.0", "update": {"capable": STATE.update["capable"]}, **STATE.health_extra}
 
     async def update_status(self):
         self._check()
@@ -114,6 +114,17 @@ class FakeClient:
         self._check()
         from soundrec import settings as st
         return st.resolve(STATE.cfg, CAT, source, mid)
+
+    async def clips(self, lang, **query):
+        self._check()
+        STATE.clip_calls.append(("list", query))
+        rows = [{"id": "e1", "ts": 1.0, "source": "salon", "mid": "/m/05tny_", "class": "Bark", "name": "Bark", "score": 0.7, "clip": "2026-06-20/e1.wav", "clip_expires": None, "size": 32044}]
+        return {"clips": rows, "total": 1, "total_bytes": 32044, "sounds": [{"mid": "/m/05tny_", "name": "Bark", "count": 1}], "disk": {"clips": 1, "bytes": 32044, "free_bytes": 10**9}}
+
+    async def delete_clips(self, ids=None, flt=None, dry_run=False):
+        self._check()
+        STATE.clip_calls.append(("delete", {"ids": ids, "filter": flt, "dry_run": dry_run}))
+        return {"count": 1, "bytes": 32044, "dry_run": dry_run}
 
     async def clip(self, rel):
         return b"RIFFfake"

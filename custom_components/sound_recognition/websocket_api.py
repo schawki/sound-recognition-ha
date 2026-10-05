@@ -163,6 +163,42 @@ async def ws_events(hass, connection, msg, entry):
     connection.send_result(msg["id"], {"events": rows})
 
 
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/clips", **ENTRY, vol.Optional("language"): str,
+                                  vol.Optional("source"): str, vol.Optional("mid"): str, vol.Optional("usage"): str,
+                                  vol.Optional("since"): vol.Coerce(float), vol.Optional("until"): vol.Coerce(float),
+                                  vol.Optional("limit", default=100): vol.All(int, vol.Range(min=1, max=500)),
+                                  vol.Optional("offset", default=0): vol.All(int, vol.Range(min=0))})
+@websocket_api.require_admin
+@websocket_api.async_response
+@_with_entry
+async def ws_clips(hass, connection, msg, entry):
+    """The clips kept (size, sound, source, date), filtered and paged, with the totals of the whole selection and the disk usage."""
+    from . import signed_clip_url  # noqa: PLC0415
+    res = await entry.runtime_data.client.clips(
+        _lang(hass, connection, msg), **{k: msg.get(k) for k in ("source", "mid", "usage", "since", "until")}, limit=msg["limit"], offset=msg["offset"])
+    for r in res["clips"]:
+        r["clip_url"] = signed_clip_url(hass, entry.entry_id, r["clip"])
+    connection.send_result(msg["id"], res)
+
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/clips_delete", **ENTRY, vol.Optional("ids"): [str], vol.Optional("filter"): dict,
+                                  vol.Optional("dry_run", default=False): bool})
+@websocket_api.require_admin
+@websocket_api.async_response
+@_with_entry
+async def ws_clips_delete(hass, connection, msg, entry):
+    """Deletes clips by event ids or by filter (empty filter = every clip); with dry_run only counts them, for the confirmation."""
+    if ("ids" in msg) == ("filter" in msg):
+        connection.send_error(msg["id"], websocket_api.ERR_INVALID_FORMAT, "give either ids or filter")
+        return
+    try:
+        res = await entry.runtime_data.client.delete_clips(msg.get("ids"), msg.get("filter"), msg["dry_run"])
+    except SoundRecError as err:
+        connection.send_error(msg["id"], "service_error", str(err))
+        return
+    connection.send_result(msg["id"], res)
+
+
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/recommendations", **ENTRY, vol.Optional("language"): str})
 @websocket_api.require_admin
 @websocket_api.async_response
@@ -295,7 +331,7 @@ async def ws_go2rtc_streams(hass, connection, msg, entry):
     connection.send_result(msg["id"], {"configured": True, "url": base, "streams": streams})
 
 
-COMMANDS = (ws_go2rtc_streams, ws_overview, ws_update, ws_update_install, ws_catalog, ws_warnings, ws_config, ws_config_validate, ws_config_save, ws_resolved, ws_events, ws_recommendations, ws_areas, ws_openings, ws_devices, ws_structure, ws_stats, ws_event_feedback, ws_subscribe)
+COMMANDS = (ws_go2rtc_streams, ws_overview, ws_update, ws_update_install, ws_catalog, ws_warnings, ws_config, ws_config_validate, ws_config_save, ws_resolved, ws_events, ws_clips, ws_clips_delete, ws_recommendations, ws_areas, ws_openings, ws_devices, ws_structure, ws_stats, ws_event_feedback, ws_subscribe)
 
 
 def async_register(hass: HomeAssistant) -> None:

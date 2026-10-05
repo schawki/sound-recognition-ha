@@ -2,6 +2,12 @@
 
 Releases are tagged `vX.Y.Z`; the service updates itself from Home Assistant to the latest tag.
 
+## 0.5.0
+
+- Clips tab: the size of each clip, the total of the selection and what all clips take on the disk (with the free space). Filters by source, sound, category (animals, fire…) and period.
+- Delete one clip, a selection, everything the filters show, or all clips, after a confirmation that shows the number of clips and the space freed. Detections stay in the history; only the audio goes.
+- Service API level 3 (`GET /clips`, `POST /clips/delete`): update the service from Home Assistant after updating the integration.
+
 ## 0.4.0
 
 - Sound Recognition no longer describes rooms: the built-in "connected rooms" editor is removed (nothing is transferred; describe the home in Home Structure). Without Home Structure a source only sees the devices of its own room. Needs Home Structure 0.5.0 for the new recommendations.
