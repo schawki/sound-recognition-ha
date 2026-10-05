@@ -2,6 +2,11 @@
 
 Les versions sont étiquetées `vX.Y.Z` ; le service se met à jour depuis Home Assistant vers la dernière étiquette.
 
+## 0.9.2
+
+- Le conseil *parent et enfant* ne concerne plus du tout un contexte (*Fireworks*, *Television*, *Music*…) : un contexte ne fait que relever les seuils, il n'a donc pas de règle d'alerte qui puisse entrer en conflit avec son parent ou son enfant. La 0.9.1 ne couvrait que deux contextes ensemble.
+- Un test suit maintenant les gestes des conseils l'un après l'autre, depuis les sons de chaque règle et de chaque paire de règles, avec les recommandations de la maison qui activent des contextes, et vérifie que cela se termine toujours : aucun conseil ne défait ce que demande un autre. Il retrouve la boucle de la 0.9.1 avant la correction, et aucune après.
+
 ## 0.9.1
 
 - Correction : activer *Fireworks* et *Firecracker* (ce que font le conseil sur les feux d'artifice et celui tiré d'un jardin voisin) provoquait un conseil *parent et enfant* sur ces deux mêmes sons, et choisir l'un de ses boutons faisait revenir le premier conseil. Deux sons qui ne sont que des contextes, servant à relever les seuils, ne sont plus traités comme des alertes en conflit.

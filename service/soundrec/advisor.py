@@ -121,8 +121,8 @@ def compute(cfg, lang="en", root=None, overrides=True):
             c, r = by[mid], res[mid]
             name = c["name"]
             for other in c["descendants"]:
-                # two contexts (Fireworks and Firecracker) only raise thresholds: they cannot be given conflicting alert rules
-                if other in enabled and not (c["role"] == "context" and by[other]["role"] == "context"):
+                # a context (Fireworks, Television, Music) only raises thresholds: it has no alert rule that could conflict with its parent or child
+                if other in enabled and "context" not in (c["role"], by[other]["role"]):
                     add("parent_child", "auto", autos["parent_child"]["level"], [mid, other],
                         _fmt(autos["parent_child"]["message"], parent=name, child=by[other]["name"]), keep={})
             if c["clip_forbidden"] and _explicit_retention(cfg, src, mid):

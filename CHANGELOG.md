@@ -2,6 +2,11 @@
 
 Releases are tagged `vX.Y.Z`; the service updates itself from Home Assistant to the latest tag.
 
+## 0.9.2
+
+- The *parent and child* advice no longer concerns a context at all (*Fireworks*, *Television*, *Music*...): a context only raises thresholds, so it has no alert rule that could conflict with its parent or child. 0.9.1 only covered two contexts together.
+- A test now follows the gestures of the advice one after the other, from the sounds of every rule and every pair of rules, with the home recommendations that switch contexts on, and checks that it always ends: no advice undoes what another asks for. It found the loop of 0.9.1 before the fix, and none after.
+
 ## 0.9.1
 
 - Fix: enabling *Fireworks* and *Firecracker* (what the fireworks advice and the advice drawn from a garden next door both do) raised a *parent and child* advice about those same two sounds, and choosing one of its buttons brought the first advice back. Two sounds that are only contexts, used to raise thresholds, are no longer treated as conflicting alerts.
