@@ -142,7 +142,7 @@ class SoundRecCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             ir.async_create_issue(
                 self.hass, DOMAIN, iid, is_fixable=bool(patch),
                 severity=ir.IssueSeverity.ERROR if w["level"] == "danger" else ir.IssueSeverity.WARNING,
-                translation_key="advice",
+                translation_key="advice_fixable" if patch else "advice",   # hassfest: an issue is either fixable or has its own description
                 translation_placeholders={"source": names.get(w["source"], w["source"]), "message": w["message"]},
                 data={"entry_id": self.config_entry.entry_id, "kind": "advice",
                       "apply": {**patch, "rule": w["rule"], "message": w["message"], "level": w["level"], "classes": w["classes"]}} if patch else None,

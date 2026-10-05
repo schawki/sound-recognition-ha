@@ -234,20 +234,7 @@
   "issues": {
     "advice": {
       "title": "Conseil de reconnaissance de sons",
-      "description": "**{source}** : {message}",
-      "fix_flow": {
-        "step": {
-          "confirm": {
-            "title": "Appliquer ce conseil",
-            "description": "Sur **{source}**, cela va changer :\n\n{changes}\n\nLe changement est enregistré dans la configuration de Sound Recognition, comme avec le bouton Appliquer du panneau."
-          }
-        },
-        "abort": {
-          "not_loaded": "L'intégration n'est pas chargée ; réessayez quand elle l'est.",
-          "cannot_connect": "Impossible de joindre le service.",
-          "invalid": "Le service a refusé le changement : {errors}"
-        }
-      }
+      "description": "**{source}** : {message}"
     },
     "service_outdated": {
       "title": "Le service Sound Recognition doit être mis à jour",
@@ -267,6 +254,22 @@
         },
         "abort": {
           "not_loaded": "L'intégration n'est pas chargée ; réessayez quand elle l'est."
+        }
+      }
+    },
+    "advice_fixable": {
+      "title": "Conseil de reconnaissance de sons",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Appliquer ce conseil",
+            "description": "**{source}** : {message}\n\nCela va changer :\n\n{changes}\n\nLe changement est enregistré dans la configuration de Sound Recognition, comme avec le bouton Appliquer du panneau."
+          }
+        },
+        "abort": {
+          "not_loaded": "L'intégration n'est pas chargée ; réessayez quand elle l'est.",
+          "cannot_connect": "Impossible de joindre le service.",
+          "invalid": "Le service a refusé le changement : {errors}"
         }
       }
     }

@@ -99,7 +99,7 @@ class AdviceFixFlow(RepairsFlow):
             changes = describe_patch(self.patch, names, co.lang)
             src = next((s for s in co.service_config.get("sources", []) if s["id"] == self.patch.get("source")), {})
             return self.async_show_form(step_id="confirm", data_schema=vol.Schema({}),
-                                        description_placeholders={"source": src.get("name") or self.patch.get("source", ""), "changes": changes})
+                                        description_placeholders={"source": src.get("name") or self.patch.get("source", ""), "message": self.patch.get("message") or "", "changes": changes})
         try:
             cfg = apply_patch(await co.client.get_config(), self.patch, audio)
             check = await co.client.validate_config(cfg, co.lang)

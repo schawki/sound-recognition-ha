@@ -577,11 +577,11 @@ async def test_an_advice_with_a_gesture_is_fixable_and_the_flow_applies_it(hass,
     fs.STATE.cfg["sources"][0]["classes"] = {GUNSHOT: {"enabled": True}}
     entry = await setup_entry(hass)
     (issue,) = advice_issues(hass, "detonations_fireworks")
-    assert issue.is_fixable and set(issue.data["apply"]["class_patch"]) == {FIREWORKS, FIRECRACKER}
+    assert issue.is_fixable and set(issue.data["apply"]["class_patch"]) == {FIREWORKS, FIRECRACKER} and issue.translation_key == "advice_fixable"
     http = await hass_client()
     resp = await http.post("/api/repairs/issues/fix", json={"handler": DOMAIN, "issue_id": issue.issue_id})
     flow = await resp.json()
-    assert flow["step_id"] == "confirm" and flow["description_placeholders"]["source"] == "Kitchen" and "- Fireworks: switched on" in flow["description_placeholders"]["changes"]
+    assert flow["step_id"] == "confirm" and flow["description_placeholders"]["source"] == "Kitchen" and "- Fireworks: switched on" in flow["description_placeholders"]["changes"] and flow["description_placeholders"]["message"]
     assert not fs.STATE.cfg["sources"][0]["classes"].get(FIREWORKS)                        # nothing changes before the confirmation
     resp = await http.post(f"/api/repairs/issues/fix/{flow['flow_id']}", json={})
     assert (await resp.json())["type"] == "create_entry"

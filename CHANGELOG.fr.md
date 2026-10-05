@@ -2,6 +2,10 @@
 
 Les versions sont étiquetées `vX.Y.Z` ; le service se met à jour depuis Home Assistant vers la dernière étiquette.
 
+## 0.8.1
+
+- Correction de la validation de Home Assistant (hassfest, rouge depuis la 0.6.4) : une alerte des Réparations est soit réparable, soit accompagnée d'une description, jamais les deux. Le conseil qui a un bouton *Réparer* a maintenant sa propre entrée, dont la confirmation montre le conseil puis ce qui va changer. Un test garde désormais cette règle.
+
 ## 0.8.0
 
 - L'onglet Conseils est reconstruit autour des décisions. Un résumé en haut (*3 à faire · 5 appliqués · 2 masqués*) et un filtre par source, puis quatre sections : *À faire*, *Informations*, *Appliqués*, *Masqués*.

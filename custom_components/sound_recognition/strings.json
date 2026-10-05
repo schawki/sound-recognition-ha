@@ -234,20 +234,7 @@
   "issues": {
     "advice": {
       "title": "Sound recognition advice",
-      "description": "**{source}**: {message}",
-      "fix_flow": {
-        "step": {
-          "confirm": {
-            "title": "Apply this advice",
-            "description": "On **{source}**, this will change:\n\n{changes}\n\nThe change is saved in the Sound Recognition configuration, the same as the Apply button of the panel."
-          }
-        },
-        "abort": {
-          "not_loaded": "The integration is not loaded; try again once it is.",
-          "cannot_connect": "Cannot reach the service.",
-          "invalid": "The service refused the change: {errors}"
-        }
-      }
+      "description": "**{source}**: {message}"
     },
     "service_outdated": {
       "title": "The Sound Recognition service needs an update",
@@ -267,6 +254,22 @@
         },
         "abort": {
           "not_loaded": "The integration is not loaded; try again once it is."
+        }
+      }
+    },
+    "advice_fixable": {
+      "title": "Sound recognition advice",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Apply this advice",
+            "description": "**{source}**: {message}\n\nThis will change:\n\n{changes}\n\nThe change is saved in the Sound Recognition configuration, the same as the Apply button of the panel."
+          }
+        },
+        "abort": {
+          "not_loaded": "The integration is not loaded; try again once it is.",
+          "cannot_connect": "Cannot reach the service.",
+          "invalid": "The service refused the change: {errors}"
         }
       }
     }
