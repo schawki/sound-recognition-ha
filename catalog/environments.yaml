@@ -126,3 +126,82 @@ environments:
       tips:
         - "Activez le réglage adaptatif pour que les outils ne déclenchent pas d'alertes."
         - "Activez Musique si vous en écoutez en travaillant."
+  - id: dining_room
+    contexts: [/m/07c52, /m/06bz3, /m/04rlf]
+    adaptive: true
+    en:
+      name: "Dining room"
+      why: "Meals mean voices, dishes and often a TV or music in the background."
+      tips:
+        - "Enable Television, Radio and Music if one of them plays during meals."
+        - "Speech is only useful as context here, not as an alert."
+    fr:
+      name: "Salle à manger"
+      why: "Les repas, c'est des voix, de la vaisselle et souvent une télé ou de la musique en fond."
+      tips:
+        - "Activez Télévision, Radio et Musique si l'un d'eux joue pendant les repas."
+        - "La parole n'est utile ici que comme contexte, pas comme alerte."
+  - id: bathroom
+    contexts: [/m/06bz3, /m/04rlf]
+    adaptive: true
+    en:
+      name: "Bathroom, toilet"
+      why: "Running water, an extractor fan and echo make noise that changes quickly; some people listen to music or the radio there."
+      tips:
+        - "Enable the adaptive setting so a shower or the fan does not hide real sounds or trigger alarms."
+        - "Enable Radio and Music if you listen to something there."
+        - "Water sounds are expected here; a leak alert is more useful in a utility room or under a sink."
+    fr:
+      name: "Salle de bains, toilettes"
+      why: "L'eau qui coule, la ventilation et l'écho font un bruit qui change vite ; certains y écoutent de la musique ou la radio."
+      tips:
+        - "Activez le réglage adaptatif pour qu'une douche ou la ventilation ne masque pas de vrais sons et ne déclenche pas d'alertes."
+        - "Activez Radio et Musique si vous écoutez quelque chose."
+        - "Les bruits d'eau sont normaux ici ; une alerte de fuite est plus utile dans un local technique ou sous un évier."
+  - id: laundry
+    contexts: []
+    adaptive: true
+    en:
+      name: "Laundry, utility room"
+      why: "Washing machines, dryers, pumps and boilers make loud, repetitive noise."
+      tips:
+        - "Enable the adaptive setting so a running machine does not trigger alarms or hide other sounds."
+        - "Keep the water and leak sounds you care about enabled and check their false positives after a few days."
+    fr:
+      name: "Buanderie, local technique"
+      why: "Lave-linge, sèche-linge, pompes et chaudières font un bruit fort et répétitif."
+      tips:
+        - "Activez le réglage adaptatif pour qu'une machine en marche ne déclenche pas d'alertes et ne masque pas d'autres sons."
+        - "Gardez activés les sons d'eau et de fuite qui vous intéressent et vérifiez leurs faux positifs après quelques jours."
+  - id: gym
+    contexts: [/m/04rlf, /m/06bz3]
+    adaptive: true
+    en:
+      name: "Gym, sports room"
+      why: "Loud music, weights and machines make impacts and steady noise while someone trains."
+      tips:
+        - "Enable Music and Radio if you train with them."
+        - "Enable the adaptive setting: a workout raises the thresholds only while it lasts."
+        - "Dropped weights can look like impacts or a break-in; check the clips after a few sessions."
+    fr:
+      name: "Salle de sport"
+      why: "Musique forte, poids et machines font des chocs et un bruit continu pendant l'entraînement."
+      tips:
+        - "Activez Musique et Radio si vous vous entraînez avec."
+        - "Activez le réglage adaptatif : une séance relève les seuils seulement tant qu'elle dure."
+        - "Des poids qui tombent peuvent ressembler à des chocs ou à une effraction ; vérifiez les extraits après quelques séances."
+  - id: storage
+    contexts: []
+    adaptive: false
+    en:
+      name: "Storage, cellar, attic"
+      why: "Rooms nobody uses much: they are quiet, so any sound there is worth a look."
+      tips:
+        - "Keep the adaptive setting off: in a quiet room it only makes you miss soft sounds."
+        - "Check the pests and impact sounds you want to be told about."
+    fr:
+      name: "Rangement, cave, grenier"
+      why: "Des pièces où l'on va peu : elles sont calmes, donc tout son qui s'y produit mérite un coup d'œil."
+      tips:
+        - "Laissez le réglage adaptatif désactivé : dans une pièce calme, il ne ferait que vous faire manquer les sons faibles."
+        - "Vérifiez les sons de nuisibles et de chocs dont vous voulez être prévenu."

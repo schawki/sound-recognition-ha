@@ -5,6 +5,7 @@ Releases are tagged `vX.Y.Z`; the service updates itself from Home Assistant to 
 ## 0.6.0
 
 - The kind of place of a source now comes from Home Structure: the type of its room (or the kind of its space) gives it automatically and follows any change there. Choosing a place in the source still overrides it. A room without a type is asked to get one in Home Structure. Needs Home Structure 0.6.0, which adds room types (master bedroom, child's bedroom, baby's room, guest room, game room, home cinema, gym, workshop, pantry, cellar, attic, staircase) organised in groups.
+- Five new kinds of place so that every Home Structure room type has one: dining room, bathroom (and toilet), laundry and utility room, gym, storage (cellar, attic, pantry, dressing room).
 - The source form shows a summary of the devices that count (in the room, in connected rooms, with the share of sound reaching the source); the detailed list and its settings are folded into expert settings.
 - Fix: the rooms reached from a source could go beyond two connections, offering devices of far rooms.
 - Service API level 4 (`PUT /sources/{id}/place`): update the service from Home Assistant after updating the integration.

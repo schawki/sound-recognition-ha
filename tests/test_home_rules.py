@@ -36,17 +36,31 @@ def by(r):
 
 def test_the_place_is_deduced_from_the_type_of_the_room_unless_the_source_names_one():
     got = hr.places_for(cfg(("chambre", {}), ("salon", {}), ("sdb", {}), ("cave", {}), ("jardin", {}), ("bureau", {"environment": "kitchen"}), ("nowhere", {}), ("off", {"enabled": False})), HOME, RULES)
-    assert {k: v[0] for k, v in got.items()} == {"chambre": "bedroom", "salon": "living_tv", "sdb": None, "cave": None, "jardin": None, "nowhere": None}   # a source that names one, or is off, is left out
+    assert {k: v[0] for k, v in got.items()} == {"chambre": "bedroom", "salon": "living_tv", "sdb": "bathroom", "cave": None, "jardin": None, "nowhere": None}   # a source that names one, or is off, is left out
     assert got["sdb"][1]["name"] == "SDB" and got["nowhere"][1] is None and got["cave"][1]["name"] == "Cave"   # the space is given when Home Structure knows the room
     zone = {**HOME, "spaces": HOME["spaces"] + [dict(space("area:terrasse", "Terrasse", kind="terrace"))]}
     assert hr.places_for(cfg(("terrasse", {})), zone, RULES)["terrasse"][0] == "outdoor"             # a zone that is a Home Assistant area has a place too
     for kind, place in (("master_bedroom", "bedroom"), ("child_bedroom", "bedroom"), ("guest_room", "bedroom"), ("nursery", "nursery"), ("game_room", "living_tv"),
-                        ("home_cinema", "living_tv"), ("workshop", "garage"), ("gym", None), ("staircase", None), ("cellar", None)):
+                        ("home_cinema", "living_tv"), ("workshop", "garage"), ("gym", "gym"), ("staircase", "entrance"), ("cellar", "storage"), ("toilet", "bathroom"),
+                        ("laundry", "laundry"), ("utility_room", "laundry"), ("dining_room", "dining_room"), ("dressing", "storage")):
         st = {**HOME, "spaces": [space("area:x", "X", room_type=kind)]}
         assert hr.places_for(cfg(("x", {})), st, RULES)["x"][0] == place, kind
 
 
-def test_the_room_without_a_type_is_asked_for_one_but_a_type_without_a_place_is_not():
+HS_ROOM_TYPES = ["bedroom", "master_bedroom", "child_bedroom", "nursery", "guest_room", "living_room", "dining_room", "game_room", "home_cinema", "gym", "office", "workshop",
+                 "bathroom", "toilet", "kitchen", "pantry", "laundry", "utility_room", "dressing", "storage", "cellar", "attic", "hallway", "entrance", "staircase"]
+HS_ZONE_KINDS = ["garden", "balcony", "terrace", "courtyard", "garage", "hall", "stairwell", "common_area", "street", "neighbor", "other"]
+
+
+def test_every_room_type_of_home_structure_has_a_place_that_exists_in_the_catalog():
+    from soundrec import catalog as cm
+    known = {e["id"] for e in cm.load_lang("en")["environments"]}
+    assert [t for t in HS_ROOM_TYPES if t not in RULES["places"]] == []
+    assert [k for k in HS_ZONE_KINDS if k not in RULES["places"]] == ["neighbor", "other"]            # the only kinds that have no place
+    assert set(RULES["places"].values()) <= known
+
+
+def test_the_room_without_a_type_is_asked_for_one():
     r = hr.set_room_type_rows(cfg(("cave", {}), ("sdb", {}), ("chambre", {}), ("nowhere", {})), HOME, "en", RULES)
     assert [x["source"] for x in r] == ["cave"] and "« Cave »" in r[0]["message"] and "Home Structure" in r[0]["message"]
     assert "choisissez-le" in hr.set_room_type_rows(cfg(("cave", {})), HOME, "fr", RULES)[0]["message"]
@@ -54,7 +68,7 @@ def test_the_room_without_a_type_is_asked_for_one_but_a_type_without_a_place_is_
 
 def test_every_label_exists_in_both_languages_for_every_type():
     en, fr = RULES["texts"]["en"], RULES["texts"]["fr"]
-    assert set(en["room_types"]) == set(fr["room_types"]) and set(en["kinds"]) == set(fr["kinds"])
+    assert set(en["room_types"]) == set(fr["room_types"]) == set(HS_ROOM_TYPES) and set(en["kinds"]) == set(fr["kinds"]) == set(HS_ZONE_KINDS)
     assert set(RULES["places"]) <= set(en["room_types"]) | set(en["kinds"])
     assert all(t in en["room_types"] for rule in RULES["rules"] for t in rule.get("in", []))
 

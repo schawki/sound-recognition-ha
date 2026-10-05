@@ -28,7 +28,7 @@ def rules(recs):
 def test_environments_are_in_the_catalog_in_both_languages():
     for lang in ("en", "fr"):
         envs = {e["id"]: e for e in cm.load_lang(lang)["environments"]}
-        assert {"living_tv", "kitchen", "bedroom", "nursery", "office", "entrance", "outdoor", "garage"} <= set(envs)
+        assert {"living_tv", "kitchen", "bedroom", "nursery", "office", "entrance", "outdoor", "garage", "dining_room", "bathroom", "laundry", "gym", "storage"} <= set(envs)
         assert all(e["name"] and e["why"] and e["tips"] for e in envs.values())
     assert cm.load_lang("fr")["environments"][0]["name"] != cm.load_lang("en")["environments"][0]["name"]
 

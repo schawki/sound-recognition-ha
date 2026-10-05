@@ -10,7 +10,7 @@
 # Space kinds: garden balcony terrace courtyard garage hall stairwell common_area street neighbor other
 
 # "Place" of a source (the environment of the catalog) deduced from the type of its room, or the kind of its space, in Home Structure.
-# A place named in the configuration of the source always wins. Types with no line here (bathroom, gym, cellar...) give no place.
+# A place named in the configuration of the source always wins. Every room type of Home Structure has a place; only the kinds `neighbor` and `other` have none.
 places:
   living_room: living_tv
   game_room: living_tv
@@ -23,6 +23,22 @@ places:
   nursery: nursery
   office: office
   workshop: garage
+  dining_room: dining_room
+  bathroom: bathroom
+  toilet: bathroom
+  laundry: laundry
+  utility_room: laundry
+  gym: gym
+  pantry: storage
+  dressing: storage
+  storage: storage
+  cellar: storage
+  attic: storage
+  staircase: entrance
+  hall: entrance
+  stairwell: entrance
+  common_area: entrance
+  street: outdoor
   entrance: entrance
   hallway: entrance
   garage: garage
