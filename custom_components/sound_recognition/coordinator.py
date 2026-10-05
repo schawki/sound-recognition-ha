@@ -133,16 +133,18 @@ class SoundRecCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         names = {s["id"]: (s.get("name") or s["id"]) for s in self.service_config.get("sources", [])}
         wanted: dict[str, dict] = {}
         for w in warnings:
-            if w["level"] not in ("warning", "danger"):
-                continue
+            if w["level"] not in ("warning", "danger") or w.get("applied"):
+                continue                                      # what is already in place needs no alert
             iid = f"{self.config_entry.entry_id}_{w['rule']}_{w['source']}_{'_'.join(sorted(c.strip('/').replace('/', '_') for c in w['classes']))}"
             wanted[iid] = w
         for iid, w in wanted.items():
+            patch = w.get("apply")
             ir.async_create_issue(
-                self.hass, DOMAIN, iid, is_fixable=False,
+                self.hass, DOMAIN, iid, is_fixable=bool(patch),
                 severity=ir.IssueSeverity.ERROR if w["level"] == "danger" else ir.IssueSeverity.WARNING,
                 translation_key="advice",
                 translation_placeholders={"source": names.get(w["source"], w["source"]), "message": w["message"]},
+                data={"entry_id": self.config_entry.entry_id, "kind": "advice", "apply": patch} if patch else None,
             )
         for iid in self._issues - set(wanted):
             ir.async_delete_issue(self.hass, DOMAIN, iid)

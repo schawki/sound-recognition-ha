@@ -557,3 +557,43 @@ async def test_source_device_is_linked_to_the_service_device(hass):
     service = reg.async_get_device(identifiers={(DOMAIN, entry.entry_id)})
     source = reg.async_get_device(identifiers={(DOMAIN, f"{entry.entry_id}_kitchen")})
     assert service and source and source.via_device_id == service.id and source.name == "Kitchen"
+
+
+# ---------------------------------------------------------------------------- repairs that carry a gesture
+FIREWORKS, FIRECRACKER, GUNSHOT = "/m/0g6b5", "/g/122z_qxw", "/m/032s66"
+
+
+def advice_issues(hass, rule):
+    return [i for i in ir.async_get(hass).issues.values() if i.domain == DOMAIN and f"_{rule}_" in i.issue_id]
+
+
+async def test_an_advice_that_is_already_applied_raises_no_repair(hass):
+    fs.STATE.cfg["sources"][0]["classes"] = {FIREWORKS: {"enabled": True}, FIRECRACKER: {"enabled": True}}
+    await setup_entry(hass)
+    assert advice_issues(hass, "detonations_fireworks") == []
+
+
+async def test_an_advice_with_a_gesture_is_fixable_and_the_flow_applies_it(hass, hass_client):
+    fs.STATE.cfg["sources"][0]["classes"] = {GUNSHOT: {"enabled": True}}
+    entry = await setup_entry(hass)
+    (issue,) = advice_issues(hass, "detonations_fireworks")
+    assert issue.is_fixable and set(issue.data["apply"]["class_patch"]) == {FIREWORKS, FIRECRACKER}
+    http = await hass_client()
+    resp = await http.post("/api/repairs/issues/fix", json={"handler": DOMAIN, "issue_id": issue.issue_id})
+    flow = await resp.json()
+    assert flow["step_id"] == "confirm" and flow["description_placeholders"]["source"] == "Kitchen" and "Fireworks" in flow["description_placeholders"]["sounds"]
+    assert not fs.STATE.cfg["sources"][0]["classes"].get(FIREWORKS)                        # nothing changes before the confirmation
+    resp = await http.post(f"/api/repairs/issues/fix/{flow['flow_id']}", json={})
+    assert (await resp.json())["type"] == "create_entry"
+    classes = fs.STATE.cfg["sources"][0]["classes"]
+    assert classes[FIREWORKS] == {"enabled": True} and classes[FIRECRACKER] == {"enabled": True} and classes[GUNSHOT] == {"enabled": True}
+    await hass.async_block_till_done()
+    assert advice_issues(hass, "detonations_fireworks") == []                              # applied: the alert is gone
+
+
+async def test_a_warning_without_a_gesture_stays_a_plain_alert(hass):
+    fs.STATE.cfg["sources"][0]["clips"] = {"allowed": True}
+    fs.STATE.cfg["classes"]["Shatter"] = {"enabled": True, "min_volume_dbfs": -30}
+    await setup_entry(hass)
+    plain = [i for i in ir.async_get(hass).issues.values() if i.domain == DOMAIN and i.translation_key == "advice" and not i.is_fixable]
+    assert plain

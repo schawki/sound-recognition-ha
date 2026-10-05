@@ -2,6 +2,11 @@
 
 Releases are tagged `vX.Y.Z`; the service updates itself from Home Assistant to the latest tag.
 
+## 0.6.4
+
+- Repairs: an advice that is already applied no longer raises an alert in Home Assistant (the warning about fireworks and firecrackers kept coming back after the two sounds were enabled).
+- Repairs: an advice that has a gesture is now fixable. The *Fix* button of the alert opens a confirmation that says what will be switched on, then saves it on the source, like the *Apply* button of the panel. Warnings without a gesture stay plain alerts.
+
 ## 0.6.3
 
 - One list of advice: the recommendations of the Overview and the warnings of the Advice tab are now in the Advice tab. What can be done in one click has an *Apply* button; what is already in place says *Already applied* and is kept in a folded group at the bottom, so you can check it took effect. Warnings with nothing to apply stay information, with their display settings folded under *Display*. The Overview only summarises what needs attention and opens the tab.

@@ -234,7 +234,20 @@
   "issues": {
     "advice": {
       "title": "Sound recognition advice",
-      "description": "**{source}**: {message}"
+      "description": "**{source}**: {message}",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Apply this advice",
+            "description": "On **{source}**, this will switch on: {sounds}.\n\nThe change is saved in the Sound Recognition configuration, the same as the Apply button of the panel."
+          }
+        },
+        "abort": {
+          "not_loaded": "The integration is not loaded; try again once it is.",
+          "cannot_connect": "Cannot reach the service.",
+          "invalid": "The service refused the change: {errors}"
+        }
+      }
     },
     "service_outdated": {
       "title": "The Sound Recognition service needs an update",

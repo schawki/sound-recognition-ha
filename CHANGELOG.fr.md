@@ -2,6 +2,11 @@
 
 Les versions sont étiquetées `vX.Y.Z` ; le service se met à jour depuis Home Assistant vers la dernière étiquette.
 
+## 0.6.4
+
+- Réparations : un conseil déjà appliqué ne crée plus d'alerte dans Home Assistant (l'avertissement sur les feux d'artifice et les pétards revenait même une fois ces deux sons activés).
+- Réparations : un conseil qui a un geste est maintenant réparable. Le bouton *Corriger* de l'alerte ouvre une confirmation qui dit ce qui va être activé, puis l'enregistre sur la source, comme le bouton *Appliquer* du panneau. Les avertissements sans geste restent de simples alertes.
+
 ## 0.6.3
 
 - Une seule liste de conseils : les recommandations de l'Aperçu et les avertissements de l'onglet Conseils sont maintenant dans l'onglet Conseils. Ce qui se fait en un clic a un bouton *Appliquer* ; ce qui est déjà en place indique *Déjà appliqué* et reste dans un groupe replié en bas, pour vérifier que cela a pris effet. Les avertissements sans geste restent des informations, avec leurs réglages d'affichage repliés sous *Affichage*. L'Aperçu se contente de résumer ce qui demande de l'attention et ouvre l'onglet.
