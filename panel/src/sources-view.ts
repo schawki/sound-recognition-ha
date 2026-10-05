@@ -5,7 +5,7 @@ import type { PanelApi } from "./api";
 import type { T } from "./i18n";
 import { cellsToWindows, hoursPerWeek, windowsToCells } from "./schedule";
 import { groupAdvice, type NoticeItem } from "./advice-group";
-import type { Advice, AreaLink, SeparationType, StructureInfo, Catalog, Environment, Go2rtcStreams, HaArea, HaDevice, HaOpening, ServiceConfig, SourceCfg } from "./types";
+import type { Advice, SeparationType, StructureInfo, Catalog, Environment, Go2rtcStreams, HaArea, HaDevice, HaOpening, ServiceConfig, SourceCfg } from "./types";
 import "./schedule-grid";
 import "./structure-plan";
 
@@ -16,7 +16,6 @@ const TYPES: [string, "typeRtsp" | "typeGo2rtc" | "typeAlsa" | "typeEsphome" | "
 const SEPARATIONS: [SeparationType, "sepOpenSpace" | "sepOpening" | "sepDoor" | "sepGlassDoor" | "sepGrille" | "sepWindow" | "sepShutter" | "sepWall"][] = [
   ["open_space", "sepOpenSpace"], ["opening", "sepOpening"], ["door", "sepDoor"], ["glass_door", "sepGlassDoor"], ["grille", "sepGrille"], ["window", "sepWindow"], ["shutter", "sepShutter"], ["wall", "sepWall"],
 ];
-const NEEDS_SENSOR: string[] = ["door", "glass_door", "grille", "window", "shutter"];
 const STATE_KEYS = { open: "stOpen", closed: "stClosed", partial: "stPartial", unknown: "stUnknown" } as const;
 
 interface Row { key: number; name: string; url: string }
@@ -65,10 +64,7 @@ export class SourcesView extends LitElement {
   @state() private areas: HaArea[] = [];
   @state() private openings: HaOpening[] = [];
   @state() private devs: HaDevice[] = [];
-  @state() private linkDraft: { a: string; b: string; type: SeparationType; sensor: string } = { a: "", b: "", type: "open_space", sensor: "" };
   @state() private structure: StructureInfo | null = null;
-  @state() private showInternal = false;
-  @state() private importMsg = "";
   private devsFor = "";
   @state() private g2: { url: string; streams: Go2rtcStreams["streams"]; loading: boolean; error: string; tried: boolean } = { url: "", streams: [], loading: false, error: "", tried: false };
 
@@ -278,16 +274,12 @@ export class SourcesView extends LitElement {
     void this.loadDevices(f.area);
   }
 
-  private get links(): AreaLink[] {
-    return this.config?.area_links ?? [];
-  }
-
   /** Devices of the room and of the rooms connected to it, as Home Assistant knows them. */
   private async loadDevices(area: string): Promise<void> {
     this.devsFor = area;
     if (!area) { this.devs = []; return; }
     try {
-      const rows = await this.api.devices(area, this.structure?.origin === "home_structure" ? undefined : this.links);
+      const rows = await this.api.devices(area);
       if (this.devsFor === area) this.devs = rows;
     } catch {
       if (this.devsFor === area) this.devs = [];
@@ -296,23 +288,6 @@ export class SourcesView extends LitElement {
 
   private areaName(id: string): string {
     return this.areas.find((a) => a.area_id === id)?.name ?? id;
-  }
-
-  private async saveLinks(next: AreaLink[]): Promise<boolean> {
-    return this.commit(this.sources, [], { area_links: next });
-  }
-
-  private async addLink(): Promise<void> {
-    const d = this.linkDraft;
-    if (!d.a || !d.b) return;
-    if (d.a === d.b) { this.errors = [this.t("linkSame")]; return; }
-    const link: AreaLink = { a: d.a, b: d.b, type: d.type };
-    if (NEEDS_SENSOR.includes(d.type) && d.sensor) link.sensor = d.sensor;
-    const same = (l: AreaLink) => ((l.a === d.a && l.b === d.b) || (l.a === d.b && l.b === d.a)) && (l.type === "open" ? "open_space" : l.type) === d.type && (l.sensor ?? "") === (link.sensor ?? "");
-    if (await this.saveLinks([...this.links.filter((l) => !same(l)), link])) {
-      this.linkDraft = { a: "", b: "", type: "open_space", sensor: "" };
-      void this.loadDevices(this.devsFor);
-    }
   }
 
   // ------------------------------------------------------------------ rendering
@@ -374,14 +349,11 @@ export class SourcesView extends LitElement {
     return key ? this.t(key) : type;
   }
 
-  /** Where the description of the rooms comes from: Home Structure when it is there, else the connections configured here. */
+  /** The rooms and their connections come from Home Structure; nothing is described here. */
   private renderLinks() {
     const t = this.t, st = this.structure;
-    const internal = this.links.length > 0;
-    const showManager = st?.origin !== "home_structure" && (internal || this.showInternal);
     return html`<section class="links" data-links><h2>${t("linksTitle")}</h2>
-      ${st?.origin === "home_structure" ? this.renderManaged(st) : this.renderHsStatus(st, internal)}
-      ${showManager ? this.renderManager(st) : nothing}</section>`;
+      ${st?.origin === "home_structure" ? this.renderManaged(st) : this.renderHsStatus(st)}</section>`;
   }
 
   private renderManaged(st: StructureInfo) {
@@ -390,68 +362,22 @@ export class SourcesView extends LitElement {
       ${st.plan ? html`<structure-plan .plan=${st.plan} .t=${t} .sepLabel=${(x: string) => this.sepLabel(x)}></structure-plan>` : st.links.length ? html`<p class="dim" data-plan="old">${t("hsPlanOld")}</p>` : nothing}
       <details data-plan-list><summary>${t("hsPlanDetails")}</summary><ul class="list">${st.links.map((l, i) => html`<li data-hs-link=${i}><div class="info"><strong>${l.a_name} ↔ ${l.b_name}</strong>
         <span class="dim">${this.sepLabel(l.type)} · ${t(STATE_KEYS[l.state])}${l.shutter_state ? ` · ${this.sepLabel("shutter")} ${t(STATE_KEYS[l.shutter_state])}` : ""}</span></div></li>`)}</ul></details>
-      <div class="buttons"><a class="btn primary" data-action="hs-edit" href="/home-structure">${t("hsEditPlan")}</a><a class="btn" data-action="hs-open" href="/config/integrations/integration/home_structure">${t("hsOpenConfig")}</a>
-        ${this.links.length ? html`<button data-action="hs-import" ?disabled=${this.busy} @click=${() => void this.importLinks()}>${t("hsImport")}</button>` : nothing}</div>
-      ${this.importMsg ? html`<p class="ok" role="status" data-import>${this.importMsg}</p>` : nothing}</div>`;
+      <div class="buttons"><a class="btn primary" data-action="hs-edit" href="/home-structure">${t("hsEditPlan")}</a><a class="btn" data-action="hs-open" href="/config/integrations/integration/home_structure">${t("hsOpenConfig")}</a></div></div>`;
   }
 
-  private renderHsStatus(st: StructureInfo | null, internal: boolean) {
+  private renderHsStatus(st: StructureInfo | null) {
     const t = this.t;
     if (!st) return nothing;
     if (st.status === "not_installed") {
-      return internal ? html`<p class="dim" data-hs="note">${t("hsInternalNote")} <a href=${st.url} target="_blank" rel="noopener">${t("hsInstallLink")}</a></p>`
-        : html`<div class="hs recommend" data-hs="install"><strong>${t("hsInstallTitle")}</strong><p>${t("hsInstallWhy")}</p>
-          <div class="buttons"><a class="btn primary" data-action="hs-github" href=${st.url} target="_blank" rel="noopener">${t("hsInstallLink")}</a>
-            ${this.showInternal ? nothing : html`<button data-action="link-here" @click=${() => (this.showInternal = true)}>${t("hsHere")}</button>`}</div></div>`;
+      return html`<div class="hs recommend" data-hs="install"><strong>${t("hsInstallTitle")}</strong><p>${t("hsInstallWhy")}</p>
+        <div class="buttons"><a class="btn primary" data-action="hs-github" href=${st.url} target="_blank" rel="noopener">${t("hsInstallLink")}</a></div></div>`;
     }
     if (st.status === "not_configured") {
       return html`<div class="hs recommend" data-hs="setup"><strong>${t("hsSetupTitle")}</strong><p>${t("hsSetupText")}</p>
-        <div class="buttons"><a class="btn primary" data-action="hs-add" href="/config/integrations/dashboard/add?domain=home_structure">${t("hsAdd")}</a>
-          ${internal || this.showInternal ? nothing : html`<button data-action="link-here" @click=${() => (this.showInternal = true)}>${t("hsHere")}</button>`}</div></div>`;
+        <div class="buttons"><a class="btn primary" data-action="hs-add" href="/config/integrations/dashboard/add?domain=home_structure">${t("hsAdd")}</a></div></div>`;
     }
     return html`<div class="hs recommend" data-hs="empty"><p>${t("hsEmpty")}</p>
-      <div class="buttons"><a class="btn primary" data-action="hs-open" href="/config/integrations/integration/home_structure">${t("hsOpenConfig")}</a>
-        ${internal || this.showInternal ? nothing : html`<button data-action="link-here" @click=${() => (this.showInternal = true)}>${t("hsHere")}</button>`}</div></div>`;
-  }
-
-  private async importLinks(): Promise<void> {
-    this.busy = true;
-    try {
-      const n = await this.api.importStructure();
-      if (n > 0) {
-        await this.saveLinks([]);
-        this.importMsg = this.t("hsImported", { n });
-      } else {
-        this.importMsg = this.t("hsImportNothing");
-      }
-    } catch (err) {
-      this.errors = [(err as { message?: string }).message ?? String(err)];
-    } finally {
-      this.busy = false;
-    }
-  }
-
-  /** The connections configured here, used when Home Structure is not there. */
-  private renderManager(_st: StructureInfo | null) {
-    const t = this.t, d = this.linkDraft;
-    const kind = (l: AreaLink) => this.sepLabel(l.type) + (l.sensor ? ` · ${this.openings.find((o) => o.entity_id === l.sensor)?.name ?? l.sensor}` : NEEDS_SENSOR.includes(l.type) ? ` · ${t("linkNoSensor")}` : "");
-    const rooms = (value: string, name: string, label: string) => html`<label>${label}<select name=${name} @change=${(e: Event) => (this.linkDraft = { ...this.linkDraft, [name === "linkA" ? "a" : "b"]: (e.target as HTMLSelectElement).value })}>
-      <option value="" ?selected=${value === ""}>${t("linkPick")}</option>${this.areas.map((a) => html`<option value=${a.area_id} ?selected=${value === a.area_id}>${a.name}</option>`)}</select></label>`;
-    const near = (o: HaOpening) => (o.area_id === d.a || o.area_id === d.b ? 0 : 1);
-    const sensors = this.openings.filter((o) => d.type === "shutter" ? o.domain === "cover" : true);
-    return html`<div class="manager" data-manager><p class="dim">${t("linksHelp")}</p>
-      ${this.links.length === 0 ? html`<p class="note">${t("linksNone")}</p>` : html`<ul class="list">${this.links.map((l, i) => html`<li data-link=${i}>
-        <div class="info"><strong>${this.areaName(l.a)} ↔ ${this.areaName(l.b)}</strong><span class="dim">${kind(l)}</span></div>
-        <div class="actions"><button data-action="link-remove" ?disabled=${this.busy} @click=${() => void this.saveLinks(this.links.filter((_, j) => j !== i))}>${t("remove")}</button></div></li>`)}</ul>`}
-      <div class="linkform" data-linkform>
-        <div class="two">${rooms(d.a, "linkA", t("linkRoomA"))}${rooms(d.b, "linkB", t("linkRoomB"))}</div>
-        <div class="two"><label>${t("linkType")}<select name="linkType" @change=${(e: Event) => (this.linkDraft = { ...this.linkDraft, type: (e.target as HTMLSelectElement).value as SeparationType, sensor: "" })}>
-          ${SEPARATIONS.map(([k, key]) => html`<option value=${k} ?selected=${d.type === k}>${t(key)}</option>`)}</select></label>
-        ${NEEDS_SENSOR.includes(d.type) ? html`<label>${t("linkSensor")}<select name="linkSensor" @change=${(e: Event) => (this.linkDraft = { ...this.linkDraft, sensor: (e.target as HTMLSelectElement).value })}>
-          <option value="" ?selected=${d.sensor === ""}>${t("linkNoSensor")}</option>
-          ${[...sensors].sort((x, y) => near(x) - near(y)).map((o) => html`<option value=${o.entity_id} ?selected=${d.sensor === o.entity_id}>${o.name}${o.area_id ? ` · ${this.areaName(o.area_id)}` : ""}</option>`)}</select></label>` : nothing}</div>
-        <div class="buttons"><button class="primary" data-action="link-add" ?disabled=${this.busy || !d.a || !d.b} @click=${() => void this.addLink()}>${t("linkAdd")}</button></div>
-      </div></div>`;
+      <div class="buttons"><a class="btn primary" data-action="hs-open" href="/config/integrations/integration/home_structure">${t("hsOpenConfig")}</a></div></div>`;
   }
 
   /** Room of the source and the devices around it that raise the thresholds. */

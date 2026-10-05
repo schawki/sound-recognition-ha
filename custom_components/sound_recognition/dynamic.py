@@ -31,8 +31,8 @@ class DynamicManager:
         self._track: CALLBACK_TYPE | None = None
         self._tracked: set[str] = set()
         self._timer: CALLBACK_TYPE | None = None
-        self.links: list[dict] = list(coordinator.service_config.get("area_links") or [])
-        self.origin = "internal"
+        self.links: list[dict] = []
+        self.origin = "none"
 
     def enabled_sources(self) -> list[dict]:
         return [s for s in self.coordinator.service_config.get("sources", []) if s.get("enabled", True) and (s.get("devices") or {}).get("enabled")]

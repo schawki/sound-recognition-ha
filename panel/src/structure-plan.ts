@@ -17,6 +17,12 @@ export class StructurePlanView extends LitElement {
     return this.t(`plan${type.charAt(0).toUpperCase()}${type.slice(1)}` as Key);
   }
 
+  /** What kind of space it is, as chosen in Home Structure: the type of a room, or the kind of an outside or shared space. */
+  private typeLabel(s: PlanSpace): string {
+    const key = s.kind === "room" ? (s.room_type ? `rt_${s.room_type}` : "") : `zk_${s.kind}`;
+    return key ? this.t(key as Key) : "";
+  }
+
   private pills(c: PlanConnection, a: PlanSpace, b: PlanSpace) {
     const cx = (a.x + b.x) / 2 + W / 2, cy = (a.y + b.y) / 2 + H / 2;
     const n = c.separations.length;
@@ -42,8 +48,10 @@ export class StructurePlanView extends LitElement {
     const links = this.plan.connections.filter((c) => byId.has(c.a) && byId.has(c.b));
     return html`<div class="wrap" role="img" aria-label=${this.t("hsPlanLabel")} data-plan><svg viewBox="${minX} ${minY} ${width} ${height}" width=${width} height=${height} style="max-width:100%;height:auto">
       ${links.map((c) => { const a = center(byId.get(c.a)!), b = center(byId.get(c.b)!); return svg`<line class="wire" x1=${a.x} y1=${a.y} x2=${b.x} y2=${b.y}></line>`; })}
-      ${sp.map((s) => svg`<g class="box ${s.in_home ? "" : "outside"}" data-space=${s.id}><title>${s.name}</title>
-        <rect x=${s.x} y=${s.y} width=${W} height=${H} rx="10"></rect><text x=${s.x + 10} y=${s.y + H / 2 + 5}>${clip(s.name)}</text></g>`)}
+      ${sp.map((s) => svg`<g class="box ${s.in_home ? "" : "outside"}" data-space=${s.id}><title>${s.name}${this.typeLabel(s) ? ` · ${this.typeLabel(s)}` : ""}</title>
+        <rect x=${s.x} y=${s.y} width=${W} height=${H} rx="10"></rect>
+        <text x=${s.x + 10} y=${s.y + (this.typeLabel(s) ? 25 : H / 2 + 5)}>${clip(s.name)}</text>
+        ${this.typeLabel(s) ? svg`<text class="type" data-type=${s.room_type ?? s.kind} x=${s.x + 10} y=${s.y + 43}>${clip(this.typeLabel(s), 26)}</text>` : nothing}</g>`)}
       ${links.map((c) => this.pills(c, byId.get(c.a)!, byId.get(c.b)!))}
     </svg></div>`;
   }
@@ -56,6 +64,7 @@ export class StructurePlanView extends LitElement {
     .box rect { fill: var(--card-background-color); stroke: var(--primary-color); stroke-width: 2; }
     .box.outside rect { stroke: var(--secondary-text-color); stroke-dasharray: 6 4; }
     .box text { fill: var(--primary-text-color); font-size: 14px; font-weight: 600; }
+    .box text.type { font-size: 11px; font-weight: 400; fill: var(--secondary-text-color); }
     .pill rect { fill: var(--card-background-color); stroke: var(--divider-color); }
     .pill text { fill: var(--primary-text-color); font-size: 11px; }
     .pill circle, .pill .sh { fill: var(--disabled-color, #9e9e9e); }

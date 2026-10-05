@@ -39,6 +39,7 @@ def _merge(base, over):
 def load(path):
     with open(path, encoding="utf-8") as f:
         raw = yaml.safe_load(f) or {}
+    raw.pop("area_links", None)   # rooms are described by the Home Structure integration; the former built-in description is dropped
     return _merge(DEFAULTS, raw)
 
 
@@ -124,33 +125,6 @@ def _check_devices(s, w, errs):
             errs.append(f"{w}.devices.{key} must be a list of entity ids")
 
 
-# What separates two rooms (the vocabulary of the Home Structure integration; "open" is the former name of "open_space").
-FIXED_LINK_TYPES = ("open", "open_space", "opening", "wall")
-LINK_TYPES = FIXED_LINK_TYPES + ("door", "glass_door", "grille", "window", "shutter")
-
-
-def _check_area_links(links, errs):
-    if links is None:
-        return
-    if not isinstance(links, list):
-        errs.append("area_links must be a list")
-        return
-    for i, l in enumerate(links):
-        w = f"area_links[{i}]"
-        if not isinstance(l, dict) or set(l) - {"a", "b", "type", "sensor", "open_factor", "closed_factor"}:
-            errs.append(f"{w}: only a, b, type, sensor, open_factor and closed_factor are allowed")
-            continue
-        if not all(isinstance(l.get(k), str) and l.get(k) for k in ("a", "b")) or l.get("a") == l.get("b"):
-            errs.append(f"{w}: a and b must be two different areas")
-        if l.get("type") not in LINK_TYPES:
-            errs.append(f"{w}.type must be one of {', '.join(LINK_TYPES)}")
-        if l.get("sensor") is not None and (l.get("type") in FIXED_LINK_TYPES or not isinstance(l["sensor"], str) or "." not in l["sensor"]):
-            errs.append(f"{w}.sensor is an entity id and does not apply to an open space, an opening or a wall")
-        for k in ("open_factor", "closed_factor"):
-            if k in l and not _num(l[k], 0, 1):
-                errs.append(f"{w}.{k} must be between 0 and 1")
-
-
 def advice_rule_ids(catalog):
     raw = catalog.raw
     return {x["id"] for k in ("groups", "rules", "auto_rules") for x in raw.get(k, [])}
@@ -190,7 +164,6 @@ def validate(cfg, catalog: Catalog):
         errs.append("analysis.safety_boost_cap must be between 0 and 1")
     if not _num(cfg["analysis"].get("total_boost_cap"), 0, 1):
         errs.append("analysis.total_boost_cap must be between 0 and 1")
-    _check_area_links(cfg.get("area_links"), errs)
     d = cfg["defaults"]
     if d.get("min_volume_dbfs") is not None and not _num(d["min_volume_dbfs"], -90, 0):
         errs.append("defaults.min_volume_dbfs must be between -90 and 0 (or null)")

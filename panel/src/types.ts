@@ -76,20 +76,18 @@ export interface SourceCfg {
 export type AdviceLevel = "default" | "info" | "warning" | "danger" | "ignore";
 export type AdviceSetting = AdviceLevel | { level: AdviceLevel; confirm?: boolean };
 export type SeparationType = "open_space" | "opening" | "door" | "glass_door" | "grille" | "window" | "shutter" | "wall";
-export interface AreaLink { a: string; b: string; type: SeparationType | "open"; sensor?: string; open_factor?: number; closed_factor?: number }
 export interface StructureLink { a: string; b: string; a_name: string; b_name: string; type: SeparationType; sensor: string | null; state: "open" | "closed" | "partial" | "unknown"; shutter_state?: "open" | "closed" | "partial" | "unknown" | null }
 /** Where the description of the home comes from. */
 export type SepState = "open" | "closed" | "partial" | "unknown";
-export interface PlanSpace { id: string; name: string; kind: string; in_home: boolean; x: number; y: number }
+export interface PlanSpace { id: string; name: string; kind: string; room_type?: string | null; in_home: boolean; x: number; y: number }
 export interface PlanSeparation { type: SeparationType; state: SepState; shutter_state?: SepState | null }
 export interface PlanConnection { a: string; b: string; separations: PlanSeparation[] }
 export interface StructurePlan { spaces: PlanSpace[]; connections: PlanConnection[] }
-export interface StructureInfo { status: "not_installed" | "not_configured" | "ready"; origin: "home_structure" | "internal"; links: StructureLink[]; plan?: StructurePlan | null; url: string }
+export interface StructureInfo { status: "not_installed" | "not_configured" | "ready"; origin: "home_structure" | "none"; links: StructureLink[]; plan?: StructurePlan | null; url: string }
 export interface HaArea { area_id: string; name: string }
 export interface HaOpening { entity_id: string; name: string; area_id: string | null; state: string; domain: "binary_sensor" | "cover"; device_class: string | null }
 export interface HaDevice { entity_id: string; name: string; domain: string; state: string; available: boolean; has_volume: boolean; duplicate_of: string | null; area_id: string; area: string }
 export interface ServiceConfig {
-  area_links?: AreaLink[];
   advice?: Record<string, AdviceSetting>; sources?: SourceCfg[]; classes?: ClassBlocks; defaults?: { min_volume_dbfs?: number | null; schedule?: Schedule; clips?: { allowed?: boolean; max_retention_days?: number } }; [extra: string]: unknown }
 export interface Validation { errors: string[]; warnings: Advice[] }
 

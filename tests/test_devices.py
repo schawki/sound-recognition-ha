@@ -91,35 +91,36 @@ def test_discover_folds_duplicates(hass, home):
 
 def test_compute_open_space_and_door(hass, home):
     s, e, c = home["Salon"], home["Entrée"], home["Cuisine"]
-    cfg = {"area_links": [{"a": s, "b": e, "type": "open"}, {"a": e, "b": c, "type": "door", "sensor": "binary_sensor.porte"}],
-           "analysis": {"context_boost": 0.15},
+    links = [{"a": s, "b": e, "type": "open"}, {"a": e, "b": c, "type": "door", "sensor": "binary_sensor.porte"}]
+    cfg = {"analysis": {"context_boost": 0.15},
            "sources": [{"id": "hall", "name": "Hall", "area": e, "devices": {"enabled": True}}, {"id": "k", "area": c, "devices": {"enabled": True}}]}
-    off, reasons, detail = dv.compute(hass, cfg, cfg["sources"][0], {}, set(), {})
+    off, reasons, detail = dv.compute(hass, cfg, cfg["sources"][0], {}, set(), {}, links)
     assert reasons == ["device"] and off == pytest.approx(0.081, abs=1e-3)                  # TV via the open space, 100 %
     assert detail[0]["label"].startswith("TV · Salon · 100 %")
-    off, _, detail = dv.compute(hass, cfg, cfg["sources"][1], {}, set(), {})                 # kitchen: its own HomePod wins (0.1125) over the TV (door open: 0.7)
+    off, _, detail = dv.compute(hass, cfg, cfg["sources"][1], {}, set(), {}, links)                 # kitchen: its own HomePod wins (0.1125) over the TV (door open: 0.7)
     assert off == pytest.approx(0.112, abs=2e-3) and len(detail) == 2
     hass.states.async_set("media_player.homepod", "off", {})
     hass.states.async_set("binary_sensor.porte", "off", {})
-    off, _, detail = dv.compute(hass, cfg, cfg["sources"][1], {}, set(), {})                 # door closed: 0.15 x 0.081
+    off, _, detail = dv.compute(hass, cfg, cfg["sources"][1], {}, set(), {}, links)                 # door closed: 0.15 x 0.081
     assert off == pytest.approx(0.012, abs=1e-3)
     cfg["sources"][1]["devices"]["exclude"] = ["media_player.tv"]
-    assert dv.compute(hass, cfg, cfg["sources"][1], {}, set(), {}) == (0.0, [], [])
+    assert dv.compute(hass, cfg, cfg["sources"][1], {}, set(), {}, links) == (0.0, [], [])
 
 
 def test_compute_include_and_shared_context(hass, home):
     s, e = home["Salon"], home["Entrée"]
     hass.states.async_set("switch.fan", "on", {"friendly_name": "Hood"})
-    cfg = {"area_links": [{"a": s, "b": e, "type": "open"}], "analysis": {"context_boost": 0.15},
+    links = [{"a": s, "b": e, "type": "open"}]
+    cfg = {"analysis": {"context_boost": 0.15},
            "sources": [{"id": "hall", "name": "Hall", "area": e, "devices": {"enabled": True, "include": ["switch.fan"], "exclude": ["media_player.tv"]}},
                        {"id": "mic", "name": "Salon mic", "area": s, "enabled": True}]}
-    off, reasons, _ = dv.compute(hass, cfg, cfg["sources"][0], {}, set(), {})
+    off, reasons, _ = dv.compute(hass, cfg, cfg["sources"][0], {}, set(), {}, links)
     assert reasons == ["device"] and off == 0.09                                              # only the hood, 60 % of 0.15
     statuses = {"mic": {"active_contexts": ["/m/tv", "/m/other"]}}
-    off, reasons, detail = dv.compute(hass, cfg, cfg["sources"][0], statuses, {"/m/tv"}, {"/m/tv": "Television"})
+    off, reasons, detail = dv.compute(hass, cfg, cfg["sources"][0], statuses, {"/m/tv"}, {"/m/tv": "Television"}, links)
     assert reasons == ["device", "shared"] and off == 0.15
     assert detail[0]["label"] == "Salon mic: Television · 100 %"
-    off, reasons, _ = dv.compute(hass, cfg, cfg["sources"][0], {"mic": {"active_contexts": ["/m/other"]}}, {"/m/tv"}, {})
+    off, reasons, _ = dv.compute(hass, cfg, cfg["sources"][0], {"mic": {"active_contexts": ["/m/other"]}}, {"/m/tv"}, {}, links)
     assert "shared" not in reasons                                                            # not an inhibiting class
 
 
@@ -215,20 +216,6 @@ def test_links_from_structure():
     ]                                                                                      # the street has no area: left out
 
 
-def test_merge_into_home_structure_options():
-    ids = {"salon", "entree", "cuisine"}
-    opts = {"zones": [], "connections": [{"id": "c", "a": "area:entree", "b": "area:salon", "separations": [{"id": "x", "type": "open_space"}]}]}
-    links = [{"a": "salon", "b": "entree", "type": "open"}, {"a": "salon", "b": "entree", "type": "glass_door", "sensor": "binary_sensor.b"},
-             {"a": "entree", "b": "cuisine", "type": "door", "sensor": "binary_sensor.p"}, {"a": "entree", "b": "ghost", "type": "wall"},
-             {"a": "cuisine", "b": "entree", "type": "door", "sensor": "binary_sensor.p"}]
-    new, added = sl.merge_links(opts, links, ids)
-    assert added == 2 and len(new["connections"]) == 2                                      # the open space was already there, the ghost room refused
-    assert [s["type"] for s in new["connections"][0]["separations"]] == ["open_space", "glass_door"]
-    assert new["connections"][1]["separations"][0]["sensor"] == "binary_sensor.p"
-    assert opts["connections"][0]["separations"] == [{"id": "x", "type": "open_space"}]     # the input is not modified
-    assert sl.merge_links({}, [{"a": "salon", "b": "entree", "type": "wall", "sensor": "binary_sensor.z"}], ids)[0]["connections"][0]["separations"][0].get("sensor") is None
-
-
 def _hs_service(hass, structure):
     async def handler(call):
         return structure
@@ -246,15 +233,15 @@ def _hs_entry(hass, options=None):
 
 
 async def test_status_and_effective_links(hass, home):
-    cfg = {"area_links": [{"a": "x", "b": "y", "type": "open"}]}
+    cfg = {}
     assert await sl.status(hass) == "not_installed"
-    assert await sl.effective_links(hass, cfg) == ([{"a": "x", "b": "y", "type": "open"}], "internal")
+    assert await sl.effective_links(hass, cfg) == ([], "none")
     with patch.object(sl, "async_get_custom_components", return_value={"home_structure": object()}):
         assert await sl.status(hass) == "not_configured"
     _hs_entry(hass)
     _hs_service(hass, {"spaces": [], "connections": []})
     assert await sl.status(hass) == "ready"
-    assert (await sl.effective_links(hass, cfg))[1] == "internal"                           # ready but empty: ours are kept
+    assert (await sl.effective_links(hass, cfg)) == ([], "none")                             # ready but empty: nothing to read
     hass.services.async_remove("home_structure", "get_structure")
     _hs_service(hass, HS)
     links, origin = await sl.effective_links(hass, cfg)
@@ -290,9 +277,9 @@ async def test_manager_uses_home_structure(hass, home):
         fs.STATE.stop.set()
 
 
-async def test_panel_commands_structure_and_import(hass, hass_ws_client, home):
+async def test_panel_commands_structure(hass, hass_ws_client, home):
     s, e = home["Salon"], home["Entrée"]
-    cfg = {"classes": {"Bark": {"enabled": True}}, "area_links": [{"a": s, "b": e, "type": "glass_door", "sensor": "binary_sensor.porte"}],
+    cfg = {"classes": {"Bark": {"enabled": True}},
            "sources": [{"id": "hall", "name": "Hall", "type": "rtsp", "url": "rtsp://x/h", "area": e}]}
     fs.reset(cfg)
     ws_n = [0]
@@ -310,17 +297,13 @@ async def test_panel_commands_structure_and_import(hass, hass_ws_client, home):
             return (await ws.receive_json())["result"]
 
         r = await call(type="sound_recognition/structure")
-        assert r["status"] == "not_installed" and r["origin"] == "internal" and r["links"] == [] and "ha-home-structure" in r["url"]
-        rules = [x["rule"] for x in (await call(type="sound_recognition/recommendations", language="fr"))["recommendations"]]
-        assert "install_home_structure" not in rules                                         # links already described here: no nagging
-        fs.STATE.cfg["area_links"] = []
-        entry.runtime_data.coordinator.service_config["area_links"] = []
+        assert r["status"] == "not_installed" and r["origin"] == "none" and r["links"] == [] and "ha-home-structure" in r["url"]
         recs = (await call(type="sound_recognition/recommendations", language="fr"))["recommendations"]
         install = next(x for x in recs if x["rule"] == "install_home_structure")
         assert install["apply"] is None and "Home Structure" in install["message"] and "voisines" in install["message"]
         with patch.object(sl, "async_get_custom_components", return_value={"home_structure": object()}):
             assert "setup_home_structure" in [x["rule"] for x in (await call(type="sound_recognition/recommendations"))["recommendations"]]
-        hs = _hs_entry(hass, {"zones": [], "connections": []})
+        _hs_entry(hass, {"zones": [], "connections": []})
         _hs_service(hass, {"spaces": [], "connections": []})
         assert "describe_home_structure" in [x["rule"] for x in (await call(type="sound_recognition/recommendations"))["recommendations"]]
         hass.services.async_remove("home_structure", "get_structure")
@@ -330,18 +313,17 @@ async def test_panel_commands_structure_and_import(hass, hass_ws_client, home):
         assert r["status"] == "ready" and r["origin"] == "home_structure" and r["links"][0]["state"] == "closed" and r["links"][0]["a_name"] == "Salon"
         assert r["plan"] is None                                                          # this structure has no positions (older Home Structure)
         hass.services.async_remove("home_structure", "get_structure")
-        _hs_service(hass, {"spaces": [{"id": f"area:{s}", "name": "Salon", "kind": "room", "in_home": True}, {"id": f"area:{e}", "name": "Entrée", "kind": "room", "in_home": True}],
+        _hs_service(hass, {"spaces": [{"id": f"area:{s}", "name": "Salon", "kind": "room", "in_home": True}, {"id": f"area:{e}", "name": "Entrée", "kind": "room", "room_type": "entrance", "in_home": True}],
                            "layout": {f"area:{s}": {"x": 24, "y": 24}, f"area:{e}": {"x": 248, "y": 24}},
                            "connections": [{"id": "c", "a": f"area:{s}", "b": f"area:{e}", "separations": [{"id": "1", "type": "door", "state": "closed", "sensor": "binary_sensor.p", "entity_id": "sensor.hs_p", "shutter": None, "shutter_state": None}]}]})
         r = await call(type="sound_recognition/structure")
         assert [x["name"] for x in r["plan"]["spaces"]] == ["Salon", "Entrée"] and r["plan"]["connections"][0]["separations"][0]["state"] == "closed"
-        assert not [x for x in (await call(type="sound_recognition/recommendations"))["recommendations"] if x["rule"].endswith("home_structure")]
-        # import what was described here into Home Structure
-        entry.runtime_data.coordinator.service_config["area_links"] = [{"a": s, "b": e, "type": "open"}]
-        with patch.object(hass.config_entries, "async_reload") as reload:
-            assert (await call(type="sound_recognition/import_structure"))["added"] == 1
-            reload.assert_called_once()
-        assert hs.options["connections"][0]["separations"] == [{"id": hs.options["connections"][0]["separations"][0]["id"], "type": "open_space"}]
+        recs = (await call(type="sound_recognition/recommendations", language="fr"))["recommendations"]
+        assert not [x for x in recs if x["rule"].endswith("home_structure")]
+        place = next(x for x in recs if x["rule"] == "propose_place")                       # the type of the room proposes a place...
+        assert place["source"] == "hall" and place["apply"]["source_patch"] == {"environment": "entrance"} and "Entrée, couloir" in place["message"]
+        assert not [x for x in recs if x["rule"] == "set_environment" and x["source"] == "hall"]   # ...instead of the generic request
+        assert next(x for x in r["plan"]["spaces"] if x["name"] == "Entrée")["room_type"] == "entrance"
         devs = await call(type="sound_recognition/devices", area_id=e)
         assert {d["area_id"] for d in devs["devices"]} == {s}                                # the living-room TV, reached through the connection described in Home Structure
         await hass.config_entries.async_unload(entry.entry_id)

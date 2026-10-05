@@ -2,6 +2,12 @@
 
 Releases are tagged `vX.Y.Z`; the service updates itself from Home Assistant to the latest tag.
 
+## 0.4.0
+
+- Sound Recognition no longer describes rooms: the built-in "connected rooms" editor is removed (nothing is transferred; describe the home in Home Structure). Without Home Structure a source only sees the devices of its own room. Needs Home Structure 0.5.0 for the new recommendations.
+- Recommendations from the home: the place of a source is proposed from the type of its room, and rules based on the spaces linked to it (street, garden, living room, garage…) propose the adaptive setting or the sounds to enable. The rules are a readable data file, `home_rules.yaml`.
+- The plan in the Sources tab shows the type of each room and the kind of each outside space.
+
 ## 0.3.0
 
 - The Sources tab draws the plan of your home as laid out in Home Structure (read-only, with the live state of each separation) and links to its editor. Needs Home Structure 0.4.0.

@@ -1,12 +1,10 @@
 """Link with the Home Structure integration (https://github.com/schawki/ha-home-structure), which describes the home: adjacent spaces,
-what separates them and the opening sensors. Sound Recognition reads it when it is there and keeps its own, simpler description when not.
+what separates them, the opening sensors and the type of each room. Sound Recognition reads it and describes no rooms of its own.
 
 The two only talk through Home Structure's public service `home_structure.get_structure` and the entities it creates; nothing is imported."""
 from __future__ import annotations
 
-import copy
 import logging
-import uuid
 
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
@@ -39,35 +37,12 @@ def links_from_structure(structure: dict) -> list[dict]:
     return out
 
 
-def merge_links(options: dict, links: list[dict], area_ids: set[str]) -> tuple[dict, int]:
-    """Home Structure options with our links added (a pair already there gets the missing separations). Returns (options, separations added)."""
-    new = copy.deepcopy({"zones": [], "connections": [], **options})
-    added = 0
-    for l in links:
-        if l["a"] not in area_ids or l["b"] not in area_ids or l["a"] == l["b"]:
-            continue
-        a, b, kind = f"area:{l['a']}", f"area:{l['b']}", devices.link_type(l)
-        conn = next((c for c in new["connections"] if {c["a"], c["b"]} == {a, b}), None)
-        if conn is None:
-            conn = {"id": uuid.uuid4().hex[:8], "a": a, "b": b, "separations": []}
-            new["connections"].append(conn)
-        sensor = None if kind in ("open_space", "opening", "wall") else l.get("sensor")
-        if any(s["type"] == kind and s.get("sensor") == sensor for s in conn["separations"]):
-            continue
-        sep = {"id": uuid.uuid4().hex[:8], "type": kind}
-        if sensor:
-            sep["sensor"] = sensor
-        conn["separations"].append(sep)
-        added += 1
-    return new, added
-
-
 def plan_from_structure(structure: dict | None) -> dict | None:
     """The home as Home Structure draws it, to show it read-only: spaces with their position and the separations between them.
 
     None when there is nothing to draw (Home Structure absent, an older version that does not return positions, or an empty plan)."""
     layout = (structure or {}).get("layout") or {}
-    spaces = [{"id": s["id"], "name": s["name"], "kind": s["kind"], "in_home": s["in_home"], "x": layout[s["id"]]["x"], "y": layout[s["id"]]["y"]}
+    spaces = [{"id": s["id"], "name": s["name"], "kind": s["kind"], "in_home": s["in_home"], "room_type": s.get("room_type"), "x": layout[s["id"]]["x"], "y": layout[s["id"]]["y"]}
               for s in (structure or {}).get("spaces", []) if s["id"] in layout]
     if not spaces:
         return None
@@ -96,23 +71,11 @@ async def structure(hass: HomeAssistant) -> dict | None:
         return None
 
 
-async def effective_links(hass: HomeAssistant, cfg: dict) -> tuple[list[dict], str]:
-    """The links to use: those of Home Structure when it is ready and describes something, else the ones configured here."""
+async def effective_links(hass: HomeAssistant, cfg: dict | None = None) -> tuple[list[dict], str]:
+    """The links between rooms, read from Home Structure: (links, "home_structure"), or ([], "none") when it is absent or describes nothing."""
     st = await structure(hass)
     if st:
         links = links_from_structure(st)
         if links:
             return links, "home_structure"
-    return list(cfg.get("area_links") or []), "internal"
-
-
-async def import_links(hass: HomeAssistant, links: list[dict]) -> int:
-    """Copies the links configured here into Home Structure (which must be ready) and reloads it. Returns the separations added."""
-    entry = next((e for e in hass.config_entries.async_entries(HS_DOMAIN) if e.state is ConfigEntryState.LOADED), None)
-    if entry is None:
-        return 0
-    new, added = merge_links(entry.options, links, {a["area_id"] for a in devices.areas(hass)})
-    if added:
-        hass.config_entries.async_update_entry(entry, options=new)
-        await hass.config_entries.async_reload(entry.entry_id)
-    return added
+    return [], "none"

@@ -243,7 +243,7 @@ async def test_panel_commands(hass, hass_ws_client):
     assert r["success"] and r["result"]["areas"] == []
     r = await call(type="sound_recognition/openings")
     assert r["success"] and r["result"]["openings"] == []
-    r = await call(type="sound_recognition/devices", area_id="salon", links=[])
+    r = await call(type="sound_recognition/devices", area_id="salon")
     assert r["success"] and r["result"]["devices"] == []
     r = await call(type="sound_recognition/stats", hours=6)
     assert r["success"] and r["result"]["detections"]["total"] == 3 and len(r["result"]["detections"]["hourly"]) == 6

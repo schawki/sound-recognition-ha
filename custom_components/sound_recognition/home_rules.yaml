@@ -1,0 +1,64 @@
+# What Sound Recognition recommends from the description of the home kept by Home Structure.
+# Everything here is data: change a rule or add one without touching the code.
+#
+# Nothing is guessed from names. A rule only applies when Home Structure says that the room of the source is
+# linked to the space named in `next_to` by a separation other than a wall (the link must exist in the plan),
+# and the room type or space kind was chosen by the user there.
+#
+# Room types: bedroom bathroom toilet kitchen living_room dining_room office hallway entrance dressing laundry storage utility_room
+# Space kinds: garden balcony terrace courtyard garage hall stairwell common_area street neighbor other
+
+# "Place" of a source (the environment of the catalog) proposed from the type of its room, or the kind of its space.
+places:
+  living_room: living_tv
+  kitchen: kitchen
+  bedroom: bedroom
+  office: office
+  entrance: entrance
+  hallway: entrance
+  garage: garage
+  garden: outdoor
+  balcony: outdoor
+  terrace: outdoor
+  courtyard: outdoor
+
+# Separations that do not carry sound for a rule: a wall. Anything else (open space, opening, door, glass door, grille, window) does.
+blocking: [wall]
+
+rules:
+  # id: rule id shown in the panel. in: room types of the source (omit = any room). next_to: types or kinds of the adjacent space.
+  # contexts: sounds to enable on the source (catalog ids). adaptive: switch the adaptive setting on.
+  - id: fireworks_outside
+    next_to: [garden, terrace, balcony, courtyard, street]
+    contexts: [/m/0g6b5, /g/122z_qxw]
+    en: "« {source} » ({room}) is linked to {neighbours}: fireworks and firecrackers can be heard from there. Enable {classes} so they are not mistaken for gunshots."
+    fr: "« {source} » ({room}) communique avec {neighbours} : on peut y entendre des feux d'artifice et des pétards. Activez {classes} pour qu'ils ne soient pas pris pour des coups de feu."
+  - id: noise_from_outside
+    next_to: [street, courtyard, stairwell, hall, common_area, neighbor]
+    adaptive: true
+    en: "« {source} » ({room}) is linked to {neighbours}: traffic and neighbours reach it. Enable the adaptive setting so a noisy moment raises the thresholds for a while."
+    fr: "« {source} » ({room}) communique avec {neighbours} : la circulation et les voisins l'atteignent. Activez le réglage adaptatif pour qu'un moment bruyant relève les seuils pendant un temps."
+  - id: tv_next_door
+    in: [bedroom, office, dining_room, kitchen, hallway, entrance, dressing]
+    next_to: [living_room]
+    contexts: [/m/07c52, /m/06bz3, /m/04rlf]
+    en: "« {source} » ({room}) is linked to {neighbours}: a TV or speakers there play voices and alarms that sound real. Enable {classes}: while they are heard, the thresholds of look-alike sounds are raised."
+    fr: "« {source} » ({room}) communique avec {neighbours} : une TV ou des enceintes y diffusent des voix et des alarmes qui paraissent réelles. Activez {classes} : tant qu'ils sont entendus, les seuils des sons qui leur ressemblent sont relevés."
+  - id: garage_next_door
+    next_to: [garage]
+    adaptive: true
+    en: "« {source} » ({room}) is linked to {neighbours}: tools and engines make loud, irregular noise. Enable the adaptive setting so they do not trigger alarms."
+    fr: "« {source} » ({room}) communique avec {neighbours} : outils et moteurs font un bruit fort et irrégulier. Activez le réglage adaptatif pour qu'ils ne déclenchent pas d'alertes."
+
+# Texts for the proposal of a place, and names of the room types and space kinds.
+texts:
+  en:
+    propose_place: "« {source} » is in a space of type « {room} » in Home Structure: set its place to « {place} » to get recommendations for it."
+    room_types: {bedroom: Bedroom, bathroom: Bathroom, toilet: Toilet, kitchen: Kitchen, living_room: Living room, dining_room: Dining room, office: Office, hallway: Hallway, entrance: Entrance, dressing: Dressing room, laundry: Laundry room, storage: Storage, utility_room: Utility room}
+    kinds: {garden: Garden, balcony: Balcony, terrace: Terrace, courtyard: Courtyard, garage: Garage, hall: Building hall, stairwell: Stairwell, common_area: Common area, street: Street, neighbor: Neighbour, other: Other}
+    room: room
+  fr:
+    propose_place: "« {source} » est dans un espace de type « {room} » dans Home Structure : indiquez son environnement « {place} » pour obtenir des recommandations adaptées."
+    room_types: {bedroom: Chambre, bathroom: Salle de bains, toilet: Toilettes, kitchen: Cuisine, living_room: Salon, dining_room: Salle à manger, office: Bureau, hallway: Couloir, entrance: Entrée, dressing: Dressing, laundry: Buanderie, storage: Rangement, utility_room: Local technique}
+    kinds: {garden: Jardin, balcony: Balcon, terrace: Terrasse, courtyard: Cour, garage: Garage, hall: Hall d'immeuble, stairwell: Cage d'escalier, common_area: Partie commune, street: Rue, neighbor: Voisin, other: Autre}
+    room: pièce

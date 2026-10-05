@@ -220,7 +220,7 @@ def selected(hass: HomeAssistant, src: dict, links: list[dict]) -> list[tuple[st
 def compute(hass: HomeAssistant, cfg: dict, src: dict, statuses: dict[str, dict], inhibitors: set[str], names: dict[str, str],
             links: list[dict] | None = None) -> tuple[float, list[str], list[dict]]:
     """Threshold increase for one source from the devices around it and from the context sounds heard by the sources linked to it."""
-    links = cfg.get("area_links") or [] if links is None else links
+    links = links or []
     dcfg = src.get("devices") or {}
     max_offset = dcfg.get("max_offset", DEFAULT_MAX_OFFSET)
     own = src.get("area")
@@ -274,7 +274,7 @@ def recommendations(hass: HomeAssistant, cfg: dict, lang: str, hs_status: str = 
     txt = {**TEXTS["en"], **TEXTS.get(lang, {})}
     area_names = {a["area_id"]: a["name"] for a in areas(hass)}
     out = []
-    if any(s.get("enabled", True) and s.get("area") for s in cfg.get("sources", [])) and not cfg.get("area_links"):
+    if any(s.get("enabled", True) and s.get("area") for s in cfg.get("sources", [])):
         rule = {"not_installed": "install_home_structure", "not_configured": "setup_home_structure"}.get(hs_status)
         if rule is None and not hs_described:
             rule = "describe_home_structure"
