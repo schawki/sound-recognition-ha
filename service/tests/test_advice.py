@@ -101,3 +101,21 @@ def test_the_former_builtin_room_description_is_dropped_on_load(tmp_path):
     p = tmp_path / "config.yaml"
     p.write_text(yaml.safe_dump({"area_links": [{"a": "x", "b": "y", "type": "open"}], "sources": []}))
     assert "area_links" not in cfgmod.load(str(p))
+
+
+FIREWORKS, FIRECRACKER = "/m/0g6b5", "/g/122z_qxw"
+
+
+def test_the_fireworks_warning_has_a_gesture_and_knows_when_it_is_done():
+    cfg = _cfg()
+    cfg["sources"][0]["classes"] = {"/m/032s66": {"enabled": True}}                       # gunshots on, the look-alikes not
+    w = _rules(cfg, "detonations_fireworks")["a"]
+    assert not w["applied"] and set(w["apply"]["class_patch"]) == {FIREWORKS, FIRECRACKER}
+    cfg["sources"][0]["classes"] = {FIREWORKS: {"enabled": True}, FIRECRACKER: {"enabled": True}}
+    w = _rules(cfg, "detonations_fireworks")["a"]
+    assert w["applied"] and set(w["classes"]) == {FIREWORKS, FIRECRACKER}
+
+
+def test_a_warning_without_a_gesture_has_none():
+    w = _rules(_cfg())["a"]
+    assert w["apply"] is None and w["applied"] is False

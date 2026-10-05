@@ -56,8 +56,13 @@ def compute(cfg, lang="en", root=None, overrides=True):
                 res[mid] = r
         enabled = set(res)
 
-        def add(rule, kind, level, classes, message):
-            out.append({"rule": rule, "kind": kind, "level": level, "source": sid, "classes": list(classes), "message": message})
+        def add(rule, kind, level, classes, message, fix=None):
+            row = {"rule": rule, "kind": kind, "level": level, "source": sid, "classes": list(classes), "message": message,
+                   "apply": None, "applied": False}
+            if fix:                       # a warning that has a gesture: the patch the panel applies, and whether it is already in place
+                row["apply"] = {"source": sid, "class_patch": {m: {"enabled": True} for m in fix}}
+                row["applied"] = all(m in enabled for m in fix)
+            out.append(row)
 
         # catalog groups: several members enabled on the same source
         for g in merged["groups"]:
@@ -69,7 +74,7 @@ def compute(cfg, lang="en", root=None, overrides=True):
             hit = [m for m in r["classes"] if m in enabled]
             ok = {"all": len(hit) == len(r["classes"]), "at_least_two": len(hit) >= 2, "any": len(hit) >= 1}[r["match"]]
             if ok:
-                add(r["id"], "rule", r["level"], hit, r["message"])
+                add(r["id"], "rule", r["level"], hit, r["message"], (r.get("fix") or {}).get("enable"))
         # automatic rules
         for mid in enabled:
             c, r = by[mid], res[mid]
@@ -96,7 +101,7 @@ def compute(cfg, lang="en", root=None, overrides=True):
         c = catalog.get(cname)
         a = autos[rule]
         out.append({"rule": rule, "kind": "auto", "level": a["level"], "source": sid, "classes": [c["mid"]],
-                    "message": _fmt(a["message"], **{"class": by[c["mid"]]["name"]}, source=srcname[sid], **params)})
+                    "message": _fmt(a["message"], **{"class": by[c["mid"]]["name"]}, source=srcname[sid], **params), "apply": None, "applied": False})
     return _apply_overrides(cfg, catalog, out) if overrides else _apply_overrides({**cfg, "advice": {}, "sources": [{**s, "advice": {}} for s in cfg.get("sources", [])]}, catalog, out)
 
 

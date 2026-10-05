@@ -128,7 +128,8 @@ def test_recommendations(hass, home):
     cfg = {"sources": [{"id": "a", "name": "A"}, {"id": "b", "name": "B", "area": home["Salon"]}, {"id": "c", "area": home["Entrée"]},
                        {"id": "d", "area": home["Salon"], "devices": {"enabled": True}}]}
     rows = {r["source"]: r for r in dv.recommendations(hass, cfg, "fr")}
-    assert set(rows) == {"a", "b"} and rows["a"]["rule"] == "set_area" and rows["a"]["apply"] is None
+    assert set(rows) == {"a", "b", "d"} and rows["a"]["rule"] == "set_area" and rows["a"]["apply"] is None
+    assert not rows["a"]["applied"] and not rows["b"]["applied"] and rows["d"]["applied"]           # d already uses the devices of its room: kept, marked applied
     assert rows["b"]["apply"] == {"source": "b", "source_patch": {"devices": {"enabled": True}}} and "TV" in rows["b"]["message"]
     assert "pièce" in rows["a"]["message"]
 

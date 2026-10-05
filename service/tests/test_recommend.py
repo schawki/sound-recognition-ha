@@ -48,14 +48,25 @@ def test_living_room_recommends_contexts_and_adaptive_with_an_applicable_patch()
     assert "Salon" in fr["enable_contexts"]["message"] and "activez" in fr["enable_contexts"]["message"]
 
 
-def test_nothing_to_recommend_once_applied():
+def test_what_is_applied_stays_in_the_list_marked_as_applied():
     cfg = cfg_with(environment="living_tv", adaptive={"enabled": True}, classes={TV: {"enabled": True}, RADIO: {"enabled": True}, MUSIC: {"enabled": True}})
-    assert recommend.compute(cfg) == []
+    r = rules(recommend.compute(cfg))
+    assert r["enable_contexts"]["applied"] and r["enable_adaptive"]["applied"]
+    assert set(r["enable_contexts"]["classes"]) == {TV, RADIO, MUSIC}            # the whole set, so the panel can tell what it is about
+    cfg = cfg_with(environment="living_tv")
+    r = rules(recommend.compute(cfg))
+    assert not r["enable_contexts"]["applied"] and not r["enable_adaptive"]["applied"]
     cfg = cfg_with(environment="bedroom")                     # quiet room: adaptive not recommended
     assert "enable_adaptive" not in rules(recommend.compute(cfg))
     cfg["classes"][TV] = {"enabled": True}                    # enabled globally also counts
     cfg["classes"][MUSIC] = {"enabled": True}
-    assert recommend.compute(cfg) == []
+    assert rules(recommend.compute(cfg))["enable_contexts"]["applied"]
+
+
+def test_partly_applied_lists_only_what_is_missing_and_is_not_applied():
+    cfg = cfg_with(environment="living_tv", classes={TV: {"enabled": True}})
+    row = rules(recommend.compute(cfg))["enable_contexts"]
+    assert not row["applied"] and set(row["classes"]) == {RADIO, MUSIC} and set(row["apply"]["class_patch"]) == {RADIO, MUSIC}
 
 
 def test_false_detections_propose_a_higher_threshold_only_when_repeated():
@@ -65,7 +76,7 @@ def test_false_detections_propose_a_higher_threshold_only_when_repeated():
     assert r["apply"]["class_patch"] == {BARK: {"threshold": 0.71}} and "2 detections" in r["message"]
     assert "raise_threshold" not in rules(recommend.compute(cfg, "en", None, rows[:1]))           # one is not enough
     cfg["sources"][0]["classes"] = {BARK: {"threshold": 0.8}}
-    assert "raise_threshold" not in rules(recommend.compute(cfg, "en", None, rows))               # already higher
+    assert rules(recommend.compute(cfg, "en", None, rows))["raise_threshold"]["applied"]            # already higher: shown as applied
 
 
 def test_store_stats_feedback_and_masked(tmp_path):

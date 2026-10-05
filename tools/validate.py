@@ -35,6 +35,8 @@ for r in cat['rules']:
     if r['match'] not in enums['rule_match'] or r['level'] not in enums['level']: E(f"rule {r['id']}")
     for m in r['classes']:
         if m not in mset: E(f"rule {r['id']}: {m}")
+    for m in (r.get('fix') or {}).get('enable', []):
+        if m not in mset: E(f"rule {r['id']}: fix {m}")
 
 # -------- langues
 PH = re.compile(r'\{(\w+)\}')

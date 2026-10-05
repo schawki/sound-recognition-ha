@@ -280,21 +280,20 @@ def recommendations(hass: HomeAssistant, cfg: dict, lang: str, hs_status: str = 
         if rule is None and not hs_described:
             rule = "describe_home_structure"
         if rule:
-            out.append({"rule": rule, "level": "info", "source": "", "classes": [], "message": txt[rule], "apply": None})
+            out.append({"rule": rule, "level": "info", "source": "", "classes": [], "message": txt[rule], "apply": None, "applied": False})
     for src in cfg.get("sources", []):
         if not src.get("enabled", True):
             continue
         sid, sname = src["id"], src.get("name") or src["id"]
         area = src.get("area")
         if not area or area not in area_names:
-            out.append({"rule": "set_area", "level": "info", "source": sid, "classes": [], "message": txt["set_area"].format(source=sname), "apply": None})
+            out.append({"rule": "set_area", "level": "info", "source": sid, "classes": [], "message": txt["set_area"].format(source=sname), "apply": None, "applied": False})
             continue
-        if (src.get("devices") or {}).get("enabled"):
-            continue
+        on = bool((src.get("devices") or {}).get("enabled"))
         found = [d for d in discover(hass, area) if d["available"] and not d["duplicate_of"]]
         if found:
             names = ", ".join(d["name"] for d in found[:3]) + (f" +{len(found) - 3}" if len(found) > 3 else "")
             out.append({"rule": "enable_devices", "level": "info", "source": sid, "classes": [],
                         "message": txt["enable_devices"].format(source=sname, area=area_names[area], devices=names),
-                        "apply": {"source": sid, "source_patch": {"devices": {"enabled": True}}}})
+                        "apply": {"source": sid, "source_patch": {"devices": {"enabled": True}}}, "applied": on})
     return out

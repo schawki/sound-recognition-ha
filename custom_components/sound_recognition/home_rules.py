@@ -85,7 +85,7 @@ def set_room_type_rows(cfg: dict, structure: dict | None, lang: str, rules: dict
         place, space = places_for(cfg, structure, rules).get(src["id"], (None, None))
         if space and not place and not _kind_of(space):
             out.append({"rule": "set_room_type", "level": "info", "source": src["id"], "classes": [],
-                        "message": txt["set_room_type"].format(source=src.get("name") or src["id"], room=space["name"]), "apply": None})
+                        "message": txt["set_room_type"].format(source=src.get("name") or src["id"], room=space["name"]), "apply": None, "applied": False})
     return out
 
 
@@ -116,18 +116,19 @@ def compute(cfg: dict, structure: dict | None, lang: str, rules: dict, class_nam
             near = [o for o, _ in links if _kind_of(o) in rule["next_to"]]
             if not near:
                 continue
-            contexts = [m for m in rule.get("contexts", []) if not _enabled(cfg, src, class_keys.get(m, {m}) | {m})]
+            wanted = list(rule.get("contexts", []))
+            contexts = [m for m in wanted if not _enabled(cfg, src, class_keys.get(m, {m}) | {m})]
             adaptive = bool(rule.get("adaptive")) and not (src.get("adaptive") or {}).get("enabled")
-            if not contexts and not adaptive:
-                continue
+            applied = not contexts and not adaptive                    # kept in the list, so the administrator sees that it took effect
+            shown = contexts or wanted
             patch: dict = {"source": sid}
-            if contexts:
-                patch["class_patch"] = {m: {"enabled": True} for m in contexts}
-            if adaptive:
+            if shown:
+                patch["class_patch"] = {m: {"enabled": True} for m in shown}
+            if rule.get("adaptive"):
                 patch["source_patch"] = {"adaptive": {"enabled": True}}
             names = ", ".join(f"{o['name']} ({_label(rules, lang, o)})" if _label(rules, lang, o) else o["name"] for o in near)
             text = rule.get(lang) or rule["en"]
-            out.append({"rule": f"home_{rule['id']}", "level": "info", "source": sid, "classes": contexts,
-                        "message": text.format(source=sname, room=room_label, neighbours=names, classes=", ".join(class_names.get(m, m) for m in contexts)),
-                        "apply": patch})
+            out.append({"rule": f"home_{rule['id']}", "level": "info", "source": sid, "classes": shown,
+                        "message": text.format(source=sname, room=room_label, neighbours=names, classes=", ".join(class_names.get(m, m) for m in shown)),
+                        "apply": patch, "applied": applied})
     return out

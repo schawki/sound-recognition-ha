@@ -1,6 +1,7 @@
 """Recommendations for the administrator: what to change on each source given the kind of place it is in and what was reported.
 Each item may carry an `apply` patch ({"source": id, "source_patch": {...}, "class_patch": {mid: {...}}}) that the panel merges
-into the configuration after the administrator confirms."""
+into the configuration after the administrator confirms. `applied` says the patch is already in place: the item stays in the list so the
+administrator sees it took effect (the panel shows « already applied » instead of the button)."""
 from . import catalog as cat_mod
 from . import settings as st
 
@@ -35,21 +36,23 @@ def compute(cfg, lang="en", root=None, false_rows=(), places=None):
             continue
         sid, sname = src["id"], src.get("name") or src["id"]
 
-        def add(rule, level, classes, message, apply=None, _sid=sid):
-            out.append({"rule": rule, "level": level, "source": _sid, "classes": list(classes), "message": message, "apply": apply})
+        def add(rule, level, classes, message, apply=None, applied=False, _sid=sid):
+            out.append({"rule": rule, "level": level, "source": _sid, "classes": list(classes), "message": message, "apply": apply, "applied": applied})
 
         env = envs.get(src.get("environment") or (places or {}).get(sid))        # the configuration wins over what the integration deduced
         if env is None:
             add("set_environment", "info", [], txt["set_environment"].format(source=sname))
         else:
             missing = [m for m in env["contexts"] if not st.resolve(cfg, catalog, sid, m)["enabled"]]
-            if missing:
-                add("enable_contexts", "warning", missing,
-                    txt["enable_contexts"].format(source=sname, environment=env["name"], classes=", ".join(names[m] for m in missing)),
-                    {"source": sid, "class_patch": {m: {"enabled": True} for m in missing}})
-            if env["adaptive"] and not (src.get("adaptive") or {}).get("enabled"):
+            if env["contexts"]:
+                add("enable_contexts", "warning", env["contexts"] if not missing else missing,
+                    txt["enable_contexts"].format(source=sname, environment=env["name"],
+                                                  classes=", ".join(names[m] for m in (missing or env["contexts"]))),
+                    {"source": sid, "class_patch": {m: {"enabled": True} for m in (missing or env["contexts"])}}, applied=not missing)
+            if env["adaptive"]:
+                on = bool((src.get("adaptive") or {}).get("enabled"))
                 add("enable_adaptive", "info", [], txt["enable_adaptive"].format(source=sname, environment=env["name"]),
-                    {"source": sid, "source_patch": {"adaptive": {"enabled": True}}})
+                    {"source": sid, "source_patch": {"adaptive": {"enabled": True}}}, applied=on)
         seen = {}
         for r in false_rows:
             if r["source"] == sid:
@@ -59,8 +62,7 @@ def compute(cfg, lang="en", root=None, false_rows=(), places=None):
                 continue
             current = st.resolve(cfg, catalog, sid, mid)["threshold"]
             proposal = min(0.95, round(max(scores) + 0.03, 2))
-            if proposal > current:
-                add("raise_threshold", "warning", [mid],
-                    txt["raise_threshold"].format(source=sname, count=len(scores), peak=round(max(scores), 2), proposal=proposal, **{"class": names[mid]}),
-                    {"source": sid, "class_patch": {mid: {"threshold": proposal}}})
+            add("raise_threshold", "warning", [mid],
+                txt["raise_threshold"].format(source=sname, count=len(scores), peak=round(max(scores), 2), proposal=proposal, **{"class": names[mid]}),
+                {"source": sid, "class_patch": {mid: {"threshold": proposal}}}, applied=proposal <= current)
     return out

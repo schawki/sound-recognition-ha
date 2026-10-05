@@ -2,6 +2,12 @@
 
 Les versions sont étiquetées `vX.Y.Z` ; le service se met à jour depuis Home Assistant vers la dernière étiquette.
 
+## 0.6.3
+
+- Une seule liste de conseils : les recommandations de l'Aperçu et les avertissements de l'onglet Conseils sont maintenant dans l'onglet Conseils. Ce qui se fait en un clic a un bouton *Appliquer* ; ce qui est déjà en place indique *Déjà appliqué* et reste dans un groupe replié en bas, pour vérifier que cela a pris effet. Les avertissements sans geste restent des informations, avec leurs réglages d'affichage repliés sous *Affichage*. L'Aperçu se contente de résumer ce qui demande de l'attention et ouvre l'onglet.
+- L'avertissement sur les feux d'artifice et les pétards pris pour des coups de feu a maintenant son geste (activer ces deux sons comme contextes) et ne contredit plus la recommandation tirée du logement : c'est un seul conseil, affiché une fois.
+- Service niveau d'API 5 (`applied` et `apply` sur les avertissements, `applied` sur les recommandations) : mettez le service à jour depuis Home Assistant après avoir mis à jour l'intégration.
+
 ## 0.6.2
 
 - Correction : une recommandation tirée de la maison (par exemple activer les sons d'une TV voisine) restait dans la liste après avoir été appliquée. La liste lit maintenant la configuration enregistrée plutôt qu'une copie gardée avant le rechargement de l'intégration, et reconnaît un son activé sous son nom AudioSet comme sous son identifiant ; un choix fait sur la source l'emporte sur le choix global, comme dans le service.

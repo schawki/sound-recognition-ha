@@ -16,6 +16,8 @@ Each source can be given a kind of place (`environment`): living room, dining ro
 
 Detections marked false (**Not a real sound** button) feed a second recommendation: when the same sound on the same source is marked false at least twice in 14 days, the panel proposes a threshold just above the highest false score.
 
+**One list, with a state.** Recommendations and the warnings of the catalog share the **Advice** tab. An item that has a gesture (enable these sounds, enable the adaptive setting, use the devices of the room, raise a threshold) shows an **Apply** button; once the gesture is in place it says **Already applied** and moves to a folded group at the bottom, so you can check that it took effect. The warning about fireworks and firecrackers is one of them: it is answered by enabling those two sounds as contexts. A warning with nothing to apply stays information; its level can be changed or the warning hidden under **Display** (a safety warning needs a confirmation to be hidden). The Overview only summarises what needs attention and opens the tab.
+
 ## Adaptive sensitivity (per source, off by default)
 
 `sources[].adaptive: {enabled: true, max_offset: 0.15}`. The service compares the ambient level (median of the last minute) with the usual quiet level of that source (10th percentile of the per-minute ambient levels of the last 24 hours, known after 30 minutes of listening, forgotten when the service restarts). Up to 6 dB above the usual level nothing changes; 36 dB above it, thresholds are raised by `max_offset`, linearly in between. Safety sounds are capped as above.

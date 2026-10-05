@@ -2,6 +2,12 @@
 
 Releases are tagged `vX.Y.Z`; the service updates itself from Home Assistant to the latest tag.
 
+## 0.6.3
+
+- One list of advice: the recommendations of the Overview and the warnings of the Advice tab are now in the Advice tab. What can be done in one click has an *Apply* button; what is already in place says *Already applied* and is kept in a folded group at the bottom, so you can check it took effect. Warnings with nothing to apply stay information, with their display settings folded under *Display*. The Overview only summarises what needs attention and opens the tab.
+- The warning about fireworks and firecrackers being mistaken for gunshots now has its gesture (enable those two sounds as contexts) and no longer contradicts the recommendation drawn from the home: it is one advice, shown once.
+- Service API level 5 (`applied` and `apply` on warnings, `applied` on recommendations): update the service from Home Assistant after updating the integration.
+
 ## 0.6.2
 
 - Fix: a recommendation drawn from the home (such as enabling the sounds of a TV next door) stayed in the list after being applied. The list now reads the saved configuration instead of a copy kept before the integration reloads, and recognises a sound switched on under its AudioSet name as well as under its id; a choice made on the source wins over the global one, as in the service.

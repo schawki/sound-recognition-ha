@@ -99,6 +99,7 @@ rules:
   match: any
   classes: [/m/032s66, /m/014zdl, /m/0g6b5, /g/122z_qxw]
   level: warning
+  fix: {enable: [/m/0g6b5, /g/122z_qxw]}      # the gesture that answers the warning: switch these sounds on as contexts
 - id: doorbell_duplicates
   match: at_least_two
   classes: [/m/03wwcy, /m/07r67yg, /m/07phxs1, /m/0395lw, /m/0f8s22]

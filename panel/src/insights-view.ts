@@ -2,7 +2,7 @@ import { LitElement, css, html, nothing } from "lit";
 import { property, state } from "lit/decorators.js";
 import type { PanelApi } from "./api";
 import type { T } from "./i18n";
-import { applyAndSave } from "./patch";
+import { attention, buildItems } from "./advice-items";
 import type { Advice, Catalog, LiveMessage, Recommendation, ServiceConfig, SourceStatus, Stats } from "./types";
 
 interface Entry { key: number; ts: number; kind: "detection" | "hidden" | "context"; text: string }
@@ -24,9 +24,6 @@ export class InsightsView extends LitElement {
   @state() private timeline: Entry[] = [];
   @state() private ready = false;
   @state() private error = false;
-  @state() private applying: string | null = null;
-  @state() private message = "";
-  @state() private errors: string[] = [];
   private unsub?: () => void;
   private timer?: number;
   private soon?: number;
@@ -130,25 +127,6 @@ export class InsightsView extends LitElement {
     }
   }
 
-  // ------------------------------------------------------------------ actions
-  private async apply(rec: Recommendation, index: number): Promise<void> {
-    if (!rec.apply) return;
-    const id = `${rec.rule}:${rec.source}:${index}`;
-    this.applying = id;
-    this.errors = [];
-    this.message = "";
-    try {
-      const names = new Map((this.catalog?.classes ?? []).map((c) => [c.mid, c.audioset_name]));
-      const errs = await applyAndSave(this.api, rec.apply, (mid) => names.get(mid));
-      if (errs.length) this.errors = errs; else this.message = this.t("applied");
-      await this.refresh();
-    } catch (err) {
-      this.errors = [(err as { message?: string }).message ?? String(err)];
-    } finally {
-      this.applying = null;
-    }
-  }
-
   // ------------------------------------------------------------------ rendering
   private inhibitors(): Set<string> {
     return new Set((this.catalog?.classes ?? []).flatMap((c) => c.inhibiting_contexts ?? []));
@@ -172,20 +150,17 @@ export class InsightsView extends LitElement {
     const t = this.t;
     if (!this.ready) return html`<p class="note">${t("loading")}</p>`;
     if (this.error) return html`<p class="note error">${t("unreachable")}</p>`;
-    const urgent = this.advice.filter((a) => a.level !== "info");
+    const urgent = attention(buildItems(this.advice, this.recs, this.config));       // what can be applied, and what is more than a hint
     return html`
       <h2>${t("insNow")}</h2>
       ${this.sources.length === 0 ? html`<p class="note">${t("noSources")}</p>` : html`<div class="grid">${this.sources.filter((s) => s.enabled).map((s) => this.card(s))}</div>`}
-      <h2>${t("insRecs")}</h2>
-      ${this.message ? html`<p class="ok" role="status">${this.message}</p>` : nothing}
-      ${this.errors.length ? html`<div class="errors" role="alert"><ul>${this.errors.map((e) => html`<li>${e}</li>`)}</ul></div>` : nothing}
-      ${this.recs.length === 0 ? html`<p class="note">${t("insNoRecs")}</p>` : html`<ul class="recs">${this.recs.map((r, i) => this.rec(r, i))}</ul>`}
       <h2>${t("insStats")}</h2>
       ${this.renderStats()}
       <h2>${t("insAdvice")}</h2>
       ${urgent.length === 0 ? html`<p class="note">${t("insAdviceNone")}</p>` : html`<div class="advice" data-advice>
         <p>${urgent.length === 1 ? t("insAdviceOne") : t("insAdviceMore", { n: urgent.length })}</p>
-        <ul>${urgent.slice(0, 3).map((a) => html`<li class=${a.level}><strong>${this.sourceName(a.source)}</strong> — ${a.message}</li>`)}</ul></div>`}
+        <ul>${urgent.slice(0, 3).map((a) => html`<li class=${a.level}>${a.source ? html`<strong>${this.sourceName(a.source)}</strong> — ` : nothing}${a.message}</li>`)}</ul>
+        <button data-action="open-advice" @click=${() => this.dispatchEvent(new CustomEvent("open-tab", { detail: "advice", bubbles: true, composed: true }))}>${t("insOpenAdvice")}</button></div>`}
       <h2>${t("insTimeline")}</h2>
       ${this.timeline.length === 0 ? html`<p class="note">${t("insNoTimeline")}</p>` : html`<ul class="timeline">${this.timeline.map((e) => html`<li class=${e.kind} data-kind=${e.kind}>
         <time>${new Date(e.ts * 1000).toLocaleTimeString(this.language)}</time><span>${e.text}</span></li>`)}</ul>`}`;
@@ -213,15 +188,6 @@ export class InsightsView extends LitElement {
     </section>`;
   }
 
-  private rec(r: Recommendation, i: number) {
-    const t = this.t;
-    const id = `${r.rule}:${r.source}:${i}`;
-    return html`<li class=${r.level} data-rule=${r.rule} data-source=${r.source}>
-      <span>${r.message}</span>
-      ${r.apply ? html`<button class="primary" data-action="apply" ?disabled=${this.applying !== null} @click=${() => void this.apply(r, i)}>${this.applying === id ? t("applying") : t("apply")}</button>` : nothing}
-    </li>`;
-  }
-
   private renderStats() {
     const t = this.t, st = this.stats;
     if (!st) return nothing;
@@ -247,7 +213,6 @@ export class InsightsView extends LitElement {
     h3 { font-size: 0.95rem; font-weight: 500; margin: 14px 0 6px; }
     .note { color: var(--secondary-text-color); } .note.error { color: var(--error-color, #db4437); }
     .dim { color: var(--secondary-text-color); font-size: 0.85rem; }
-    .ok { color: var(--success-color, #43a047); }
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; }
     .card { background: var(--card-background-color, #fff); border-radius: var(--ha-card-border-radius, 12px); border: 1px solid var(--divider-color); padding: 16px; display: flex; flex-direction: column; gap: 8px; }
     .card header { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -255,10 +220,7 @@ export class InsightsView extends LitElement {
     .chip.hot { background: var(--primary-color); color: var(--text-primary-color, #fff); }
     .counts { display: flex; gap: 14px; flex-wrap: wrap; font-size: 0.85rem; color: var(--secondary-text-color); }
     .counts strong { color: var(--primary-text-color); }
-    .recs, .timeline, .top { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-    .recs li { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; padding: 10px 14px; background: var(--card-background-color); border: 1px solid var(--divider-color); border-left: 4px solid var(--primary-color); border-radius: 10px; }
-    .recs li.warning { border-left-color: var(--warning-color, #ffa600); } .recs li.danger { border-left-color: var(--error-color, #db4437); }
-    .recs li span { flex: 1 1 320px; }
+    .timeline, .top { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
     button { font: inherit; cursor: pointer; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--divider-color); background: var(--card-background-color); color: var(--primary-text-color); }
     button.primary { background: var(--primary-color); color: var(--text-primary-color, #fff); border-color: transparent; } button:disabled { opacity: 0.6; cursor: default; }
     .errors { background: color-mix(in srgb, var(--error-color, #db4437) 15%, var(--card-background-color)); border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; } .errors ul { margin: 0 0 0 18px; padding: 0; }

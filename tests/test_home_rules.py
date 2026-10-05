@@ -95,13 +95,17 @@ def test_the_type_of_the_neighbour_decides_not_its_name():
     assert r["home_garage_next_door"]["apply"]["source_patch"] == {"adaptive": {"enabled": True}} and "propose_place" not in r   # untyped room: the link to the garage still counts
 
 
-def test_nothing_is_proposed_twice_or_for_what_is_done():
+def test_what_is_done_stays_in_the_list_marked_as_applied():
     done = cfg(("chambre", {"adaptive": {"enabled": True}, "classes": {FIREWORKS: {"enabled": True}, FIRECRACKER: {"enabled": True}}}))
     done["classes"] = {TV: {"enabled": True}, RADIO: {"enabled": True}, MUSIC: {"enabled": True}}
     r = by(rows(done))
-    assert not any(k.startswith("home_") for k in r)
+    homes = {k: v for k, v in r.items() if k.startswith("home_")}
+    assert homes and all(v["applied"] for v in homes.values())
+    assert set(r["home_fireworks_outside"]["classes"]) == {FIREWORKS, FIRECRACKER}                 # the whole set, to tell what the row is about
     partly = cfg(("chambre", {"classes": {FIREWORKS: {"enabled": True}}}))
-    assert by(rows(partly))["home_fireworks_outside"]["classes"] == [FIRECRACKER]
+    row = by(rows(partly))["home_fireworks_outside"]
+    assert not row["applied"] and row["classes"] == [FIRECRACKER]
+    assert not any(v["applied"] for k, v in by(rows(cfg(("chambre", {})))).items() if k.startswith("home_"))
 
 
 def test_french_and_disabled_sources_and_no_structure():
@@ -116,8 +120,8 @@ def test_a_sound_enabled_under_its_audioset_name_counts_as_done():
     keys = {FIREWORKS: {FIREWORKS, "Fireworks"}, FIRECRACKER: {FIRECRACKER, "Firecracker"}}
     c = cfg(("chambre", {"adaptive": {"enabled": True}, "classes": {"Fireworks": {"enabled": True}, "Firecracker": {"enabled": True}}}))
     names = {FIREWORKS: "Fireworks", FIRECRACKER: "Firecracker"}
-    assert not any(k.startswith("home_fireworks") for k in by(hr.compute(c, HOME, "en", RULES, names, keys)))
-    assert "home_fireworks_outside" in by(hr.compute(c, HOME, "en", RULES, names))       # without the names the old behaviour: the recommendation stays
+    assert by(hr.compute(c, HOME, "en", RULES, names, keys))["home_fireworks_outside"]["applied"]
+    assert not by(hr.compute(c, HOME, "en", RULES, names))["home_fireworks_outside"]["applied"]    # without the names the sound is not recognised as enabled
 
 
 def test_a_choice_of_the_source_wins_over_the_global_one_like_in_the_service():

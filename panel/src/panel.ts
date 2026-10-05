@@ -46,7 +46,7 @@ class SoundRecognitionPanel extends LitElement {
   private view(t: ReturnType<typeof translator>) {
     const common = { api: this.api, t, language: this.uiLang };
     switch (this.tab) {
-      case "insights": return html`<sound-recognition-insights .api=${common.api} .t=${t} .language=${common.language}></sound-recognition-insights>`;
+      case "insights": return html`<sound-recognition-insights .api=${common.api} .t=${t} .language=${common.language} @open-tab=${(e: CustomEvent<Tab>) => (this.tab = e.detail)}></sound-recognition-insights>`;
       case "sources": return html`<sound-recognition-sources .api=${common.api} .t=${t} .language=${common.language}></sound-recognition-sources>`;
       case "sounds": return html`<sound-recognition-sounds .api=${common.api} .t=${t} .language=${common.language}></sound-recognition-sounds>`;
       case "advice": return html`<sound-recognition-advice .api=${common.api} .t=${t} .language=${common.language}></sound-recognition-advice>`;
