@@ -7,15 +7,16 @@ import { cellsToWindows, hoursPerWeek, windowsToCells } from "./schedule";
 import { groupAdvice, type NoticeItem } from "./advice-group";
 import type { Advice, AreaLink, SeparationType, StructureInfo, Catalog, Environment, Go2rtcStreams, HaArea, HaDevice, HaOpening, ServiceConfig, SourceCfg } from "./types";
 import "./schedule-grid";
+import "./structure-plan";
 
 const TYPES: [string, "typeRtsp" | "typeGo2rtc" | "typeAlsa" | "typeEsphome" | "typeFile"][] = [
   ["rtsp", "typeRtsp"], ["go2rtc", "typeGo2rtc"], ["alsa_rpi", "typeAlsa"], ["esphome", "typeEsphome"], ["file", "typeFile"],
 ];
 
-const SEPARATIONS: [SeparationType, "sepOpenSpace" | "sepOpening" | "sepDoor" | "sepGlassDoor" | "sepWindow" | "sepShutter" | "sepWall"][] = [
-  ["open_space", "sepOpenSpace"], ["opening", "sepOpening"], ["door", "sepDoor"], ["glass_door", "sepGlassDoor"], ["window", "sepWindow"], ["shutter", "sepShutter"], ["wall", "sepWall"],
+const SEPARATIONS: [SeparationType, "sepOpenSpace" | "sepOpening" | "sepDoor" | "sepGlassDoor" | "sepGrille" | "sepWindow" | "sepShutter" | "sepWall"][] = [
+  ["open_space", "sepOpenSpace"], ["opening", "sepOpening"], ["door", "sepDoor"], ["glass_door", "sepGlassDoor"], ["grille", "sepGrille"], ["window", "sepWindow"], ["shutter", "sepShutter"], ["wall", "sepWall"],
 ];
-const NEEDS_SENSOR: string[] = ["door", "glass_door", "window", "shutter"];
+const NEEDS_SENSOR: string[] = ["door", "glass_door", "grille", "window", "shutter"];
 const STATE_KEYS = { open: "stOpen", closed: "stClosed", partial: "stPartial", unknown: "stUnknown" } as const;
 
 interface Row { key: number; name: string; url: string }
@@ -386,9 +387,10 @@ export class SourcesView extends LitElement {
   private renderManaged(st: StructureInfo) {
     const t = this.t;
     return html`<div class="hs" data-hs="managed"><p class="dim">${t("hsManaged")}</p>
-      <ul class="list">${st.links.map((l, i) => html`<li data-hs-link=${i}><div class="info"><strong>${l.a_name} ↔ ${l.b_name}</strong>
-        <span class="dim">${this.sepLabel(l.type)} · ${t(STATE_KEYS[l.state])}</span></div></li>`)}</ul>
-      <div class="buttons"><a class="btn" data-action="hs-open" href="/config/integrations/integration/home_structure">${t("hsOpenConfig")}</a>
+      ${st.plan ? html`<structure-plan .plan=${st.plan} .t=${t} .sepLabel=${(x: string) => this.sepLabel(x)}></structure-plan>` : st.links.length ? html`<p class="dim" data-plan="old">${t("hsPlanOld")}</p>` : nothing}
+      <details data-plan-list><summary>${t("hsPlanDetails")}</summary><ul class="list">${st.links.map((l, i) => html`<li data-hs-link=${i}><div class="info"><strong>${l.a_name} ↔ ${l.b_name}</strong>
+        <span class="dim">${this.sepLabel(l.type)} · ${t(STATE_KEYS[l.state])}${l.shutter_state ? ` · ${this.sepLabel("shutter")} ${t(STATE_KEYS[l.shutter_state])}` : ""}</span></div></li>`)}</ul></details>
+      <div class="buttons"><a class="btn primary" data-action="hs-edit" href="/home-structure">${t("hsEditPlan")}</a><a class="btn" data-action="hs-open" href="/config/integrations/integration/home_structure">${t("hsOpenConfig")}</a>
         ${this.links.length ? html`<button data-action="hs-import" ?disabled=${this.busy} @click=${() => void this.importLinks()}>${t("hsImport")}</button>` : nothing}</div>
       ${this.importMsg ? html`<p class="ok" role="status" data-import>${this.importMsg}</p>` : nothing}</div>`;
   }

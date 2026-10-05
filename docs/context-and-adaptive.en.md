@@ -40,11 +40,12 @@ Nothing is changed until you enable it for the source: `sources[].devices: {enab
 | opening without a door | 90 % | – |
 | door | 70 % | 15 % |
 | glass or sliding door | 70 % | 25 % |
+| security grille or mesh door | 90 % | 85 % |
 | window | 60 % | 10 % |
 | roller shutter (alone) | 60 % | 10 % |
 | plain wall | 5 % | 5 % |
 
-A state that cannot be read (no sensor, unavailable) counts as the average of open and closed, and partly open as well. Several separations between the same two rooms: the most open wins; a roller shutter in front of a window or door multiplies it (open ×1, partly ×0.75, closed ×0.5). A plain wall lets almost nothing through and is not followed. Up to two connections are followed from a room, factors multiply.
+A state that cannot be read (no sensor, unavailable) counts as the average of open and closed, and partly open as well. Several separations between the same two rooms: the most open wins; a roller shutter in front of a window or door multiplies it (open ×1, partly ×0.75, closed ×0.5). When Home Structure names the shutter of one particular window or door, only that separation is multiplied; a shutter declared as a separate separation still applies to the most open one. A plain wall lets almost nothing through and is not followed. Up to two connections are followed from a room, factors multiply.
 
 Without Home Structure, the Sources tab first recommends installing it (and says why), then lets you describe the rooms there anyway: the same kinds of separation, with an optional sensor (`binary_sensor` or `cover`). Once Home Structure describes something it takes over, and the button **Copy the rooms described here into Home Structure** moves what you had entered.
 
@@ -55,7 +56,7 @@ area_links:    # only used when Home Structure is not installed or describes not
   - {a: entree, b: cuisine, type: door}                                # no sensor: about 42 %
 ```
 
-Types: `open_space`, `opening`, `door`, `glass_door`, `window`, `shutter`, `wall` (`open` is the former name of `open_space`). `open_factor` and `closed_factor` replace the two shares of a link.
+Types: `open_space`, `opening`, `door`, `glass_door`, `grille`, `window`, `shutter`, `wall` (`open` is the former name of `open_space`). `open_factor` and `closed_factor` replace the two shares of a link.
 
 The devices of a connected room count for the source in proportion to what passes. A sound heard by *another* source of a connected room (a television detected by the living-room microphone) also raises this source, by `context_boost` times that share: it is the same switch, there is nothing else to enable. The total never exceeds `analysis.total_boost_cap` (0.30), and safety sounds stay capped at `safety_boost_cap`. Increases under 0.01 are ignored.
 

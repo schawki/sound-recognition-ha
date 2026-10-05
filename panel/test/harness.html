@@ -31,7 +31,11 @@
   state.saves = [];
   const hsLinks = [{ a: "salon", b: "entree", a_name: "Salon", b_name: "Entrée", type: "open_space", sensor: null, state: "open" }, { a: "entree", b: "hall", a_name: "Entrée", b_name: "Entrée (extérieur)", type: "door", sensor: "sensor.hs_porte", state: "closed" }];
   const hs = q.get("hs");
-  state.structure = { status: hs === "setup" ? "not_configured" : hs ? "ready" : "not_installed", origin: hs === "ready" ? "home_structure" : "internal", links: hs === "ready" ? hsLinks : [], url: "https://github.com/schawki/ha-home-structure" };
+  const hsPlan = { spaces: [{ id: "area:salon", name: "Salon", kind: "room", in_home: true, x: 24, y: 24 }, { id: "area:entree", name: "Entrée", kind: "room", in_home: true, x: 314, y: 24 },
+    { id: "zone:hall", name: "Entrée (extérieur)", kind: "hall", in_home: false, x: 314, y: 170 }],
+    connections: [{ a: "area:salon", b: "area:entree", separations: [{ type: "open_space", state: "open" }] },
+      { a: "area:entree", b: "zone:hall", separations: [{ type: "door", state: "closed" }, { type: "glass_door", state: "open", shutter_state: "partial" }, { type: "grille", state: "unknown" }] }] };
+  state.structure = { status: hs === "setup" ? "not_configured" : hs ? "ready" : "not_installed", origin: hs === "ready" ? "home_structure" : "internal", links: hs === "ready" ? hsLinks : [], plan: hs === "ready" && !q.get("oldhs") ? hsPlan : null, url: "https://github.com/schawki/ha-home-structure" };
   if (q.get("internal")) state.config.area_links = [{ a: "salon", b: "entree", type: "open" }];
   const TV = fullCatalog.classes.find((c) => c.audioset_name === "Television").mid;
   state.recs = [

@@ -33,6 +33,8 @@ def links_from_structure(structure: dict) -> list[dict]:
             sensor = s.get("entity_id") or s.get("sensor")
             if sensor and s["type"] not in ("open_space", "opening", "wall"):
                 link["sensor"] = sensor
+            if s.get("shutter"):
+                link["shutter_state"] = s.get("shutter_state") or "unknown"   # the shutter in front of this very separation
             out.append(link)
     return out
 
@@ -58,6 +60,21 @@ def merge_links(options: dict, links: list[dict], area_ids: set[str]) -> tuple[d
         conn["separations"].append(sep)
         added += 1
     return new, added
+
+
+def plan_from_structure(structure: dict | None) -> dict | None:
+    """The home as Home Structure draws it, to show it read-only: spaces with their position and the separations between them.
+
+    None when there is nothing to draw (Home Structure absent, an older version that does not return positions, or an empty plan)."""
+    layout = (structure or {}).get("layout") or {}
+    spaces = [{"id": s["id"], "name": s["name"], "kind": s["kind"], "in_home": s["in_home"], "x": layout[s["id"]]["x"], "y": layout[s["id"]]["y"]}
+              for s in (structure or {}).get("spaces", []) if s["id"] in layout]
+    if not spaces:
+        return None
+    shown = {s["id"] for s in spaces}
+    conns = [{"a": c["a"], "b": c["b"], "separations": [{"type": x["type"], "state": x["state"], "shutter_state": x.get("shutter_state")} for x in c["separations"]]}
+             for c in structure["connections"] if c["a"] in shown and c["b"] in shown]
+    return {"spaces": spaces, "connections": conns}
 
 
 async def status(hass: HomeAssistant) -> str:

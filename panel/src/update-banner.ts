@@ -62,7 +62,7 @@ export class UpdateBanner extends LitElement {
   render() {
     const { t, info } = this;
     if (!info) return nothing;
-    const vars = { installed: info.installed ?? "?", latest: info.latest ?? "?", message: info.status.message ?? "" };
+    const vars = { installed: info.installed ?? "?", latest: (info.latest ?? "?").replace(/^v/i, ""), message: info.status.message ?? "" };
     if (info.installing) return html`<div class="b run" data-update="installing" role="status">${t("updRunning", { ...vars, message: "" })}</div>`;
     if (this.result === "done") return html`<div class="b ok" data-update="done" role="status">${t("updDone", vars)}<button class="x" @click=${() => (this.result = null)}>${t("updDismiss")}</button></div>`;
     if (this.result === "failed") {

@@ -126,7 +126,7 @@ def _check_devices(s, w, errs):
 
 # What separates two rooms (the vocabulary of the Home Structure integration; "open" is the former name of "open_space").
 FIXED_LINK_TYPES = ("open", "open_space", "opening", "wall")
-LINK_TYPES = FIXED_LINK_TYPES + ("door", "glass_door", "window", "shutter")
+LINK_TYPES = FIXED_LINK_TYPES + ("door", "glass_door", "grille", "window", "shutter")
 
 
 def _check_area_links(links, errs):

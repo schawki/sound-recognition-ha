@@ -40,11 +40,12 @@ Rien ne change tant que vous ne l'activez pas pour la source : `sources[].device
 | ouverture sans porte | 90 % | – |
 | porte | 70 % | 15 % |
 | porte vitrée ou coulissante | 70 % | 25 % |
+| grille de sécurité ou porte grillagée | 90 % | 85 % |
 | fenêtre | 60 % | 10 % |
 | volet roulant (seul) | 60 % | 10 % |
 | mur plein | 5 % | 5 % |
 
-Un état illisible (pas de capteur, indisponible) compte comme la moyenne entre ouvert et fermé, de même pour « partiellement ouvert ». Plusieurs séparations entre les deux mêmes pièces : la plus ouverte l'emporte ; un volet roulant devant une fenêtre ou une porte la multiplie (ouvert ×1, partiel ×0,75, fermé ×0,5). Un mur plein ne laisse presque rien passer et n'est pas suivi. On suit jusqu'à deux liaisons depuis une pièce, les coefficients se multiplient.
+Un état illisible (pas de capteur, indisponible) compte comme la moyenne entre ouvert et fermé, de même pour « partiellement ouvert ». Plusieurs séparations entre les deux mêmes pièces : la plus ouverte l'emporte ; un volet roulant devant une fenêtre ou une porte la multiplie (ouvert ×1, partiel ×0,75, fermé ×0,5). Quand Home Structure indique le volet d'une fenêtre ou d'une porte précise, seule cette séparation est multipliée ; un volet déclaré comme séparation à part s'applique toujours à la plus ouverte. Un mur plein ne laisse presque rien passer et n'est pas suivi. On suit jusqu'à deux liaisons depuis une pièce, les coefficients se multiplient.
 
 Sans Home Structure, l'onglet Sources recommande d'abord de l'installer (en disant pourquoi), puis permet quand même de décrire les pièces ici : les mêmes types de séparation, avec un capteur facultatif (`binary_sensor` ou `cover`). Dès que Home Structure décrit quelque chose, elle prend le relais, et le bouton **Copier les pièces décrites ici dans Home Structure** y déplace ce que vous aviez saisi.
 
@@ -55,7 +56,7 @@ area_links:    # utilisé seulement si Home Structure n'est pas installée ou ne
   - {a: entree, b: cuisine, type: door}                                # sans capteur : environ 42 %
 ```
 
-Types : `open_space`, `opening`, `door`, `glass_door`, `window`, `shutter`, `wall` (`open` est l'ancien nom de `open_space`). `open_factor` et `closed_factor` remplacent les deux parts d'une liaison.
+Types : `open_space`, `opening`, `door`, `glass_door`, `grille`, `window`, `shutter`, `wall` (`open` est l'ancien nom de `open_space`). `open_factor` et `closed_factor` remplacent les deux parts d'une liaison.
 
 Les appareils d'une pièce reliée comptent pour la source en proportion de ce qui passe. Un son entendu par *une autre* source d'une pièce reliée (une télévision détectée par le micro du salon) relève aussi cette source, de `context_boost` multiplié par cette part : c'est le même interrupteur, rien d'autre à activer. Le total ne dépasse jamais `analysis.total_boost_cap` (0,30), et les sons de sécurité restent plafonnés à `safety_boost_cap`. Les hausses inférieures à 0,01 sont ignorées.
 

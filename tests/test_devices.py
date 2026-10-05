@@ -328,6 +328,13 @@ async def test_panel_commands_structure_and_import(hass, hass_ws_client, home):
         hass.states.async_set("sensor.hs_p", "closed")
         r = await call(type="sound_recognition/structure")
         assert r["status"] == "ready" and r["origin"] == "home_structure" and r["links"][0]["state"] == "closed" and r["links"][0]["a_name"] == "Salon"
+        assert r["plan"] is None                                                          # this structure has no positions (older Home Structure)
+        hass.services.async_remove("home_structure", "get_structure")
+        _hs_service(hass, {"spaces": [{"id": f"area:{s}", "name": "Salon", "kind": "room", "in_home": True}, {"id": f"area:{e}", "name": "Entrée", "kind": "room", "in_home": True}],
+                           "layout": {f"area:{s}": {"x": 24, "y": 24}, f"area:{e}": {"x": 248, "y": 24}},
+                           "connections": [{"id": "c", "a": f"area:{s}", "b": f"area:{e}", "separations": [{"id": "1", "type": "door", "state": "closed", "sensor": "binary_sensor.p", "entity_id": "sensor.hs_p", "shutter": None, "shutter_state": None}]}]})
+        r = await call(type="sound_recognition/structure")
+        assert [x["name"] for x in r["plan"]["spaces"]] == ["Salon", "Entrée"] and r["plan"]["connections"][0]["separations"][0]["state"] == "closed"
         assert not [x for x in (await call(type="sound_recognition/recommendations"))["recommendations"] if x["rule"].endswith("home_structure")]
         # import what was described here into Home Structure
         entry.runtime_data.coordinator.service_config["area_links"] = [{"a": s, "b": e, "type": "open"}]
@@ -339,3 +346,37 @@ async def test_panel_commands_structure_and_import(hass, hass_ws_client, home):
         assert {d["area_id"] for d in devs["devices"]} == {s}                                # the living-room TV, reached through the connection described in Home Structure
         await hass.config_entries.async_unload(entry.entry_id)
         fs.STATE.stop.set()
+
+
+# ------------------------------------------------------------------------------------------------ grille, shutter of a separation, plan
+def test_a_grille_hardly_stops_sound_and_a_shutter_lowers_only_its_own_separation():
+    assert dv.edge_factor(L("grille"), {}) == pytest.approx(0.875)                                     # no sensor: average of 0.9 and 0.85
+    assert dv.edge_factor(L("grille", sensor="s"), {"s": "closed"}) == 0.85 and dv.edge_factor(L("grille", sensor="s"), {"s": "open"}) == 0.9
+    glass = L("glass_door", sensor="g", shutter_state="closed")
+    assert dv.edge_factor(glass, {"g": "closed"}) == pytest.approx(0.125)                               # 0.25 behind a closed shutter (x0.5)
+    assert dv.edge_factor(L("glass_door", sensor="g", shutter_state="open"), {"g": "closed"}) == 0.25
+    assert dv.edge_factor(L("window", sensor="w", shutter_state="unknown"), {"w": "open"}) == pytest.approx(0.45)
+    # a grille next to a glass door behind its shutter: the grille is the open path
+    assert dv.pair_factor([glass, L("grille")], {"g": "closed"}) == pytest.approx(0.875)
+    assert dv.coupling("a", "b", [glass], {"g": "closed"}) == pytest.approx(0.125, abs=1e-3)
+
+
+def test_links_from_structure_carry_the_shutter_of_each_separation():
+    st = {"connections": [{"id": "c", "a": "area:salon", "b": "area:jardin", "separations": [
+        {"id": "1", "type": "glass_door", "sensor": "binary_sensor.b", "entity_id": "sensor.hs_1", "state": "closed", "shutter": "cover.v", "shutter_state": "partial"},
+        {"id": "2", "type": "grille", "sensor": None, "entity_id": "sensor.hs_2", "state": "unknown", "shutter": None, "shutter_state": None}]}]}
+    assert sl.links_from_structure(st) == [
+        {"a": "salon", "b": "jardin", "type": "glass_door", "sensor": "sensor.hs_1", "shutter_state": "partial"},
+        {"a": "salon", "b": "jardin", "type": "grille", "sensor": "sensor.hs_2"}]
+
+
+def test_plan_from_structure():
+    st = {"spaces": [{"id": "area:salon", "name": "Salon", "kind": "room", "in_home": True}, {"id": "zone:rue", "name": "Rue", "kind": "street", "in_home": False},
+                     {"id": "area:cave", "name": "Cave", "kind": "room", "in_home": True}],
+          "layout": {"area:salon": {"x": 24, "y": 24}, "zone:rue": {"x": 300, "y": 24}},
+          "connections": [{"id": "c", "a": "area:salon", "b": "zone:rue", "separations": [{"id": "1", "type": "door", "state": "open", "shutter_state": None}]},
+                          {"id": "d", "a": "area:salon", "b": "area:cave", "separations": [{"id": "2", "type": "wall", "state": "closed"}]}]}
+    plan = sl.plan_from_structure(st)
+    assert [s["id"] for s in plan["spaces"]] == ["area:salon", "zone:rue"] and plan["spaces"][1]["x"] == 300
+    assert plan["connections"] == [{"a": "area:salon", "b": "zone:rue", "separations": [{"type": "door", "state": "open", "shutter_state": None}]}]   # Cave is not on the plan
+    assert sl.plan_from_structure(None) is None and sl.plan_from_structure({"spaces": st["spaces"], "connections": [], "layout": {}}) is None   # older Home Structure: no positions

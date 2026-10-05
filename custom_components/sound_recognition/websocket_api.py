@@ -217,11 +217,12 @@ async def ws_structure(hass, connection, msg, entry):
     status = await structure_link.status(hass)
     cfg = entry.runtime_data.coordinator.service_config
     links, origin = await structure_link.effective_links(hass, cfg)
+    plan = structure_link.plan_from_structure(await structure_link.structure(hass)) if origin == "home_structure" else None
     names = {a["area_id"]: a["name"] for a in dev.areas(hass)}
     states = {l["sensor"]: s.state for l in links if l.get("sensor") and (s := hass.states.get(l["sensor"]))}
     rows = [{"a": l["a"], "b": l["b"], "a_name": names.get(l["a"], l["a"]), "b_name": names.get(l["b"], l["b"]), "type": dev.link_type(l),
-             "sensor": l.get("sensor"), "state": dev.link_state(l, states)} for l in links] if origin == "home_structure" else []
-    connection.send_result(msg["id"], {"status": status, "origin": origin, "links": rows, "url": structure_link.HS_URL})
+             "sensor": l.get("sensor"), "state": dev.link_state(l, states), "shutter_state": l.get("shutter_state")} for l in links] if origin == "home_structure" else []
+    connection.send_result(msg["id"], {"status": status, "origin": origin, "links": rows, "plan": plan, "url": structure_link.HS_URL})
 
 
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/import_structure", **ENTRY})

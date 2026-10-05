@@ -39,7 +39,8 @@ def contribution(domain: str, state: str | None, attrs: dict[str, Any], max_offs
 # Share of the sound that goes through each kind of separation: (open, closed). Home Structure only says what separates two spaces;
 # what that means for sound is decided here. An unreadable state counts as the average of the two.
 TRANSMISSION = {"open_space": (1.0, 1.0), "opening": (0.9, 0.9), "door": (OPEN_FACTOR, CLOSED_FACTOR), "glass_door": (OPEN_FACTOR, 0.25),
-                "window": (0.6, 0.1), "shutter": (0.6, 0.1), "wall": (0.05, 0.05)}
+                "window": (0.6, 0.1), "shutter": (0.6, 0.1), "wall": (0.05, 0.05),
+                "grille": (0.9, 0.85)}      # a security grille is a physical barrier that hardly stops sound
 SHUTTER_ON_OPENING = {"open": 1.0, "partial": 0.75, "unknown": 0.75, "closed": 0.5}   # a shutter in front of a window or a door only lowers it
 REACH_MIN = 0.1                                                                       # a separation that can never let this much through is not followed
 MIN_EFFECT = 0.01                                                                     # smaller increases are noise and are not reported
@@ -64,14 +65,21 @@ def link_state(link: dict, states: dict[str, str]) -> str:
     return "unknown"
 
 
+def shutter_factor(link: dict) -> float:
+    """Share left by the shutter named on this very separation (Home Structure's `shutter_state`); 1 when it has none."""
+    state = link.get("shutter_state")
+    return 1.0 if not state else SHUTTER_ON_OPENING.get(state, SHUTTER_ON_OPENING["unknown"])
+
+
 def edge_factor(link: dict, states: dict[str, str]) -> float:
-    """Share of the sound that passes through one separation now."""
+    """Share of the sound that passes through one separation now (a shutter in front of it, when it has one, lowers it)."""
     kind = link_type(link)
     open_f, closed_f = TRANSMISSION[kind]
     if kind not in ("open_space", "opening", "wall"):
         open_f, closed_f = link.get("open_factor", open_f), link.get("closed_factor", closed_f)
     state = link_state(link, states)
-    return open_f if state == "open" else closed_f if state == "closed" else round((open_f + closed_f) / 2, 4)
+    base = open_f if state == "open" else closed_f if state == "closed" else round((open_f + closed_f) / 2, 4)
+    return round(base * shutter_factor(link), 4)
 
 
 def pair_factor(links: list[dict], states: dict[str, str]) -> float:
