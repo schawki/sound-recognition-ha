@@ -2,6 +2,10 @@
 
 Les versions sont étiquetées `vX.Y.Z` ; le service se met à jour depuis Home Assistant vers la dernière étiquette.
 
+## 0.9.1
+
+- Correction : activer *Fireworks* et *Firecracker* (ce que font le conseil sur les feux d'artifice et celui tiré d'un jardin voisin) provoquait un conseil *parent et enfant* sur ces deux mêmes sons, et choisir l'un de ses boutons faisait revenir le premier conseil. Deux sons qui ne sont que des contextes, servant à relever les seuils, ne sont plus traités comme des alertes en conflit.
+
 ## 0.9.0
 
 - Un conseil entre sons proches offre maintenant un choix au lieu d'un simple texte : un bouton par son activé, *Garder X seul*, qui désactive les autres. Le son que recommande le catalogue passe en premier, en bouton principal. Cela couvre les sons de sonnette proches, les sons de chien (*Dog*, *Bark*, canidés), les sons de verre, les cris et les hurlements, et toute classe qui en contient une autre (parent et enfant, sans recommandation).

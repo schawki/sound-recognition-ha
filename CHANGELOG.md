@@ -2,6 +2,10 @@
 
 Releases are tagged `vX.Y.Z`; the service updates itself from Home Assistant to the latest tag.
 
+## 0.9.1
+
+- Fix: enabling *Fireworks* and *Firecracker* (what the fireworks advice and the advice drawn from a garden next door both do) raised a *parent and child* advice about those same two sounds, and choosing one of its buttons brought the first advice back. Two sounds that are only contexts, used to raise thresholds, are no longer treated as conflicting alerts.
+
 ## 0.9.0
 
 - Advice between close sounds now offers a choice instead of plain text: one button per sound that is on, *Keep X only*, which switches the others off. The sound the catalog recommends comes first, as the main button. It covers close doorbell sounds, dog sounds (*Dog*, *Bark*, canids), glass sounds, shouts and screams, and any class that contains another one (parent and child, with no recommendation).

@@ -262,3 +262,14 @@ def test_music_has_one_gesture_and_the_generic_class_one_too():
 
 def test_every_row_has_a_choices_list():
     assert all(isinstance(w["choices"], list) for w in advisor.compute(_on(SPEECH, SMOKE, BEEP, DOG, BARK)))
+
+
+def test_parent_and_child_contexts_are_not_a_conflict():
+    """The gesture of the fireworks warning switches both sounds on as contexts; it must not raise the parent/child advice."""
+    cfg = _on(FIREWORKS, FIRECRACKER)
+    assert [w for w in advisor.compute(cfg) if w["rule"] == "parent_child" and w["source"] == "a"] == []
+    w = _rules(_on(GUNSHOT := "/m/032s66"), "detonations_fireworks")["a"]
+    after = advisor.compute(_apply(_on(GUNSHOT), w))
+    assert not [x for x in after if x["rule"] == "parent_child" and x["source"] == "a"]              # applying it leaves no other advice behind
+    assert [x for x in after if x["rule"] == "detonations_fireworks" and x["source"] == "a"][0]["applied"]
+    assert [w for w in advisor.compute(_on(DOG, BARK)) if w["rule"] == "parent_child" and w["source"] == "a"]    # events still conflict
