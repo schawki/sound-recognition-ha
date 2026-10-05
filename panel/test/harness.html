@@ -86,7 +86,7 @@
     "sound_recognition/update": () => updView(),
     "sound_recognition/update_install": () => { if (!U.capable) throw { code: "update_failed", message: "not enabled" }; state.installs = (state.installs || 0) + 1; U.installing = true; U.busy = 2; U.status = { state: "requested" }; const { busy, outcome, ...v } = U; return v; },
     "sound_recognition/overview": () => ({ entry_id: "e", entries: [], version: "0.1.0", language: q.get("lang") || "en", sources,
-      warnings: [{ rule: "r", kind: "rule", level: "warning", source: "kitchen", classes: [], message: "m" }], config: JSON.parse(JSON.stringify(state.config)) }),
+      warnings: [{ rule: "r", kind: "rule", level: "warning", source: "kitchen", classes: [], message: "m" }].concat(q.get("applied") ? [{ rule: "detonations_fireworks", kind: "rule", level: "warning", source: "garden", classes: [TV], message: "Fireworks look like gunshots.", apply: { source: "garden", class_patch: { [TV]: { enabled: true } } }, applied: true }] : []), config: JSON.parse(JSON.stringify(state.config)) }),
     "sound_recognition/catalog": () => fullCatalog,
     "sound_recognition/areas": () => ({ areas: [{ area_id: "cuisine", name: "Cuisine" }, { area_id: "entree", name: "Entrée" }, { area_id: "salon", name: "Salon" }] }),
     "sound_recognition/openings": () => ({ openings: [{ entity_id: "binary_sensor.porte_bureau", name: "Porte bureau", area_id: "bureau", state: "off", domain: "binary_sensor", device_class: "door" }, { entity_id: "binary_sensor.porte_cuisine", name: "Porte cuisine", area_id: "cuisine", state: "on", domain: "binary_sensor", device_class: "door" }, { entity_id: "cover.volet_salon", name: "Volet salon", area_id: "salon", state: "open", domain: "cover", device_class: "shutter" }] }),

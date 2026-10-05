@@ -5,6 +5,7 @@ import { translator } from "./i18n";
 import type { Hass } from "./types";
 import "./live-view";
 import "./insights-view";
+import type { OpenTab } from "./advice-items";
 import "./sources-view";
 import "./sounds-view";
 import "./advice-view";
@@ -21,6 +22,7 @@ class SoundRecognitionPanel extends LitElement {
   @property({ type: Boolean }) narrow = false;
   @state() private api?: PanelApi;
   @state() private tab: Tab = "live";
+  @state() private focusKey: string | null = null;             // the advice to show when the Advice tab opens from a link
   private uiLang = "";
 
   protected willUpdate(): void {
@@ -43,15 +45,20 @@ class SoundRecognitionPanel extends LitElement {
     void this.updateComplete.then(() => (this.shadowRoot?.getElementById(`tab-${this.tab}`) as HTMLElement | null)?.focus());
   };
 
+  private openTab = (e: CustomEvent<OpenTab>): void => {
+    this.focusKey = e.detail.focus ?? null;
+    this.tab = e.detail.tab;
+  };
+
   private view(t: ReturnType<typeof translator>) {
     const common = { api: this.api, t, language: this.uiLang };
     switch (this.tab) {
-      case "insights": return html`<sound-recognition-insights .api=${common.api} .t=${t} .language=${common.language} @open-tab=${(e: CustomEvent<Tab>) => (this.tab = e.detail)}></sound-recognition-insights>`;
+      case "insights": return html`<sound-recognition-insights .api=${common.api} .t=${t} .language=${common.language} @open-tab=${this.openTab}></sound-recognition-insights>`;
       case "sources": return html`<sound-recognition-sources .api=${common.api} .t=${t} .language=${common.language}></sound-recognition-sources>`;
       case "sounds": return html`<sound-recognition-sounds .api=${common.api} .t=${t} .language=${common.language}></sound-recognition-sounds>`;
-      case "advice": return html`<sound-recognition-advice .api=${common.api} .t=${t} .language=${common.language}></sound-recognition-advice>`;
+      case "advice": return html`<sound-recognition-advice .api=${common.api} .t=${t} .language=${common.language} .focusKey=${this.focusKey}></sound-recognition-advice>`;
       case "clips": return html`<sound-recognition-clips .api=${common.api} .t=${t} .language=${common.language}></sound-recognition-clips>`;
-      default: return html`<sound-recognition-live .api=${common.api} .t=${t} .language=${common.language}></sound-recognition-live>`;
+      default: return html`<sound-recognition-live .api=${common.api} .t=${t} .language=${common.language} @open-tab=${this.openTab}></sound-recognition-live>`;
     }
   }
 
@@ -65,7 +72,7 @@ class SoundRecognitionPanel extends LitElement {
       </div>
       <sound-recognition-update .api=${this.api} .t=${t}></sound-recognition-update>
       <nav role="tablist" @keydown=${this.tabKeys}>
-        ${TABS.map(([k, label]) => html`<button role="tab" id=${`tab-${k}`} aria-selected=${this.tab === k} aria-controls="view" tabindex=${this.tab === k ? 0 : -1} class=${this.tab === k ? "on" : ""} data-tab=${k} @click=${() => (this.tab = k)}>${t(label)}</button>`)}
+        ${TABS.map(([k, label]) => html`<button role="tab" id=${`tab-${k}`} aria-selected=${this.tab === k} aria-controls="view" tabindex=${this.tab === k ? 0 : -1} class=${this.tab === k ? "on" : ""} data-tab=${k} @click=${() => { this.focusKey = null; this.tab = k; }}>${t(label)}</button>`)}
       </nav>
       <main id="view" role="tabpanel" aria-labelledby=${`tab-${this.tab}`}>${this.view(t)}</main>`;
   }

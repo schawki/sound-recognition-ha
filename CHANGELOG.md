@@ -2,6 +2,11 @@
 
 Releases are tagged `vX.Y.Z`; the service updates itself from Home Assistant to the latest tag.
 
+## 0.6.5
+
+- The alert at the top of the Live view counts what the Advice tab shows first (advice to do and warnings), no longer the advice that is already applied: it used to announce an advice you could not find. A hidden advice is never counted.
+- The alert is a link: a click opens the Advice tab on the first advice and highlights it. Each line of the summary in the Overview leads to its own advice in the same way.
+
 ## 0.6.4
 
 - Repairs: an advice that is already applied no longer raises an alert in Home Assistant (the warning about fireworks and firecrackers kept coming back after the two sounds were enabled).

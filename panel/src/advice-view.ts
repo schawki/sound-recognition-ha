@@ -16,6 +16,9 @@ export class AdviceView extends LitElement {
   @property({ attribute: false }) api!: PanelApi;
   @property({ attribute: false }) t!: T;
   @property({ attribute: false }) language = "en";
+  @property({ attribute: false }) focusKey: string | null = null;      // key of the advice to bring into view
+  @state() private flash: string | null = null;
+  private focused: string | null = null;
   @state() private raw: Advice[] = [];
   @state() private recs: Recommendation[] = [];
   @state() private applying: string | null = null;
@@ -109,6 +112,18 @@ export class AdviceView extends LitElement {
     }
   }
 
+  protected updated(): void {
+    if (!this.focusKey || this.focusKey === this.focused || !this.draft) return;
+    const li = [...(this.shadowRoot?.querySelectorAll<HTMLElement>("li.advice[data-key]") ?? [])].find((e) => e.dataset.key === this.focusKey);
+    if (!li) return;
+    this.focused = this.focusKey;
+    const group = li.closest<HTMLDetailsElement>("details.group");
+    if (group) group.open = true;                         // the advice is among those already applied: unfold them
+    this.flash = this.focusKey;
+    li.scrollIntoView({ block: "center", behavior: "smooth" });
+    window.setTimeout(() => { this.flash = null; }, 2600);
+  }
+
   private async apply(it: Item): Promise<void> {
     if (!it.apply) return;
     this.applying = it.key;
@@ -169,7 +184,7 @@ export class AdviceView extends LitElement {
     const confirming = w && this.pending && this.pending.rule === w.rule && (this.pending.sid === null || this.pending.sid === w.source);
     const status = it.applied ? "applied" : it.apply ? "todo" : "info";
     return html`
-      <li class="advice ${it.applied ? "done" : it.level}" data-rule=${it.rule} data-source=${it.source} data-kind=${it.kind} data-status=${status}>
+      <li class="advice ${it.applied ? "done" : it.level} ${this.flash === it.key ? "flash" : ""}" data-key=${it.key} data-rule=${it.rule} data-source=${it.source} data-kind=${it.kind} data-status=${status}>
         <div class="head">
           <div class="msg">${it.applied ? nothing : html`<span class="badge ${it.level}">${t(`level_${it.level}` as Key)}</span> `}${it.message}</div>
           ${this.stateOf(it)}
@@ -218,6 +233,8 @@ export class AdviceView extends LitElement {
     .badge.danger { background: color-mix(in srgb, var(--error-color, #db4437) 25%, transparent); } .badge.warning { background: color-mix(in srgb, var(--warning-color, #ffa600) 30%, transparent); }
     .head { display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; } .head .msg { flex: 1 1 360px; }
     .state { color: var(--success-color, #43a047); font-size: 0.9rem; white-space: nowrap; padding-top: 4px; }
+    .advice.flash { outline: 2px solid var(--primary-color); outline-offset: 2px; animation: flash 2.6s ease-out; }
+    @keyframes flash { 0% { background: color-mix(in srgb, var(--primary-color) 28%, var(--card-background-color)); } 100% { background: var(--card-background-color); } }
     .advice.done { border-left-color: var(--success-color, #43a047); opacity: 0.85; }
     details.display > summary, details.group > summary { cursor: pointer; color: var(--secondary-text-color); font-size: 0.85rem; }
     details.group { margin-top: 18px; } details.group > ul { margin-top: 10px; }

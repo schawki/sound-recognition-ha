@@ -30,8 +30,8 @@ export function buildItems(warnings: Advice[], recs: Recommendation[], cfg: Serv
     items.push({ key, kind: "advice", rule: w.rule, source: w.source, classes: w.classes, level, message: w.message, safety: !!w.safety,
       apply: w.apply ?? null, applied: !!w.applied || done.has(key), advice: w });
   }
-  recs.forEach((r, i) => {
-    const key = `rec|${r.rule}|${r.source}|${i}`;
+  recs.forEach((r) => {
+    const key = `rec|${r.rule}|${r.source}|${[...r.classes].sort().join(",")}`;
     items.push({ key, kind: "recommendation", rule: r.rule, source: r.source, classes: r.classes, level: r.level, message: r.message, safety: false,
       apply: r.apply, applied: !!r.applied || done.has(key), advice: null });
   });
@@ -46,3 +46,9 @@ export function buildItems(warnings: Advice[], recs: Recommendation[], cfg: Serv
 
 /** What deserves attention now: what can be applied, and the information that is more than a hint. */
 export const attention = (i: Items): Item[] => [...i.todo, ...i.info.filter((x) => x.level !== "info")];
+
+/** A request to open a tab of the panel, optionally on one advice (`focus` is the key of the item). */
+export interface OpenTab { tab: "advice"; focus?: string }
+export const openAdvice = (el: HTMLElement, focus?: string): void => {
+  el.dispatchEvent(new CustomEvent<OpenTab>("open-tab", { detail: { tab: "advice", focus }, bubbles: true, composed: true }));
+};

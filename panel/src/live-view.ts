@@ -4,7 +4,8 @@ import type { PanelApi } from "./api";
 import type { T } from "./i18n";
 import { relativeTime } from "./util";
 import { applyAndSave } from "./patch";
-import type { Advice, Catalog, LiveMessage, SoundEvent, SourceStatus } from "./types";
+import { attention, buildItems, openAdvice, type Item } from "./advice-items";
+import type { Advice, Catalog, LiveMessage, Recommendation, ServiceConfig, SoundEvent, SourceStatus } from "./types";
 
 const MIN_DB = -90;
 
@@ -15,6 +16,8 @@ export class LiveView extends LitElement {
   @state() private sources: SourceStatus[] = [];
   @state() private events: SoundEvent[] = [];
   @state() private advice: Advice[] = [];
+  @state() private recs: Recommendation[] = [];
+  @state() private config: ServiceConfig = {};
   @state() private names = new Map<string, string>();
   @state() private marking: string | null = null;
   @state() private markError = "";
@@ -41,9 +44,11 @@ export class LiveView extends LitElement {
 
   private async start(): Promise<void> {
     try {
-      const [ov, cat, events] = await Promise.all([this.api.overview(), this.api.catalog(), this.api.events(50)]);
+      const [ov, cat, events, recs] = await Promise.all([this.api.overview(), this.api.catalog(), this.api.events(50), this.api.recommendations().catch(() => [])]);
       this.sources = ov.sources;
       this.advice = ov.warnings;
+      this.recs = recs;
+      this.config = ov.config as ServiceConfig;
       this.names = new Map((cat as Catalog).classes.map((c) => [c.mid, c.name]));
       this.audio = new Map((cat as Catalog).classes.map((c) => [c.mid, c.audioset_name]));
       this.events = events;
@@ -102,9 +107,9 @@ export class LiveView extends LitElement {
     const t = this.t;
     if (!this.ready) return html`<p class="note">${t("loading")}</p>`;
     if (this.error) return html`<p class="note error">${t(this.error === "not_loaded" ? "notLoaded" : "unreachable")}</p>`;
-    const urgent = this.advice.filter((a) => a.level !== "info").length;
+    const urgent: Item[] = attention(buildItems(this.advice, this.recs, this.config));       // the same count as the top of the Advice tab
     return html`
-      ${urgent ? html`<div class="banner">${urgent === 1 ? t("adviceBannerOne") : t("adviceBanner", { n: urgent })}</div>` : nothing}
+      ${urgent.length ? html`<button class="banner" data-action="open-advice" @click=${() => openAdvice(this, urgent[0].key)}>${urgent.length === 1 ? t("adviceBannerOne") : t("adviceBanner", { n: urgent.length })} <span aria-hidden="true">›</span></button>` : nothing}
       <h2>${t("sources")}</h2>
       ${this.sources.length === 0 ? html`<p class="note">${t("noSources")}</p>` : html`<div class="grid">${this.sources.map((s) => this.sourceCard(s))}</div>`}
       <h2>${t("recent")}</h2>
@@ -192,7 +197,8 @@ export class LiveView extends LitElement {
     .note { color: var(--secondary-text-color); }
     .note.error { color: var(--error-color, #db4437); }
     .dim { color: var(--secondary-text-color); font-size: 0.85rem; }
-    .banner { background: var(--warning-color, #ffa600); color: #000; padding: 10px 14px; border-radius: 10px; margin-bottom: 16px; }
+    .banner { display: block; width: 100%; text-align: left; font: inherit; border: 0; cursor: pointer; background: var(--warning-color, #ffa600); color: #000; padding: 10px 14px; border-radius: 10px; margin-bottom: 16px; }
+    .banner:hover, .banner:focus-visible { filter: brightness(0.95); outline: 2px solid color-mix(in srgb, #000 40%, transparent); outline-offset: 2px; }
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
     .card { background: var(--card-background-color, #fff); border-radius: var(--ha-card-border-radius, 12px); box-shadow: var(--ha-card-box-shadow, none); border: 1px solid var(--divider-color); padding: 16px; display: flex; flex-direction: column; gap: 10px; }
     .card header { display: flex; justify-content: space-between; align-items: center; gap: 8px; }

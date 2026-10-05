@@ -2,7 +2,7 @@ import { LitElement, css, html, nothing } from "lit";
 import { property, state } from "lit/decorators.js";
 import type { PanelApi } from "./api";
 import type { T } from "./i18n";
-import { attention, buildItems } from "./advice-items";
+import { attention, buildItems, openAdvice } from "./advice-items";
 import type { Advice, Catalog, LiveMessage, Recommendation, ServiceConfig, SourceStatus, Stats } from "./types";
 
 interface Entry { key: number; ts: number; kind: "detection" | "hidden" | "context"; text: string }
@@ -159,8 +159,8 @@ export class InsightsView extends LitElement {
       <h2>${t("insAdvice")}</h2>
       ${urgent.length === 0 ? html`<p class="note">${t("insAdviceNone")}</p>` : html`<div class="advice" data-advice>
         <p>${urgent.length === 1 ? t("insAdviceOne") : t("insAdviceMore", { n: urgent.length })}</p>
-        <ul>${urgent.slice(0, 3).map((a) => html`<li class=${a.level}>${a.source ? html`<strong>${this.sourceName(a.source)}</strong> — ` : nothing}${a.message}</li>`)}</ul>
-        <button data-action="open-advice" @click=${() => this.dispatchEvent(new CustomEvent("open-tab", { detail: "advice", bubbles: true, composed: true }))}>${t("insOpenAdvice")}</button></div>`}
+        <ul>${urgent.slice(0, 3).map((a) => html`<li class=${a.level}><button class="link" data-action="open-item" @click=${() => openAdvice(this, a.key)}>${a.source ? html`<strong>${this.sourceName(a.source)}</strong> — ` : nothing}${a.message}</button></li>`)}</ul>
+        <button data-action="open-advice" @click=${() => openAdvice(this, urgent[0].key)}>${t("insOpenAdvice")}</button></div>`}
       <h2>${t("insTimeline")}</h2>
       ${this.timeline.length === 0 ? html`<p class="note">${t("insNoTimeline")}</p>` : html`<ul class="timeline">${this.timeline.map((e) => html`<li class=${e.kind} data-kind=${e.kind}>
         <time>${new Date(e.ts * 1000).toLocaleTimeString(this.language)}</time><span>${e.text}</span></li>`)}</ul>`}`;
@@ -232,6 +232,7 @@ export class InsightsView extends LitElement {
     .seg.det { background: var(--primary-color); } .seg.hid { background: repeating-linear-gradient(45deg, var(--warning-color, #ffa600), var(--warning-color, #ffa600) 3px, transparent 3px, transparent 6px); }
     .axis { display: flex; justify-content: space-between; margin-top: 4px; }
     .top li { display: flex; justify-content: space-between; padding: 6px 12px; background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: 8px; }
+    button.link { font: inherit; text-align: left; border: 0; background: none; padding: 0; color: var(--primary-text-color); cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
     .advice { padding: 10px 14px; background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: 10px; } .advice p { margin: 0 0 6px; } .advice ul { margin: 0 0 0 18px; padding: 0; }
     .timeline li { display: flex; gap: 12px; padding: 6px 12px; background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: 8px; font-size: 0.9rem; }
     .timeline li.hidden { border-left: 4px solid var(--warning-color, #ffa600); } .timeline li.detection { border-left: 4px solid var(--primary-color); } .timeline li.context { border-left: 4px solid var(--secondary-text-color); }
