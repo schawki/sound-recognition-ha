@@ -219,4 +219,4 @@ export class LiveView extends LitElement {
     @media (prefers-reduced-motion: reduce) { .bar { transition: none; } }
   `;
 }
-customElements.define("sound-recognition-live", LiveView);
+if (!customElements.get("sound-recognition-live")) customElements.define("sound-recognition-live", LiveView);

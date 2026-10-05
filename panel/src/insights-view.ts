@@ -276,4 +276,4 @@ export class InsightsView extends LitElement {
     .timeline time { color: var(--secondary-text-color); font-variant-numeric: tabular-nums; flex: none; }
   `;
 }
-customElements.define("sound-recognition-insights", InsightsView);
+if (!customElements.get("sound-recognition-insights")) customElements.define("sound-recognition-insights", InsightsView);

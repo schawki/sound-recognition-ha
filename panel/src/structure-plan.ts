@@ -71,4 +71,4 @@ export class StructurePlanView extends LitElement {
     .pill .open { fill: var(--success-color, #43a047); } .pill .closed { fill: var(--error-color, #db4437); } .pill .partial { fill: var(--warning-color, #ffa600); }
   `;
 }
-customElements.define("structure-plan", StructurePlanView);
+if (!customElements.get("structure-plan")) customElements.define("structure-plan", StructurePlanView);

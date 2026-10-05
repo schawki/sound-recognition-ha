@@ -23,7 +23,8 @@ def register_source_devices(hass: HomeAssistant, entry_id: str, sources: list[di
     """Creates the device of every audio source under the service's device.
     The link to the parent is made here with its registry id (`via_device_id`); the `via_device` identifier form of DeviceInfo is deprecated."""
     registry = dr.async_get(hass)
-    parent = registry.async_get_device(identifiers={service_device(entry_id)})
+    wanted = service_device(entry_id)                                          # looked up among this entry's own devices: the identifier-only lookup is deprecated
+    parent = next((d for d in dr.async_entries_for_config_entry(registry, entry_id) if wanted in d.identifiers), None)
     for s in sources:
         link = ({"via_device_id": parent.id if parent else None} if _VIA_DEVICE_ID
                 else {"via_device": service_device(entry_id)})                 # older Home Assistant: only the identifier form exists

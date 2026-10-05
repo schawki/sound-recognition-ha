@@ -615,4 +615,4 @@ export class SourcesView extends LitElement {
     .buttons { display: flex; justify-content: flex-end; gap: 10px; }
   `;
 }
-customElements.define("sound-recognition-sources", SourcesView);
+if (!customElements.get("sound-recognition-sources")) customElements.define("sound-recognition-sources", SourcesView);

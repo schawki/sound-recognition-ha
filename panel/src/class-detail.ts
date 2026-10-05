@@ -221,4 +221,4 @@ export class ClassDetail extends LitElement {
     .buttons { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
   `;
 }
-customElements.define("sr-class-detail", ClassDetail);
+if (!customElements.get("sr-class-detail")) customElements.define("sr-class-detail", ClassDetail);

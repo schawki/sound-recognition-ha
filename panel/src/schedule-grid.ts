@@ -124,4 +124,4 @@ export class ScheduleGrid extends LitElement {
     .day:hover, .hour:hover { color: var(--primary-text-color); }
   `;
 }
-customElements.define("sr-schedule-grid", ScheduleGrid);
+if (!customElements.get("sr-schedule-grid")) customElements.define("sr-schedule-grid", ScheduleGrid);

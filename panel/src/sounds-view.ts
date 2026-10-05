@@ -248,4 +248,4 @@ export class SoundsView extends LitElement {
     .savebar span { flex: 1; }
   `;
 }
-customElements.define("sound-recognition-sounds", SoundsView);
+if (!customElements.get("sound-recognition-sounds")) customElements.define("sound-recognition-sounds", SoundsView);

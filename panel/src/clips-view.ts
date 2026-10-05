@@ -198,4 +198,4 @@ export class ClipsView extends LitElement {
     @media (max-width: 700px) { .list li { grid-template-columns: auto minmax(0, 1fr) auto; } .list li audio { grid-column: 1 / -1; } }
   `;
 }
-customElements.define("sound-recognition-clips", ClipsView);
+if (!customElements.get("sound-recognition-clips")) customElements.define("sound-recognition-clips", ClipsView);

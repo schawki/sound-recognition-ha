@@ -93,4 +93,4 @@ export class UpdateBanner extends LitElement {
     .err { flex-basis: 100%; }
   `;
 }
-customElements.define("sound-recognition-update", UpdateBanner);
+if (!customElements.get("sound-recognition-update")) customElements.define("sound-recognition-update", UpdateBanner);

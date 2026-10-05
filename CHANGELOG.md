@@ -2,6 +2,11 @@
 
 Releases are tagged `vX.Y.Z`; the service updates itself from Home Assistant to the latest tag.
 
+## 0.6.1
+
+- Fix: opening a panel right after an update no longer logs a "custom element already defined" error in the browser.
+- Fix: the device registry lookup deprecated in recent Home Assistant versions is replaced.
+
 ## 0.6.0
 
 - The kind of place of a source now comes from Home Structure: the type of its room (or the kind of its space) gives it automatically and follows any change there. Choosing a place in the source still overrides it. A room without a type is asked to get one in Home Structure. Needs Home Structure 0.6.0, which adds room types (master bedroom, child's bedroom, baby's room, guest room, game room, home cinema, gym, workshop, pantry, cellar, attic, staircase) organised in groups.

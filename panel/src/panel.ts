@@ -81,4 +81,4 @@ class SoundRecognitionPanel extends LitElement {
     main { max-width: 1100px; margin: 0 auto; padding: 16px; box-sizing: border-box; }
   `;
 }
-customElements.define("sound-recognition-panel", SoundRecognitionPanel);
+if (!customElements.get("sound-recognition-panel")) customElements.define("sound-recognition-panel", SoundRecognitionPanel);

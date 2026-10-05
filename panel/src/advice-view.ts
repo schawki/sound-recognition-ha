@@ -174,4 +174,4 @@ export class AdviceView extends LitElement {
     .savebar { position: sticky; bottom: 0; z-index: 5; margin: 16px -16px -16px; display: flex; gap: 10px; align-items: center; justify-content: flex-end; padding: 12px 16px; background: var(--card-background-color); border-top: 1px solid var(--divider-color); box-shadow: 0 -2px 8px rgba(0,0,0,.12); } .savebar span { flex: 1; }
   `;
 }
-customElements.define("sound-recognition-advice", AdviceView);
+if (!customElements.get("sound-recognition-advice")) customElements.define("sound-recognition-advice", AdviceView);
