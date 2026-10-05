@@ -1,7 +1,8 @@
 """Keeps the service informed of what the devices around each source (and the neighbouring rooms) do to its thresholds.
 
-Only sources whose `devices.enabled` is true are handled. The result is pushed with a time to live, so if Home Assistant stops, the
-service goes back to its normal thresholds by itself."""
+Only sources whose `devices.enabled` is true are handled for the thresholds. The kind of place deduced from the type of the room in Home Structure
+is pushed for every source with a room. Everything is pushed with a time to live, so if Home Assistant stops, the service goes back to
+its normal thresholds by itself."""
 from __future__ import annotations
 
 import logging
@@ -12,7 +13,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.event import async_call_later, async_track_state_change_event, async_track_time_interval
 from datetime import timedelta
 
-from . import devices, structure_link
+from . import devices, home_rules, structure_link
 from .api import SoundRecError
 from .const import SIGNAL_LIVE
 
@@ -33,13 +34,18 @@ class DynamicManager:
         self._timer: CALLBACK_TYPE | None = None
         self.links: list[dict] = []
         self.origin = "none"
+        self.structure: dict | None = None
+        self.rules: dict | None = None
 
     def enabled_sources(self) -> list[dict]:
         return [s for s in self.coordinator.service_config.get("sources", []) if s.get("enabled", True) and (s.get("devices") or {}).get("enabled")]
 
+    def wants_place(self) -> bool:
+        return any(s.get("enabled", True) and s.get("area") and not s.get("environment") for s in self.coordinator.service_config.get("sources", []))
+
     @callback
     def start(self) -> None:
-        if not self.enabled_sources():
+        if not self.enabled_sources() and not self.wants_place():
             return
         self._unsubs.append(async_dispatcher_connect(self.hass, SIGNAL_LIVE.format(self.coordinator.config_entry.entry_id), self._on_live))
         self._unsubs.append(async_track_time_interval(self.hass, self._tick, timedelta(seconds=KEEPALIVE_S)))
@@ -102,11 +108,22 @@ class DynamicManager:
         return out
 
     async def refresh_links(self) -> None:
-        self.links, self.origin = await structure_link.effective_links(self.hass, self.coordinator.service_config)
+        self.links, self.origin, self.structure = await structure_link.read(self.hass)
         self._retrack()
+
+    async def push_places(self) -> None:
+        """Tells the service the kind of place each source is in, as deduced from Home Structure (nothing when it gives none)."""
+        if self.rules is None:
+            self.rules = await self.hass.async_add_executor_job(home_rules.load_rules)
+        for sid, (place, _space) in home_rules.places_for(self.coordinator.service_config, self.structure, self.rules).items():
+            try:
+                await self.coordinator.client.set_place(sid, place, TTL_S)
+            except SoundRecError as err:
+                _LOGGER.debug("Could not push the place of %s: %s", sid, err)
 
     async def push(self) -> None:
         await self.refresh_links()
+        await self.push_places()
         self.last = self.compute_all()
         for sid, (offset, reasons, detail) in self.last.items():
             try:

@@ -1,4 +1,4 @@
-import type { UpdateInfo, Advice, HaArea, HaDevice, HaOpening, StructureInfo, Catalog, Go2rtcStreams, Hass, LiveMessage, Overview, Recommendation, ServiceConfig, SoundEvent, ClipFilter, ClipsDeleted, ClipsPage, Stats, Validation } from "./types";
+import type { UpdateInfo, Advice, HaArea, HaDevice, HaOpening, StructureInfo, Catalog, Go2rtcStreams, Hass, HsPlace, LiveMessage, Overview, Recommendation, ServiceConfig, SoundEvent, ClipFilter, ClipsDeleted, ClipsPage, Stats, Validation } from "./types";
 
 export class PanelApi {
   constructor(private hass: Hass, public language: string) {}
@@ -43,6 +43,10 @@ export class PanelApi {
   /** Devices of a room and of the rooms connected to it in the Home Structure plan. */
   async devices(areaId: string): Promise<HaDevice[]> {
     return (await this.hass.callWS<{ devices: HaDevice[] }>({ type: "sound_recognition/devices", area_id: areaId })).devices;
+  }
+  /** What Home Structure says about a room: the place it implies and the name of its type. */
+  place(areaId: string): Promise<HsPlace> {
+    return this.hass.callWS({ type: "sound_recognition/place", area_id: areaId, language: this.language });
   }
   structure(): Promise<StructureInfo> {
     return this.hass.callWS({ type: "sound_recognition/structure" });

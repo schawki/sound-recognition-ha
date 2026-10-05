@@ -5,7 +5,7 @@ import type { PanelApi } from "./api";
 import type { T } from "./i18n";
 import { cellsToWindows, hoursPerWeek, windowsToCells } from "./schedule";
 import { groupAdvice, type NoticeItem } from "./advice-group";
-import type { Advice, SeparationType, StructureInfo, Catalog, Environment, Go2rtcStreams, HaArea, HaDevice, HaOpening, ServiceConfig, SourceCfg } from "./types";
+import type { Advice, HsPlace, SeparationType, StructureInfo, Catalog, Environment, Go2rtcStreams, HaArea, HaDevice, HaOpening, ServiceConfig, SourceCfg } from "./types";
 import "./schedule-grid";
 import "./structure-plan";
 
@@ -13,6 +13,7 @@ const TYPES: [string, "typeRtsp" | "typeGo2rtc" | "typeAlsa" | "typeEsphome" | "
   ["rtsp", "typeRtsp"], ["go2rtc", "typeGo2rtc"], ["alsa_rpi", "typeAlsa"], ["esphome", "typeEsphome"], ["file", "typeFile"],
 ];
 
+const MIN_WEIGHT = 0.1;   // a connected room whose sound reaches the source for less than this is ignored in the summary
 const SEPARATIONS: [SeparationType, "sepOpenSpace" | "sepOpening" | "sepDoor" | "sepGlassDoor" | "sepGrille" | "sepWindow" | "sepShutter" | "sepWall"][] = [
   ["open_space", "sepOpenSpace"], ["opening", "sepOpening"], ["door", "sepDoor"], ["glass_door", "sepGlassDoor"], ["grille", "sepGrille"], ["window", "sepWindow"], ["shutter", "sepShutter"], ["wall", "sepWall"],
 ];
@@ -64,6 +65,7 @@ export class SourcesView extends LitElement {
   @state() private areas: HaArea[] = [];
   @state() private openings: HaOpening[] = [];
   @state() private devs: HaDevice[] = [];
+  @state() private hsPlace: HsPlace | null = null;
   @state() private structure: StructureInfo | null = null;
   private devsFor = "";
   @state() private g2: { url: string; streams: Go2rtcStreams["streams"]; loading: boolean; error: string; tried: boolean } = { url: "", streams: [], loading: false, error: "", tried: false };
@@ -277,12 +279,12 @@ export class SourcesView extends LitElement {
   /** Devices of the room and of the rooms connected to it, as Home Assistant knows them. */
   private async loadDevices(area: string): Promise<void> {
     this.devsFor = area;
-    if (!area) { this.devs = []; return; }
+    if (!area) { this.devs = []; this.hsPlace = null; return; }
     try {
-      const rows = await this.api.devices(area);
-      if (this.devsFor === area) this.devs = rows;
+      const [rows, place] = await Promise.all([this.api.devices(area), this.api.place(area)]);
+      if (this.devsFor === area) { this.devs = rows; this.hsPlace = place; }
     } catch {
-      if (this.devsFor === area) this.devs = [];
+      if (this.devsFor === area) { this.devs = []; this.hsPlace = null; }
     }
   }
 
@@ -380,9 +382,17 @@ export class SourcesView extends LitElement {
       <div class="buttons"><a class="btn primary" data-action="hs-open" href="/config/integrations/integration/home_structure">${t("hsOpenConfig")}</a></div></div>`;
   }
 
-  /** Room of the source and the devices around it that raise the thresholds. */
+  /** Devices that count for the source: those of its room, and those of the rooms connected to it that let enough sound through. */
+  private counted(f: Form): HaDevice[] {
+    return this.devs.filter((d) => !d.duplicate_of && d.available && !f.devExclude.includes(d.entity_id) && d.weight >= MIN_WEIGHT);
+  }
+
+  /** Room of the source and the devices around it that raise the thresholds: an automatic summary, the details being an expert setting. */
   private renderRoom(f: Form) {
     const t = this.t;
+    const counted = this.counted(f), own = counted.filter((d) => d.area_id === f.area).length;
+    const neighbours = [...new Map(this.devs.filter((d) => d.area_id !== f.area && d.weight >= MIN_WEIGHT).map((d) => [d.area_id, d])).values()];
+    const custom = f.devMax !== "" || f.devExclude.length > 0 || f.devInclude.trim() !== "";
     return html`<fieldset class="room"><legend>${t("areaLabel")}</legend>
       <label>${t("areaLabel")}<select name="area" aria-label=${t("areaLabel")} @change=${(e: Event) => this.set("area", (e.target as HTMLSelectElement).value)}>
         <option value="" ?selected=${f.area === ""}>${t("areaNone")}</option>
@@ -390,16 +400,21 @@ export class SourcesView extends LitElement {
         <small>${t("areaHelp")}</small></label>
       <label class="inline"><input type="checkbox" name="devEnabled" .checked=${f.devEnabled} @change=${(e: Event) => this.set("devEnabled", (e.target as HTMLInputElement).checked)} />${t("devicesLabel")}</label>
       <small>${t("devicesHelp")}</small>
-      ${f.devEnabled ? html`<label>${t("devicesMax")}<input name="devMax" type="number" step="0.05" min="0" max="0.4" placeholder="0.15" .value=${f.devMax} @input=${(e: Event) => this.set("devMax", (e.target as HTMLInputElement).value)} /></label>` : nothing}
-      ${!f.area ? html`<p class="dim">${t("devicesPickRoom")}</p>` : html`<div class="devs" data-devices role="group" aria-label=${t("devicesFound")}>
-        <span class="dim">${t("devicesFound")}</span>
-        ${this.devs.length === 0 ? html`<p class="note">${t("devicesNone")}</p>` : this.devs.map((d) => d.duplicate_of
-          ? html`<div class="dev dim" data-device=${d.entity_id}>${d.name} <span>(${t("devicesFolded", { e: d.duplicate_of })})</span></div>`
-          : html`<label class="inline dev" data-device=${d.entity_id}><input type="checkbox" name="devpick" .checked=${!f.devExclude.includes(d.entity_id)}
-            @change=${(e: Event) => this.set("devExclude", (e.target as HTMLInputElement).checked ? f.devExclude.filter((x) => x !== d.entity_id) : [...f.devExclude, d.entity_id])} />
-            ${d.name}${d.area_id !== f.area ? html` <span class="dim">· ${d.area}</span>` : nothing}
-            <span class="dim">${d.available ? d.state : t("devicesUnavailable")}</span></label>`)}</div>`}
-      <label>${t("devicesInclude")}<textarea name="devInclude" rows="2" placeholder="switch.hood" .value=${f.devInclude} @input=${(e: Event) => this.set("devInclude", (e.target as HTMLTextAreaElement).value)}></textarea><small>${t("devicesIncludeHelp")}</small></label>
+      ${!f.area ? html`<p class="dim">${t("devicesPickRoom")}</p>` : html`<div class="devsum" data-devsummary>
+        <p>${counted.length === 0 ? t("devicesNone") : t("devicesSummary", { own, near: counted.length - own })}</p>
+        ${neighbours.length ? html`<p class="dim" data-neighbours>${t("devicesNeighbours")} ${neighbours.map((d) => `${d.area} (${Math.round(d.weight * 100)} %)`).join(" · ")}</p>` : nothing}</div>
+        <details class="expert" data-expert ?open=${custom}><summary>${t("expertTitle")}</summary>
+          ${f.devEnabled ? html`<label>${t("devicesMax")}<input name="devMax" type="number" step="0.05" min="0" max="0.4" placeholder="0.15" .value=${f.devMax} @input=${(e: Event) => this.set("devMax", (e.target as HTMLInputElement).value)} /></label>` : nothing}
+          <div class="devs" data-devices role="group" aria-label=${t("devicesFound")}>
+            <span class="dim">${t("devicesFound")}</span>
+            ${this.devs.length === 0 ? html`<p class="note">${t("devicesNone")}</p>` : this.devs.map((d) => d.duplicate_of
+              ? html`<div class="dev dim" data-device=${d.entity_id}>${d.name} <span>(${t("devicesFolded", { e: d.duplicate_of })})</span></div>`
+              : html`<label class="inline dev" data-device=${d.entity_id}><input type="checkbox" name="devpick" .checked=${!f.devExclude.includes(d.entity_id)}
+                @change=${(e: Event) => this.set("devExclude", (e.target as HTMLInputElement).checked ? f.devExclude.filter((x) => x !== d.entity_id) : [...f.devExclude, d.entity_id])} />
+                ${d.name}${d.area_id !== f.area ? html` <span class="dim">· ${d.area} · ${Math.round(d.weight * 100)} %</span>` : nothing}
+                <span class="dim">${d.available ? d.state : t("devicesUnavailable")}</span></label>`)}</div>
+          <label>${t("devicesInclude")}<textarea name="devInclude" rows="2" placeholder="switch.hood" .value=${f.devInclude} @input=${(e: Event) => this.set("devInclude", (e.target as HTMLTextAreaElement).value)}></textarea><small>${t("devicesIncludeHelp")}</small></label>
+        </details>`}
     </fieldset>`;
   }
 
@@ -465,15 +480,17 @@ export class SourcesView extends LitElement {
     </fieldset>`;
   }
 
-  /** Kind of place (recommendations) and adaptive sensitivity of the source. */
+  /** Kind of place (recommendations) and adaptive sensitivity of the source. The place follows the type of the room in Home Structure unless one is chosen. */
   private renderPlace(f: Form) {
-    const t = this.t;
-    const env = this.environments.find((e) => e.id === f.environment);
+    const t = this.t, hs = f.area ? this.hsPlace : null;
+    const auto = hs?.environment ? this.environments.find((e) => e.id === hs.environment) : undefined;
+    const env = this.environments.find((e) => e.id === f.environment) ?? (f.environment === "" ? auto : undefined);
+    const autoLabel = !f.area ? t("placeNone") : auto ? t("placeAuto", { place: auto.name }) : hs?.described ? t("placeAutoNone") : t("placeNone");
     return html`<fieldset class="place"><legend>${t("placeLabel")}</legend>
       <label>${t("placeLabel")}<select name="environment" aria-label=${t("placeLabel")} @change=${(e: Event) => this.set("environment", (e.target as HTMLSelectElement).value)}>
-        <option value="" ?selected=${f.environment === ""}>${t("placeNone")}</option>
+        <option value="" ?selected=${f.environment === ""}>${autoLabel}</option>
         ${this.environments.map((x) => html`<option value=${x.id} ?selected=${f.environment === x.id}>${x.name}</option>`)}</select>
-        <small>${env ? env.why : t("placeHelp")}</small></label>
+        <small data-place-help>${f.environment === "" && auto ? t("placeAutoHelp", { type: hs!.room_type }) : f.environment === "" && hs?.described ? t("placeAutoNoneHelp", { room: hs.room ?? "" }) : env ? env.why : t("placeHelp")}</small></label>
       ${env ? html`<details class="tips" data-tips><summary>${t("placeTips")}</summary><ul>${env.tips.map((x) => html`<li>${x}</li>`)}</ul></details>` : nothing}
       <label class="inline"><input type="checkbox" name="adaptive" .checked=${f.adaptive} @change=${(e: Event) => this.set("adaptive", (e.target as HTMLInputElement).checked)} />${t("adaptiveLabel")}</label>
       <small>${t("adaptiveHelp")}</small>
@@ -494,8 +511,8 @@ export class SourcesView extends LitElement {
         ${f.type === "go2rtc" ? this.renderGo2rtc(f) : nothing}
         ${f.isNew ? this.renderRows(f) : html`
         <label>${t("address")}<input name="url" required .value=${f.url} @input=${(e: Event) => this.set("url", (e.target as HTMLInputElement).value)} /><small>${t("addressHelp")}</small></label>`}
-        ${this.renderPlace(f)}
         ${this.areas.length ? this.renderRoom(f) : nothing}
+        ${this.renderPlace(f)}
         ${f.isNew
           ? html`<details class="adv"><summary>${t("advancedSettings")}</summary><div class="advbody">
         <label class="inline"><input type="checkbox" name="enabled" .checked=${f.enabled} @change=${(e: Event) => this.set("enabled", (e.target as HTMLInputElement).checked)} />${t("enabled")}</label>
@@ -593,7 +610,8 @@ export class SourcesView extends LitElement {
     a.btn { font: inherit; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--divider-color); background: var(--card-background-color); color: var(--primary-text-color); text-decoration: none; } a.btn.primary { background: var(--primary-color); color: var(--text-primary-color, #fff); border-color: transparent; }
     .ok { color: var(--success-color, #43a047); }
     .links { margin-top: 22px; } .linkform { display: flex; flex-direction: column; gap: 12px; max-width: 760px; margin-top: 12px; }
-    .devs { display: flex; flex-direction: column; gap: 6px; } .dev { min-height: 28px; }
+    .devs { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; } .dev { min-height: 28px; }
+    .devsum p { margin: 4px 0; } .expert { margin-top: 8px; } .expert summary { cursor: pointer; color: var(--secondary-text-color); }
     .buttons { display: flex; justify-content: flex-end; gap: 10px; }
   `;
 }

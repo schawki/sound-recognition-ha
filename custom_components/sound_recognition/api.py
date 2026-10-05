@@ -109,6 +109,10 @@ class SoundRecClient:
         return await self._request("PUT", f"/sources/{sid}/external",
                                    json={"offset": offset, "reasons": reasons, "detail": detail, "ttl_s": ttl_s})
 
+    async def set_place(self, sid: str, environment: str | None, ttl_s: float = 60) -> dict:
+        """Kind of place deduced from Home Structure for a source (None clears it); the service forgets it after ttl_s seconds."""
+        return await self._request("PUT", f"/sources/{sid}/place", json={"environment": environment, "ttl_s": ttl_s})
+
     async def resolved(self, source: str, mid: str) -> dict:
         return await self._request("GET", "/resolved", params={"source": source, "class": mid})
 

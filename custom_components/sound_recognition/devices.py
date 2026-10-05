@@ -125,8 +125,9 @@ def reachable_areas(a: str | None, links: list[dict]) -> set[str]:
     usable = [l for l in links if max(TRANSMISSION[link_type(l)]) >= REACH_MIN]
     seen = {a}
     for _ in range(2):
+        frontier = set(seen)                                     # one round = one more connection, not a chain through the whole list
         for link in usable:
-            if link["a"] in seen or link["b"] in seen:
+            if link["a"] in frontier or link["b"] in frontier:
                 seen.update((link["a"], link["b"]))
     return seen
 

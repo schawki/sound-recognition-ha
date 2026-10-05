@@ -149,3 +149,29 @@ async def test_api_external_offset(client):
         assert (await client.put("/api/v1/sources/salon/external", json=ok)).status == 401
     finally:
         await client.engine.stop()
+
+
+async def test_the_place_deduced_by_the_integration_stands_in_for_a_missing_environment(client):
+    async def put(sid, body):
+        return await client.put(f"/api/v1/sources/{sid}/place", json=body, headers=H)
+
+    cfg = client.engine.cfg
+    cfg["sources"][0].pop("environment", None)
+    rules = lambda: {x["rule"] for x in client.engine.recommendations("en") if x["source"] == "salon"}
+    assert "set_environment" in rules()
+    assert (await put("salon", {"environment": "living_tv", "ttl_s": 60})).status == 200
+    assert "set_environment" not in rules() and "enable_contexts" in rules()                 # recommendations for a living room, not a request for a place
+    cfg["sources"][0]["environment"] = "bedroom"
+    assert all("Bedroom" in x["message"] for x in client.engine.recommendations("en") if x["rule"] == "enable_contexts" and x["source"] == "salon")
+    from soundrec import recommend
+    assert recommend.compute(cfg, "en", None, (), {"salon": "kitchen"}) == recommend.compute(cfg, "en")      # the configuration wins
+    cfg["sources"][0].pop("environment")
+    assert (await put("salon", {"environment": None})).status == 200 and "set_environment" in rules()       # cleared
+    assert (await put("nowhere", {"environment": "kitchen"})).status == 404
+    assert (await put("salon", {"environment": "moon"})).status == 404
+    assert (await put("salon", {"environment": "kitchen", "ttl_s": 1})).status == 400
+    assert (await put("salon", {})).status == 400
+    client.engine.set_place("salon", "kitchen", 60)
+    client.engine.places["salon"] = ("kitchen", 0)                                          # expired
+    assert "set_environment" in rules()
+    assert (await client.put("/api/v1/sources/salon/place", json={"environment": "kitchen"})).status == 401

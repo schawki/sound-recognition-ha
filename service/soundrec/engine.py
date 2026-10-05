@@ -29,6 +29,7 @@ class Engine:
             cfgmod.save(config_path, self.cfg)
             log.warning("generated an API token and saved it in %s", config_path)
         self.catalog = st.Catalog(cm.load_raw(catalog_root))
+        self.places = {}                      # source id -> (environment, expires at), pushed by the integration
         errs = cfgmod.validate(self.cfg, self.catalog)
         if errs:
             raise SystemExit("invalid configuration:\n  " + "\n  ".join(errs))
@@ -178,9 +179,27 @@ class Engine:
         pipe.set_external(offset, reasons, detail, ttl_s, _now())
         return True
 
+    def set_place(self, sid, environment, ttl_s):
+        """Kind of place of a source as deduced by the integration (from Home Structure); used when the configuration names none.
+        Forgotten after ttl_s seconds. Returns False for an unknown source or environment."""
+        if sid not in {s["id"] for s in self.cfg.get("sources", [])}:
+            return False
+        if environment is None:
+            self.places.pop(sid, None)
+            return True
+        if environment not in {e["id"] for e in self.catalog.raw.get("environments", [])}:
+            return False
+        self.places[sid] = (environment, _now().timestamp() + ttl_s)
+        return True
+
+    def active_places(self):
+        now = _now().timestamp()
+        self.places = {k: v for k, v in self.places.items() if v[1] > now}
+        return {k: v[0] for k, v in self.places.items()}
+
     def recommendations(self, lang="en"):
         since = _now().timestamp() - recommend.FALSE_DAYS * 86400
-        return recommend.compute(self.cfg, lang, self.catalog_root, self.store.false_detections(since))
+        return recommend.compute(self.cfg, lang, self.catalog_root, self.store.false_detections(since), self.active_places())
 
     def stats(self, hours=24):
         return self.store.stats(_now().timestamp(), hours)

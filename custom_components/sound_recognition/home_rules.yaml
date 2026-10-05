@@ -5,15 +5,24 @@
 # linked to the space named in `next_to` by a separation other than a wall (the link must exist in the plan),
 # and the room type or space kind was chosen by the user there.
 #
-# Room types: bedroom bathroom toilet kitchen living_room dining_room office hallway entrance dressing laundry storage utility_room
+# Room types: bedroom master_bedroom child_bedroom nursery guest_room living_room dining_room game_room home_cinema gym office workshop
+#             bathroom toilet kitchen pantry laundry utility_room dressing storage cellar attic hallway entrance staircase
 # Space kinds: garden balcony terrace courtyard garage hall stairwell common_area street neighbor other
 
-# "Place" of a source (the environment of the catalog) proposed from the type of its room, or the kind of its space.
+# "Place" of a source (the environment of the catalog) deduced from the type of its room, or the kind of its space, in Home Structure.
+# A place named in the configuration of the source always wins. Types with no line here (bathroom, gym, cellar...) give no place.
 places:
   living_room: living_tv
+  game_room: living_tv
+  home_cinema: living_tv
   kitchen: kitchen
   bedroom: bedroom
+  master_bedroom: bedroom
+  child_bedroom: bedroom
+  guest_room: bedroom
+  nursery: nursery
   office: office
+  workshop: garage
   entrance: entrance
   hallway: entrance
   garage: garage
@@ -39,7 +48,7 @@ rules:
     en: "« {source} » ({room}) is linked to {neighbours}: traffic and neighbours reach it. Enable the adaptive setting so a noisy moment raises the thresholds for a while."
     fr: "« {source} » ({room}) communique avec {neighbours} : la circulation et les voisins l'atteignent. Activez le réglage adaptatif pour qu'un moment bruyant relève les seuils pendant un temps."
   - id: tv_next_door
-    in: [bedroom, office, dining_room, kitchen, hallway, entrance, dressing]
+    in: [bedroom, master_bedroom, child_bedroom, nursery, guest_room, office, dining_room, kitchen, hallway, entrance, dressing]
     next_to: [living_room]
     contexts: [/m/07c52, /m/06bz3, /m/04rlf]
     en: "« {source} » ({room}) is linked to {neighbours}: a TV or speakers there play voices and alarms that sound real. Enable {classes}: while they are heard, the thresholds of look-alike sounds are raised."
@@ -50,15 +59,15 @@ rules:
     en: "« {source} » ({room}) is linked to {neighbours}: tools and engines make loud, irregular noise. Enable the adaptive setting so they do not trigger alarms."
     fr: "« {source} » ({room}) communique avec {neighbours} : outils et moteurs font un bruit fort et irrégulier. Activez le réglage adaptatif pour qu'ils ne déclenchent pas d'alertes."
 
-# Texts for the proposal of a place, and names of the room types and space kinds.
+# Names of the room types and space kinds.
 texts:
   en:
-    propose_place: "« {source} » is in a space of type « {room} » in Home Structure: set its place to « {place} » to get recommendations for it."
-    room_types: {bedroom: Bedroom, bathroom: Bathroom, toilet: Toilet, kitchen: Kitchen, living_room: Living room, dining_room: Dining room, office: Office, hallway: Hallway, entrance: Entrance, dressing: Dressing room, laundry: Laundry room, storage: Storage, utility_room: Utility room}
+    room_types: {bedroom: Bedroom, master_bedroom: Master bedroom, child_bedroom: "Child's bedroom", nursery: "Baby's room", guest_room: Guest room, living_room: Living room, dining_room: Dining room, game_room: Game room, home_cinema: Home cinema, gym: Gym, office: Office, workshop: Workshop, bathroom: Bathroom, toilet: Toilet, kitchen: Kitchen, pantry: Pantry, laundry: Laundry room, utility_room: Utility room, dressing: Dressing room, storage: Storage, cellar: Cellar, attic: Attic, hallway: Hallway, entrance: Entrance, staircase: Staircase}
     kinds: {garden: Garden, balcony: Balcony, terrace: Terrace, courtyard: Courtyard, garage: Garage, hall: Building hall, stairwell: Stairwell, common_area: Common area, street: Street, neighbor: Neighbour, other: Other}
     room: room
+    set_room_type: "« {source} » is in « {room} » in Home Structure, which has no type for it: choose one there and the recommendations for this source follow automatically (or pick a place in the source)."
   fr:
-    propose_place: "« {source} » est dans un espace de type « {room} » dans Home Structure : indiquez son environnement « {place} » pour obtenir des recommandations adaptées."
-    room_types: {bedroom: Chambre, bathroom: Salle de bains, toilet: Toilettes, kitchen: Cuisine, living_room: Salon, dining_room: Salle à manger, office: Bureau, hallway: Couloir, entrance: Entrée, dressing: Dressing, laundry: Buanderie, storage: Rangement, utility_room: Local technique}
+    room_types: {bedroom: Chambre, master_bedroom: Chambre parentale, child_bedroom: "Chambre d'enfant", nursery: Chambre de bébé, guest_room: "Chambre d'amis", living_room: Salon, dining_room: Salle à manger, game_room: Salle de jeux, home_cinema: Salle de cinéma, gym: Salle de sport, office: Bureau, workshop: Atelier, bathroom: Salle de bains, toilet: Toilettes, kitchen: Cuisine, pantry: Cellier, laundry: Buanderie, utility_room: Local technique, dressing: Dressing, storage: Rangement, cellar: Cave, attic: Grenier, hallway: Couloir, entrance: Entrée, staircase: Escalier}
     kinds: {garden: Jardin, balcony: Balcon, terrace: Terrasse, courtyard: Cour, garage: Garage, hall: Hall d'immeuble, stairwell: Cage d'escalier, common_area: Partie commune, street: Rue, neighbor: Voisin, other: Autre}
     room: pièce
+    set_room_type: "« {source} » est dans « {room} » dans Home Structure, qui n'en précise pas le type : choisissez-le là-bas et les recommandations de cette source suivent automatiquement (ou choisissez un environnement dans la source)."

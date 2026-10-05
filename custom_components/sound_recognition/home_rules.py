@@ -31,6 +31,11 @@ def _label(rules: dict, lang: str, space: dict) -> str:
     return table.get(key, key or "")
 
 
+def space_label(rules: dict, lang: str, space: dict) -> str:
+    """Name of the type of a space in the language asked (empty when none was chosen)."""
+    return _label(rules, lang, space)
+
+
 def place_for(rules: dict, space: dict) -> str | None:
     return rules["places"].get(_kind_of(space) or "")
 
@@ -56,14 +61,38 @@ def neighbours(structure: dict, space_id: str, blocking=("wall",)) -> list[tuple
     return out
 
 
-def compute(cfg: dict, structure: dict | None, lang: str, rules: dict, class_names: dict[str, str] | None = None,
-            place_names: dict[str, str] | None = None) -> list[dict]:
+def places_for(cfg: dict, structure: dict | None, rules: dict) -> dict[str, tuple[str | None, dict | None]]:
+    """For every enabled source that has a room and names no place itself: (place deduced, the space of its room in Home Structure).
+    The place is None when Home Structure gives none (no type chosen, or a type without a place); the space is None when it does not know the room."""
+    spaces = {s["id"]: s for s in (structure or {}).get("spaces", [])}
+    out = {}
+    for src in cfg.get("sources", []):
+        if not src.get("enabled", True) or src.get("environment") or not src.get("area"):
+            continue
+        space = spaces.get(f"area:{src['area']}")
+        out[src["id"]] = (place_for(rules, space) if space else None, space)
+    return out
+
+
+def set_room_type_rows(cfg: dict, structure: dict | None, lang: str, rules: dict) -> list[dict]:
+    """Asks to choose the type of the room in Home Structure, for the sources whose room it describes without a usable type."""
+    txt = {**rules["texts"]["en"], **rules["texts"].get(lang, {})}
+    out = []
+    for src in cfg.get("sources", []):
+        place, space = places_for(cfg, structure, rules).get(src["id"], (None, None))
+        if space and not place and not _kind_of(space):
+            out.append({"rule": "set_room_type", "level": "info", "source": src["id"], "classes": [],
+                        "message": txt["set_room_type"].format(source=src.get("name") or src["id"], room=space["name"]), "apply": None})
+    return out
+
+
+def compute(cfg: dict, structure: dict | None, lang: str, rules: dict, class_names: dict[str, str] | None = None) -> list[dict]:
     """Recommendation rows (same shape as the others) for the sources whose room is described in Home Structure.
 
-    `class_names` (catalog id -> name) and `place_names` (environment id -> name) come from the catalog of the service, in the language asked."""
+    `class_names` (catalog id -> name) come from the catalog of the service, in the language asked."""
     if not structure:
         return []
-    class_names, place_names = class_names or {}, place_names or {}
+    class_names = class_names or {}
     spaces = {s["id"]: s for s in structure.get("spaces", [])}
     txt = {**rules["texts"]["en"], **rules["texts"].get(lang, {})}
     blocking = tuple(rules.get("blocking", ["wall"]))
@@ -75,11 +104,6 @@ def compute(cfg: dict, structure: dict | None, lang: str, rules: dict, class_nam
             continue                                                  # only a room of Home Assistant that was typed in Home Structure
         sid, sname = src["id"], src.get("name") or src["id"]
         room_label = _label(rules, lang, space) or txt["room"]
-        place = place_for(rules, space)
-        if place and not src.get("environment"):
-            out.append({"rule": "propose_place", "level": "info", "source": sid, "classes": [],
-                        "message": txt["propose_place"].format(source=sname, room=room_label, place=place_names.get(place, place)),
-                        "apply": {"source": sid, "source_patch": {"environment": place}}})
         links = neighbours(structure, space["id"], blocking)
         for rule in rules["rules"]:
             if rule.get("in") and _kind_of(space) not in rule["in"]:

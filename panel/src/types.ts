@@ -91,7 +91,8 @@ export interface StructurePlan { spaces: PlanSpace[]; connections: PlanConnectio
 export interface StructureInfo { status: "not_installed" | "not_configured" | "ready"; origin: "home_structure" | "none"; links: StructureLink[]; plan?: StructurePlan | null; url: string }
 export interface HaArea { area_id: string; name: string }
 export interface HaOpening { entity_id: string; name: string; area_id: string | null; state: string; domain: "binary_sensor" | "cover"; device_class: string | null }
-export interface HaDevice { entity_id: string; name: string; domain: string; state: string; available: boolean; has_volume: boolean; duplicate_of: string | null; area_id: string; area: string }
+export interface HaDevice { entity_id: string; name: string; domain: string; state: string; available: boolean; has_volume: boolean; duplicate_of: string | null; area_id: string; area: string; weight: number }
+export interface HsPlace { described: boolean; environment: string | null; room_type: string; room: string | null }
 export interface ServiceConfig {
   advice?: Record<string, AdviceSetting>; sources?: SourceCfg[]; classes?: ClassBlocks; defaults?: { min_volume_dbfs?: number | null; schedule?: Schedule; clips?: { allowed?: boolean; max_retention_days?: number } }; [extra: string]: unknown }
 export interface Validation { errors: string[]; warnings: Advice[] }

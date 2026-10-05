@@ -23,7 +23,7 @@ TEXTS = {
 }
 
 
-def compute(cfg, lang="en", root=None, false_rows=()):
+def compute(cfg, lang="en", root=None, false_rows=(), places=None):
     merged = cat_mod.load_lang(lang, root)
     catalog = st.Catalog(cat_mod.load_raw(root))
     txt = {**TEXTS["en"], **TEXTS.get(lang, {})}
@@ -38,7 +38,7 @@ def compute(cfg, lang="en", root=None, false_rows=()):
         def add(rule, level, classes, message, apply=None, _sid=sid):
             out.append({"rule": rule, "level": level, "source": _sid, "classes": list(classes), "message": message, "apply": apply})
 
-        env = envs.get(src.get("environment"))
+        env = envs.get(src.get("environment") or (places or {}).get(sid))        # the configuration wins over what the integration deduced
         if env is None:
             add("set_environment", "info", [], txt["set_environment"].format(source=sname))
         else:

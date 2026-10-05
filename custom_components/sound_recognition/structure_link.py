@@ -71,11 +71,17 @@ async def structure(hass: HomeAssistant) -> dict | None:
         return None
 
 
-async def effective_links(hass: HomeAssistant, cfg: dict | None = None) -> tuple[list[dict], str]:
-    """The links between rooms, read from Home Structure: (links, "home_structure"), or ([], "none") when it is absent or describes nothing."""
+async def read(hass: HomeAssistant) -> tuple[list[dict], str, dict | None]:
+    """(links, origin, structure) from one call to Home Structure; origin is "home_structure", or "none" when it is absent or has no connection."""
     st = await structure(hass)
     if st:
         links = links_from_structure(st)
         if links:
-            return links, "home_structure"
-    return [], "none"
+            return links, "home_structure", st
+    return [], "none", st
+
+
+async def effective_links(hass: HomeAssistant, cfg: dict | None = None) -> tuple[list[dict], str]:
+    """The links between rooms, read from Home Structure: (links, "home_structure"), or ([], "none") when it is absent or describes nothing."""
+    links, origin, _ = await read(hass)
+    return links, origin

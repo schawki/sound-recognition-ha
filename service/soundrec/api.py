@@ -138,6 +138,21 @@ async def set_external(req):
     return web.json_response({"ok": True})
 
 
+async def set_place(req):
+    """The integration tells what kind of place a source is in, from the type of its room in Home Structure: {environment: id|null, ttl_s}."""
+    try:
+        body = await req.json()
+        environment = body["environment"]
+        ttl = float(body.get("ttl_s", 60))
+        if not (environment is None or isinstance(environment, str)) or not 5 <= ttl <= 600:
+            raise ValueError
+    except Exception:
+        return web.json_response({"error": "body must be {environment: id or null, ttl_s?: 5..600}"}, status=400)
+    if not req.app["engine"].set_place(req.match_info["sid"], environment, ttl):
+        return web.json_response({"error": "unknown source or environment"}, status=404)
+    return web.json_response({"ok": True})
+
+
 async def recommendations(req):
     return web.json_response({"recommendations": req.app["engine"].recommendations(_lang(req))})
 
@@ -307,7 +322,7 @@ def make_app(engine, updater=None):
         web.get(f"{p}/health", health), web.get(f"{p}/update", update_status), web.post(f"{p}/update", update_start), web.get(f"{p}/languages", languages), web.get(f"{p}/catalog", catalog),
         web.get(f"{p}/config", get_config), web.put(f"{p}/config", put_config), web.post(f"{p}/config/validate", validate_config),
         web.get(f"{p}/warnings", warnings), web.get(f"{p}/sources", sources), web.get(f"{p}/resolved", resolved),
-        web.get(f"{p}/events", events), web.get(f"{p}/recommendations", recommendations), web.put(f"{p}/sources/{{sid}}/external", set_external), web.get(f"{p}/stats", stats),
+        web.get(f"{p}/events", events), web.get(f"{p}/recommendations", recommendations), web.put(f"{p}/sources/{{sid}}/external", set_external), web.put(f"{p}/sources/{{sid}}/place", set_place), web.get(f"{p}/stats", stats),
         web.post(f"{p}/events/{{id}}/feedback", feedback), web.get(f"{p}/clips", clips_list), web.post(f"{p}/clips/delete", clips_delete), web.get(f"{p}/clips/{{rel:.+}}", clip), web.get(f"{p}/ws", ws),
     ])
     return app

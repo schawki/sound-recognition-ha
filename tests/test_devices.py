@@ -190,6 +190,9 @@ def test_walls_are_not_followed_but_doors_are():
     links = [L("wall", "a", "b"), L("door", "b", "c", sensor="d"), L("window", "c", "z", sensor="w")]
     assert dv.reachable_areas("a", links) == {"a"}
     assert dv.reachable_areas("b", links) == {"b", "c", "z"}
+    chain = [L("open_space", "a", "b"), L("open_space", "b", "c"), L("open_space", "c", "d"), L("open_space", "d", "e")]
+    assert dv.reachable_areas("a", chain) == {"a", "b", "c"}                                       # two connections, however the links are listed
+    assert dv.reachable_areas("a", chain[::-1]) == {"a", "b", "c"} and dv.reachable_areas("c", chain[::-1]) == {"a", "b", "c", "d", "e"}
 
 
 def test_states_of_home_structure_are_understood():
@@ -251,7 +254,7 @@ async def test_status_and_effective_links(hass, home):
 async def test_manager_uses_home_structure(hass, home):
     s, e = home["Salon"], home["Entrée"]
     hass.states.async_set("sensor.hs_door", "open")
-    structure = {"spaces": [], "connections": [{"id": "c", "a": f"area:{s}", "b": f"area:{e}", "separations": [
+    structure = {"spaces": [{"id": f"area:{e}", "name": "Entrée", "kind": "room", "room_type": "entrance", "in_home": True}], "connections": [{"id": "c", "a": f"area:{s}", "b": f"area:{e}", "separations": [
         {"id": "1", "type": "glass_door", "state": "open", "sensor": "binary_sensor.b", "entity_id": "sensor.hs_door"}]}]}
     _hs_entry(hass)
     _hs_service(hass, structure)
@@ -268,6 +271,7 @@ async def test_manager_uses_home_structure(hass, home):
         await hass.async_block_till_done()
         assert fs.STATE.pushed["hall"]["offset"] == pytest.approx(0.057, abs=2e-3)         # TV 0.081 through an open glass door (0.7)
         assert entry.runtime_data.dynamic.origin == "home_structure"
+        assert fs.STATE.places == {"hall": "entrance"}                                      # the place deduced from the type of its room, pushed to the service
         hass.states.async_set("sensor.hs_door", "closed")                                  # the door is closed: 0.25 x 0.081 = 0.02
         await hass.async_block_till_done()
         async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=4))
@@ -320,12 +324,15 @@ async def test_panel_commands_structure(hass, hass_ws_client, home):
         assert [x["name"] for x in r["plan"]["spaces"]] == ["Salon", "Entrée"] and r["plan"]["connections"][0]["separations"][0]["state"] == "closed"
         recs = (await call(type="sound_recognition/recommendations", language="fr"))["recommendations"]
         assert not [x for x in recs if x["rule"].endswith("home_structure")]
-        place = next(x for x in recs if x["rule"] == "propose_place")                       # the type of the room proposes a place...
-        assert place["source"] == "hall" and place["apply"]["source_patch"] == {"environment": "entrance"} and "Entrée, couloir" in place["message"]
-        assert not [x for x in recs if x["rule"] == "set_environment" and x["source"] == "hall"]   # ...instead of the generic request
+        assert not [x for x in recs if x["rule"] in ("propose_place", "set_environment") and x["source"] == "hall"]   # the type of the room decides the place: nothing to ask
+        r_place = await call(type="sound_recognition/place", area_id=e, language="fr")
+        assert r_place == {"described": True, "environment": "entrance", "room_type": "Entrée", "room": "Entrée"}
+        assert (await call(type="sound_recognition/place", area_id="ghost")) == {"described": False, "environment": None, "room_type": "", "room": None}
+        assert (await call(type="sound_recognition/place", area_id=s))["environment"] is None             # a room without a type gives no place
+        assert [x["source"] for x in (await call(type="sound_recognition/recommendations", language="fr"))["recommendations"] if x["rule"] == "set_room_type"] == []
         assert next(x for x in r["plan"]["spaces"] if x["name"] == "Entrée")["room_type"] == "entrance"
         devs = await call(type="sound_recognition/devices", area_id=e)
-        assert {d["area_id"] for d in devs["devices"]} == {s}                                # the living-room TV, reached through the connection described in Home Structure
+        assert {d["area_id"] for d in devs["devices"]} == {s} and all(d["weight"] == 0.15 for d in devs["devices"])   # the door is closed: 15 % of the sound                                # the living-room TV, reached through the connection described in Home Structure
         await hass.config_entries.async_unload(entry.entry_id)
         fs.STATE.stop.set()
 

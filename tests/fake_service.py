@@ -7,13 +7,13 @@ from soundrec import advisor, catalog as cm, config as cfgmod, recommend, settin
 from custom_components.sound_recognition.api import CannotConnect, InvalidAuth, InvalidConfig, SoundRecError
 
 CAT = st.Catalog(cm.load_raw())
-STATE = SimpleNamespace(update=None, health_extra={}, cfg=None, down=False, token="tok", handler=None, stop=None, status={}, events=[], feedback={}, pushed={}, clip_calls=[])
+STATE = SimpleNamespace(update=None, health_extra={}, cfg=None, down=False, token="tok", handler=None, stop=None, status={}, events=[], feedback={}, pushed={}, clip_calls=[], places={})
 
 
 def reset(cfg=None):
     STATE.cfg = cfgmod._merge(cfgmod.DEFAULTS, cfg or {})
     STATE.cfg["api"]["token"] = STATE.token
-    STATE.down, STATE.handler, STATE.stop, STATE.status, STATE.events, STATE.feedback, STATE.pushed, STATE.clip_calls = False, None, asyncio.Event(), {}, [], {}, {}, []
+    STATE.down, STATE.handler, STATE.stop, STATE.status, STATE.events, STATE.feedback, STATE.pushed, STATE.clip_calls, STATE.places = False, None, asyncio.Event(), {}, [], {}, {}, [], {}
     STATE.update, STATE.health_extra = {"state": "idle", "capable": True}, {}
 
 
@@ -30,7 +30,7 @@ class FakeClient:
     async def health(self):
         if STATE.down:
             raise CannotConnect("down")
-        return {"status": "ok", "version": "0.2.0", "api_level": 3, "commit": "abc1234", "release": "v0.2.0", "update": {"capable": STATE.update["capable"]}, **STATE.health_extra}
+        return {"status": "ok", "version": "0.2.0", "api_level": 4, "commit": "abc1234", "release": "v0.2.0", "update": {"capable": STATE.update["capable"]}, **STATE.health_extra}
 
     async def update_status(self):
         self._check()
@@ -103,6 +103,11 @@ class FakeClient:
     async def set_external(self, sid, offset, reasons, detail, ttl_s=60):
         self._check()
         STATE.pushed[sid] = {"offset": offset, "reasons": reasons, "detail": detail, "ttl_s": ttl_s}
+        return {"ok": True}
+
+    async def set_place(self, sid, environment, ttl_s=60):
+        self._check()
+        STATE.places[sid] = environment
         return {"ok": True}
 
     async def event_feedback(self, event_id, false):

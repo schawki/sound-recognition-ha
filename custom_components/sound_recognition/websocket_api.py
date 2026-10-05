@@ -213,11 +213,12 @@ async def ws_recommendations(hass, connection, msg, entry):
     if origin == "home_structure":
         cat = await entry.runtime_data.client.catalog(lang)
         rules = await hass.async_add_executor_job(home_rules.load_rules)
-        drawn = home_rules.compute(cfg, await structure_link.structure(hass), lang, rules, {c["mid"]: c["name"] for c in cat.get("classes", [])},
-                                   {e["id"]: e["name"] for e in cat.get("environments", [])})
-        placed = {r["source"] for r in drawn if r["rule"] == "propose_place"}
-        rows = [r for r in rows if not (r["rule"] == "set_environment" and r["source"] in placed)]   # the type of the room already proposes a place
-        mine += drawn
+        st = await structure_link.structure(hass)
+        mine += home_rules.compute(cfg, st, lang, rules, {c["mid"]: c["name"] for c in cat.get("classes", [])})
+        placed = home_rules.places_for(cfg, st, rules)
+        mine += home_rules.set_room_type_rows(cfg, st, lang, rules)
+        # the room described in Home Structure decides the place: the generic request to choose one only stays for rooms it does not know
+        rows = [r for r in rows if not (r["rule"] == "set_environment" and placed.get(r["source"], (None, None))[1] is not None)]
     connection.send_result(msg["id"], {"recommendations": rows + mine})
 
 
@@ -243,10 +244,27 @@ async def ws_devices(hass, connection, msg, entry):
     """Devices of a room and of the rooms connected to it in the Home Structure plan (only the room itself without it)."""
     links, _ = await structure_link.effective_links(hass, entry.runtime_data.coordinator.service_config)
     names = {a["area_id"]: a["name"] for a in dev.areas(hass)}
+    states = {l["sensor"]: s.state for l in links if l.get("sensor") and (s := hass.states.get(l["sensor"]))}
     rows = []
-    for area in sorted(dev.reachable_areas(msg["area_id"], links)):
-        rows += [{**d, "area_id": area, "area": names.get(area, area)} for d in dev.discover(hass, area)]
+    for area in dev.reachable_areas(msg["area_id"], links):
+        weight = dev.coupling(msg["area_id"], area, links, states)          # 1 in the room itself, the share of sound that comes through otherwise
+        rows += [{**d, "area_id": area, "area": names.get(area, area), "weight": weight} for d in dev.discover(hass, area)]
+    rows.sort(key=lambda r: (-r["weight"], r["area"].casefold(), r["name"].casefold()))
     connection.send_result(msg["id"], {"devices": rows})
+
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/place", vol.Required("area_id"): str, vol.Optional("language"): str, **ENTRY})
+@websocket_api.require_admin
+@websocket_api.async_response
+@_with_entry
+async def ws_place(hass, connection, msg, entry):
+    """What Home Structure says about a room, for the form of a source: the place it implies (None when none), and the type of the room."""
+    rules = await hass.async_add_executor_job(home_rules.load_rules)
+    st = await structure_link.structure(hass)
+    space = next((s for s in (st or {}).get("spaces", []) if s["id"] == f"area:{msg['area_id']}"), None)
+    connection.send_result(msg["id"], {
+        "described": space is not None, "environment": home_rules.place_for(rules, space) if space else None,
+        "room_type": home_rules.space_label(rules, _lang(hass, connection, msg), space) if space else "", "room": space["name"] if space else None})
 
 
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/structure", **ENTRY})
@@ -331,7 +349,7 @@ async def ws_go2rtc_streams(hass, connection, msg, entry):
     connection.send_result(msg["id"], {"configured": True, "url": base, "streams": streams})
 
 
-COMMANDS = (ws_go2rtc_streams, ws_overview, ws_update, ws_update_install, ws_catalog, ws_warnings, ws_config, ws_config_validate, ws_config_save, ws_resolved, ws_events, ws_clips, ws_clips_delete, ws_recommendations, ws_areas, ws_openings, ws_devices, ws_structure, ws_stats, ws_event_feedback, ws_subscribe)
+COMMANDS = (ws_go2rtc_streams, ws_overview, ws_update, ws_update_install, ws_catalog, ws_warnings, ws_config, ws_config_validate, ws_config_save, ws_resolved, ws_events, ws_clips, ws_clips_delete, ws_recommendations, ws_areas, ws_openings, ws_devices, ws_place, ws_structure, ws_stats, ws_event_feedback, ws_subscribe)
 
 
 def async_register(hass: HomeAssistant) -> None:

@@ -85,13 +85,18 @@
     "sound_recognition/areas": () => ({ areas: [{ area_id: "cuisine", name: "Cuisine" }, { area_id: "entree", name: "Entrée" }, { area_id: "salon", name: "Salon" }] }),
     "sound_recognition/openings": () => ({ openings: [{ entity_id: "binary_sensor.porte_bureau", name: "Porte bureau", area_id: "bureau", state: "off", domain: "binary_sensor", device_class: "door" }, { entity_id: "binary_sensor.porte_cuisine", name: "Porte cuisine", area_id: "cuisine", state: "on", domain: "binary_sensor", device_class: "door" }, { entity_id: "cover.volet_salon", name: "Volet salon", area_id: "salon", state: "open", domain: "cover", device_class: "shutter" }] }),
     "sound_recognition/structure": () => state.structure,
+    "sound_recognition/place": (m) => {
+      const known = { salon: { environment: "living_tv", room_type: "Living room", room: "Salon" }, cuisine: { environment: "kitchen", room_type: "Kitchen", room: "Cuisine" }, entree: { environment: null, room_type: "", room: "Entrée" } }[m.area_id];
+      state.placeCalls = (state.placeCalls || []).concat([m.area_id]);
+      return state.structure.origin === "home_structure" && known ? Object.assign({ described: true }, known) : { described: false, environment: null, room_type: "", room: null };
+    },
     "sound_recognition/devices": (m) => {
       const mk = (id, name, area, area_id, extra) => Object.assign({ entity_id: id, name, domain: id.split(".")[0], state: "playing", available: true, has_volume: true, duplicate_of: null, area, area_id }, extra || {});
       const rooms = { salon: [mk("media_player.tv", "TV Salon", "Salon", "salon"), mk("media_player.tv_2", "TV Salon 2", "Salon", "salon", { available: false, state: "unavailable", duplicate_of: "media_player.tv" })], cuisine: [mk("media_player.homepod", "HomePod", "Cuisine", "cuisine")], entree: [] };
       const seen = new Set([m.area_id]);
       for (let i = 0; i < 2; i++) for (const l of (state.structure.origin === "home_structure" ? state.structure.links : [])) if (seen.has(l.a) || seen.has(l.b)) { seen.add(l.a); seen.add(l.b); }
       state.deviceCalls = (state.deviceCalls || []).concat([[m.area_id]]);
-      return { devices: [...seen].sort().flatMap((a) => rooms[a] || []) };
+      return { devices: [...seen].sort().flatMap((a) => (rooms[a] || []).map((d) => Object.assign({}, d, { weight: a === m.area_id ? 1 : 0.7 }))) };
     },
     "sound_recognition/stats": (m) => {
       const hourly = (a) => { const o = new Array(m.hours).fill(0); a.forEach(([i, v]) => { o[o.length - 1 - i] = v; }); return o; };
