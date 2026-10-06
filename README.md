@@ -33,6 +33,7 @@ It works alongside **[Home Structure](https://github.com/schawki/ha-home-structu
 2. **Install the integration.** HACS → three dots → *Custom repositories* → `https://github.com/schawki/sound-recognition-ha` (category *Integration*) → install **Sound Recognition**, restart Home Assistant.
 3. **Connect them.** *Settings → Devices & services → Add integration → Sound Recognition*: the service address, port 8765 and the token printed at the end of the installation.
 4. **Add a source and choose sounds.** Open **Sound Recognition** in the sidebar: *Sources → Add* (the URL of an RTSP/go2rtc stream or a Raspberry Pi microphone), then *Sounds* to enable the ones you care about. The *Advice* tab then tells you what to check.
+5. **Stay up to date.** Once connected, the service is updated from Home Assistant: an *Update* entity and a panel banner announce each new release, and one click installs it and keeps your settings (Proxmox/Debian installs; see [Installing the service](docs/install-service.en.md#keeping-it-up-to-date)).
 
 ## The panel
 
@@ -52,6 +53,15 @@ It works alongside **[Home Structure](https://github.com/schawki/ha-home-structu
 ## Status
 
 Version 0.9, used on a real installation and tested (service, integration and panel test suites run on every commit). Not supported yet: ESPHome microphones as sources. The Docker image is provided but not tested yet. Feedback and issues are welcome.
+
+## Known limitations
+
+- ESPHome microphones are not supported as sources yet (in progress); use RTSP/go2rtc streams or a Raspberry Pi.
+- *Undo* on an advice does not switch a sound back on if the advice switched it off (its base value in the catalog is off). The card says so; switch it on again in the Sounds tab.
+- Advice that asks you to choose between two sounds ("Keep X only") has no button in Home Assistant's *Repairs* page; choose in the Advice tab.
+- Recommendations cannot be hidden (only warnings can).
+- The Docker image is provided but has not been built or tested yet. The Proxmox container and plain Debian/Ubuntu installs are the tested paths.
+- Updating the service from Home Assistant needs the Proxmox/Debian install (systemd); with Docker, rebuild the image.
 
 ## Documentation
 

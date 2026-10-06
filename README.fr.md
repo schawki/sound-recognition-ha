@@ -33,6 +33,7 @@ Elle fonctionne avec **[Home Structure](https://github.com/schawki/ha-home-struc
 2. **Installer l'intégration.** HACS → trois points → *Dépôts personnalisés* → `https://github.com/schawki/sound-recognition-ha` (catégorie *Intégration*) → installer **Sound Recognition**, redémarrer Home Assistant.
 3. **Les relier.** *Paramètres → Appareils et services → Ajouter une intégration → Sound Recognition* : l'adresse du service, le port 8765 et le jeton affiché à la fin de l'installation.
 4. **Ajouter une source et choisir des sons.** Ouvrez **Sound Recognition** dans la barre latérale : *Sources → Ajouter* (l'URL d'un flux RTSP/go2rtc ou le micro d'un Raspberry Pi), puis *Sons* pour activer ceux qui vous intéressent. L'onglet *Conseils* vous dit ensuite quoi vérifier.
+5. **Rester à jour.** Une fois connecté, le service se met à jour depuis Home Assistant : une entité *Mise à jour* et un bandeau du panneau annoncent chaque nouvelle version, et un clic l'installe en gardant vos réglages (installations Proxmox/Debian ; voir [Installer le service](docs/install-service.fr.md#rester-à-jour)).
 
 ## Le panneau
 
@@ -52,6 +53,15 @@ Elle fonctionne avec **[Home Structure](https://github.com/schawki/ha-home-struc
 ## État du projet
 
 Version 0.9, utilisée sur une installation réelle et testée (les tests du service, de l'intégration et du panneau tournent à chaque commit). Pas encore pris en charge : les micros ESPHome comme sources. L'image Docker est fournie mais pas encore testée. Retours et tickets bienvenus.
+
+## Limites connues
+
+- Les micros ESPHome ne sont pas encore pris en charge comme sources (en cours) ; utilisez des flux RTSP/go2rtc ou un Raspberry Pi.
+- *Annuler* un conseil ne réactive pas un son que le conseil avait désactivé (sa valeur de base dans le catalogue est « désactivé »). La carte le dit ; réactivez-le dans l'onglet Sons.
+- Les conseils qui demandent de choisir entre deux sons (« Garder X seulement ») n'ont pas de bouton dans la page *Réparations* de Home Assistant ; choisissez dans l'onglet Conseils.
+- Les recommandations ne peuvent pas être masquées (seuls les avertissements le peuvent).
+- L'image Docker est fournie mais n'a pas encore été construite ni testée. Le conteneur Proxmox et l'installation Debian/Ubuntu classique sont les voies testées.
+- La mise à jour du service depuis Home Assistant demande l'installation Proxmox/Debian (systemd) ; avec Docker, reconstruisez l'image.
 
 ## Documentation
 
