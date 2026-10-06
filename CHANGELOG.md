@@ -2,6 +2,15 @@
 
 Releases are tagged `vX.Y.Z`; the service updates itself from Home Assistant to the latest tag.
 
+## 0.11.0
+
+- **How long to keep clips, by kind of sound.** Four settings (usual sounds, sensitive sounds, context sounds such as music and television, conversations), global (*Clips* tab) or per source (source form). A sound's own setting still wins, and the maximum and the "allow clips" switch of each source still apply. Nothing changes until you set them.
+- **Conversations can be kept, knowingly.** The catalog's ban is now only the default (0 days). The panel and the advice warn about private speech and the law whenever clips of conversations are kept.
+- **The detection is good.** A new button next to "The detection is wrong", on detections that have a clip (*Live* and *Clips*). The *Overview* shows the confirmed ones and the share of good detections among those you judged; *Clips* filters on the verdict.
+- **No verdict without a clip.** Detections that have no clip cannot be checked, so the control is not offered; their "No clip" line says why.
+- **Delete the detections without a clip** (*Clips*), following the filters. The ones you marked wrong or confirmed stay.
+- Service API level 8: update the service from Home Assistant after updating the integration.
+
 ## 0.10.1
 
 - **"No clip" now says why.** In *Live*, a detection without a clip explains the real cause: you turned clips off for this sound or this source, the sound is not recorded by default (a context sound), it is a private sound, the retention maximum is 0 days, or the clip was deleted or expired. Only causes the service really recorded are shown; an older detection gets a neutral sentence.

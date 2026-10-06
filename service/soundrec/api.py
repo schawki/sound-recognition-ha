@@ -170,20 +170,21 @@ async def stats(req):
 
 
 async def feedback(req):
-    """Marks a detection as false (or clears the mark): {"false": true|false}."""
+    """Judges a detection: {"false": true|false} marks it wrong (or clears the mark), {"good": true|false} confirms it (or clears)."""
     try:
         body = await req.json()
-        value = "false" if body["false"] is True else None
-        if body["false"] not in (True, False):
+        key = "good" if "good" in body else "false"
+        if body[key] not in (True, False):
             raise ValueError
+        value = key if body[key] is True else None
     except Exception:
-        return web.json_response({"error": 'body must be {"false": true|false}'}, status=400)
+        return web.json_response({"error": 'body must be {"false": true|false} or {"good": true|false}'}, status=400)
     if not req.app["engine"].store.set_feedback(req.match_info["id"], value):
         return web.json_response({"error": "unknown event"}, status=404)
     return web.json_response({"ok": True})
 
 
-CLIP_FILTERS = {"source", "mid", "usage", "since", "until"}
+CLIP_FILTERS = {"source", "mid", "usage", "since", "until", "feedback"}
 
 
 def _clip_filter(eng, data):
@@ -207,6 +208,10 @@ def _clip_filter(eng, data):
     for k in ("since", "until"):
         if data.get(k) not in (None, ""):
             flt[k] = float(data[k])
+    if data.get("feedback"):
+        if data["feedback"] not in ("false", "good", "unjudged"):
+            raise ValueError("feedback filter must be false, good or unjudged")
+        flt["feedback"] = data["feedback"]
     return flt
 
 
@@ -280,6 +285,22 @@ async def clips_delete(req):
     return web.json_response({"count": count, "bytes": freed, "dry_run": dry})
 
 
+async def events_delete_clipless(req):
+    """Deletes the detections that have no clip and no verdict (marked wrong or confirmed ones stay): {"filter": {...}, "dry_run": true|false}."""
+    eng = req.app["engine"]
+    try:
+        body = await req.json()
+        dry = body.get("dry_run", False) is True
+        raw = body.get("filter") or {}
+        if not isinstance(raw, dict) or "feedback" in raw:
+            raise ValueError("filter must be an object with source, mid, usage, since or until")
+        flt = _clip_filter(eng, raw)
+    except (ValueError, TypeError, json.JSONDecodeError) as err:
+        return web.json_response({"error": str(err) or "invalid body"}, status=400)
+    count = await asyncio.get_running_loop().run_in_executor(None, lambda: eng.store.delete_clipless(dry_run=dry, **flt))
+    return web.json_response({"count": count, "dry_run": dry})
+
+
 async def clip(req):
     p = req.app["engine"].clips.path(req.match_info["rel"])
     if not p:
@@ -327,6 +348,6 @@ def make_app(engine, updater=None):
         web.get(f"{p}/config", get_config), web.put(f"{p}/config", put_config), web.post(f"{p}/config/validate", validate_config),
         web.get(f"{p}/warnings", warnings), web.get(f"{p}/sources", sources), web.get(f"{p}/resolved", resolved),
         web.get(f"{p}/events", events), web.get(f"{p}/recommendations", recommendations), web.put(f"{p}/sources/{{sid}}/external", set_external), web.put(f"{p}/sources/{{sid}}/place", set_place), web.get(f"{p}/stats", stats),
-        web.post(f"{p}/events/{{id}}/feedback", feedback), web.get(f"{p}/clips", clips_list), web.post(f"{p}/clips/delete", clips_delete), web.get(f"{p}/clips/{{rel:.+}}", clip), web.get(f"{p}/ws", ws),
+        web.post(f"{p}/events/{{id}}/feedback", feedback), web.get(f"{p}/clips", clips_list), web.post(f"{p}/clips/delete", clips_delete), web.post(f"{p}/events/delete_clipless", events_delete_clipless), web.get(f"{p}/clips/{{rel:.+}}", clip), web.get(f"{p}/ws", ws),
     ])
     return app

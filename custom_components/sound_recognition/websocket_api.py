@@ -167,6 +167,7 @@ async def ws_events(hass, connection, msg, entry):
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/clips", **ENTRY, vol.Optional("language"): str,
                                   vol.Optional("source"): str, vol.Optional("mid"): str, vol.Optional("usage"): str,
                                   vol.Optional("since"): vol.Coerce(float), vol.Optional("until"): vol.Coerce(float),
+                                  vol.Optional("feedback"): vol.In(["false", "good", "unjudged"]),
                                   vol.Optional("limit", default=100): vol.All(int, vol.Range(min=1, max=500)),
                                   vol.Optional("offset", default=0): vol.All(int, vol.Range(min=0))})
 @websocket_api.require_admin
@@ -176,7 +177,7 @@ async def ws_clips(hass, connection, msg, entry):
     """The clips kept (size, sound, source, date), filtered and paged, with the totals of the whole selection and the disk usage."""
     from . import signed_clip_url  # noqa: PLC0415
     res = await entry.runtime_data.client.clips(
-        _lang(hass, connection, msg), **{k: msg.get(k) for k in ("source", "mid", "usage", "since", "until")}, limit=msg["limit"], offset=msg["offset"])
+        _lang(hass, connection, msg), **{k: msg.get(k) for k in ("source", "mid", "usage", "since", "until", "feedback")}, limit=msg["limit"], offset=msg["offset"])
     for r in res["clips"]:
         r["clip_url"] = signed_clip_url(hass, entry.entry_id, r["clip"])
     connection.send_result(msg["id"], res)
@@ -296,13 +297,32 @@ async def ws_stats(hass, connection, msg, entry):
 
 
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/event_feedback", **ENTRY, vol.Required("event_id"): str,
-                                  vol.Required("false"): bool})
+                                  vol.Exclusive("false", "verdict"): bool, vol.Exclusive("good", "verdict"): bool})
 @websocket_api.require_admin
 @websocket_api.async_response
 @_with_entry
 async def ws_event_feedback(hass, connection, msg, entry):
-    """Marks a detection as false (or clears the mark); the recommendations use it to propose a higher threshold."""
-    connection.send_result(msg["id"], await entry.runtime_data.client.event_feedback(msg["event_id"], msg["false"]))
+    """Judges a detection: wrong (`false`) or confirmed (`good`), or clears the verdict; wrong ones feed the threshold recommendations."""
+    key = "good" if "good" in msg else "false"
+    if key not in msg:
+        connection.send_error(msg["id"], websocket_api.ERR_INVALID_FORMAT, "give false or good")
+        return
+    connection.send_result(msg["id"], await entry.runtime_data.client.event_feedback(msg["event_id"], msg[key], key))
+
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/events_delete_clipless", **ENTRY, vol.Optional("filter", default={}): dict,
+                                  vol.Optional("dry_run", default=False): bool})
+@websocket_api.require_admin
+@websocket_api.async_response
+@_with_entry
+async def ws_events_delete_clipless(hass, connection, msg, entry):
+    """Deletes the detections that have no clip and no verdict (they cannot be checked); with dry_run only counts them."""
+    try:
+        res = await entry.runtime_data.client.delete_clipless(msg["filter"], msg["dry_run"])
+    except SoundRecError as err:
+        connection.send_error(msg["id"], "service_error", str(err))
+        return
+    connection.send_result(msg["id"], res)
 
 
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/subscribe", **ENTRY, vol.Optional("language"): str})
@@ -359,7 +379,7 @@ async def ws_go2rtc_streams(hass, connection, msg, entry):
     connection.send_result(msg["id"], {"configured": True, "url": base, "streams": streams})
 
 
-COMMANDS = (ws_esphome_devices, ws_go2rtc_streams, ws_overview, ws_update, ws_update_install, ws_catalog, ws_warnings, ws_config, ws_config_validate, ws_config_save, ws_resolved, ws_events, ws_clips, ws_clips_delete, ws_recommendations, ws_areas, ws_openings, ws_devices, ws_place, ws_structure, ws_stats, ws_event_feedback, ws_subscribe)
+COMMANDS = (ws_esphome_devices, ws_go2rtc_streams, ws_overview, ws_update, ws_update_install, ws_catalog, ws_warnings, ws_config, ws_config_validate, ws_config_save, ws_resolved, ws_events, ws_clips, ws_clips_delete, ws_events_delete_clipless, ws_recommendations, ws_areas, ws_openings, ws_devices, ws_place, ws_structure, ws_stats, ws_event_feedback, ws_subscribe)
 
 
 def async_register(hass: HomeAssistant) -> None:

@@ -367,8 +367,7 @@ class SoundRecOptionsFlow(OptionsFlow):
             vol.Required("pre_roll_s"): _num(0, 120, 1, "s"),
             vol.Required("post_roll_s"): _num(0, 120, 1, "s"),
         }
-        if not forbidden:
-            fields[vol.Required("clip_retention_days")] = _num(0, 3650, 1)
+        fields[vol.Required("clip_retention_days")] = _num(0, 3650, 1)
         fields[vol.Optional("min_volume_dbfs")] = _num(-90, 0, 1, "dBFS")
         fields[vol.Required("always_on")] = sel.BooleanSelector()
         return vol.Schema(fields)

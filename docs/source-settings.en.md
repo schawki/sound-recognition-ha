@@ -20,7 +20,7 @@ Strongest first: **source × class** > **class (user)** > **source** > **default
 | `min_duration_s`, `cooldown_s`, `pre_roll_s`, `post_roll_s` | Source × class, then class, then catalog suggestion. |
 | `min_volume_dbfs` | Explicit source × class wins. Otherwise the **stricter (higher) of** the class gate and the source/default gate. |
 | `schedule` | Source × class, then class, then source, then defaults, then continuous. |
-| `clip_retention_days` | Source × class, then class, then catalog; **capped** by the source and global `max_retention_days`; forced to 0 if the source has `clips.allowed: false`, and **always 0 when the catalog marks the class `clip_forbidden`** (conversations). |
+| `clip_retention_days` | Source × class, then class, then the source's `clips.retention_by_category`, then the global `defaults.clips.retention_by_category`, then the catalog (0 for conversations); **capped** by the source and global `max_retention_days`; forced to 0 if the source has `clips.allowed: false`. |
 
 ## 3. Minimum volume gate
 
@@ -46,7 +46,14 @@ schedule:
 
 ## 5. Clips per source
 
-`clips.allowed: false` means no audio is ever stored from that source (for example a nursery). `clips.max_retention_days` caps every class on that source. The catalog's `clip_forbidden` for conversations can never be overridden.
+`clips.allowed: false` means no audio is ever stored from that source (for example a nursery). `clips.max_retention_days` caps every class on that source. 
+`clips.retention_by_category` (on a source, or in `defaults.clips` for all of them) sets how many days to keep the clips of each kind of sound: `normal`, `sensitive` (privacy level "sensitive" in the catalog), `context` (music, television… sounds that only raise thresholds) and `confidential` (conversations). A number of days (0 = no clip), or nothing to keep the catalog's suggestion. The source's value wins over the global one, and a setting on one sound wins over both. Keeping clips for a few days (for example 7) is the way to check whether detections were right: the files delete themselves afterwards, the detections stay in the history.
+
+**Conversations.** The catalog's default for them is 0 days: nothing is recorded unless you decide it. You can decide it, on one source or everywhere. Clips of conversations may contain private speech, and recording conversations can be regulated by law and require the agreement of the people recorded. The panel and the warnings say so each time; keep the retention short and tell the people concerned.
+
+## Judging detections
+
+In *Live* and *Clips*, a detection that has a clip can be marked **The detection is good** or **The detection is wrong** (optionally raising that sound's threshold on that source). Without a clip nothing can be checked, so the control is not offered. The *Overview* shows the confirmed ones and the share of good detections among the ones you judged. *Clips* can filter on the verdict, and can delete the detections that have neither a clip nor a verdict (marked or confirmed ones stay).
 
 ## 6. Warnings added for these settings
 

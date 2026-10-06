@@ -49,7 +49,7 @@ class EventStore:
             self.db.commit()
 
     def set_feedback(self, event_id, value):
-        """value: 'false' or None. Returns False when the event does not exist."""
+        """value: 'false' (wrong detection), 'good' (confirmed) or None. Returns False when the event does not exist."""
         with self.lock:
             cur = self.db.execute("UPDATE events SET feedback=? WHERE id=?", (value, event_id))
             self.db.commit()
@@ -65,7 +65,7 @@ class EventStore:
         since = now_ts - hours * HOUR
         out = {"hours": hours, "since": since}
         with self.lock:
-            for key, table, extra in (("detections", "events", ""), ("masked", "masked", ""), ("false", "events", " AND feedback='false'")):
+            for key, table, extra in (("detections", "events", ""), ("masked", "masked", ""), ("false", "events", " AND feedback='false'"), ("good", "events", " AND feedback='good'")):
                 where = f"ts > ?{extra}"
                 total = self.db.execute(f"SELECT COUNT(*) FROM {table} WHERE {where}", (since,)).fetchone()[0]
                 by_source = dict(self.db.execute(f"SELECT source, COUNT(*) FROM {table} WHERE {where} GROUP BY source", (since,)).fetchall())
@@ -92,8 +92,12 @@ class EventStore:
 
     # ------------------------------------------------------------------ clip management
     @staticmethod
-    def _clip_where(source=None, mids=None, since=None, until=None):
-        q, a = " FROM events WHERE clip IS NOT NULL", []
+    def _clip_where(source=None, mids=None, since=None, until=None, feedback=None, with_clip=True):
+        q, a = (" FROM events WHERE clip IS NOT NULL" if with_clip else " FROM events WHERE clip IS NULL"), []
+        if feedback in ("false", "good"):
+            q += " AND feedback = ?"; a.append(feedback)
+        elif feedback == "unjudged":
+            q += " AND feedback IS NULL"
         if source:
             q += " AND source = ?"; a.append(source)
         if mids is not None:
@@ -113,6 +117,21 @@ class EventStore:
         with self.lock:
             rows = self.db.execute(q, a).fetchall()
         return [dict(zip(("id", "ts", "source", "mid", "class", "score", "threshold", "feedback", "clip", "clip_expires"), r)) for r in rows]
+
+    def delete_clipless(self, dry_run=False, **flt):
+        """Deletes the detections that have no clip (they cannot be checked) and that nobody judged: the ones marked false or good stay.
+        Same filters as clips (source, mids, since, until). Returns how many."""
+        flt = {k: v for k, v in flt.items() if k in ("source", "mids", "since", "until")}
+        q, a = self._clip_where(with_clip=False, feedback="unjudged", **flt)
+        with self.lock:
+            if dry_run:
+                return self.db.execute("SELECT COUNT(*)" + q, a).fetchone()[0]
+            n = self.db.execute("DELETE" + q, a).rowcount
+            self.db.commit()
+            return n
+
+    def count_clipless(self, **flt):
+        return self.delete_clipless(dry_run=True, **flt)
 
     def clips_by_ids(self, ids):
         out = []

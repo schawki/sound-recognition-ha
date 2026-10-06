@@ -30,7 +30,7 @@ class FakeClient:
     async def health(self):
         if STATE.down:
             raise CannotConnect("down")
-        return {"status": "ok", "version": "0.2.0", "api_level": 7, "commit": "abc1234", "release": "v0.2.0", "update": {"capable": STATE.update["capable"]}, **STATE.health_extra}
+        return {"status": "ok", "version": "0.2.0", "api_level": 8, "commit": "abc1234", "release": "v0.2.0", "update": {"capable": STATE.update["capable"]}, **STATE.health_extra}
 
     async def update_status(self):
         self._check()
@@ -110,10 +110,15 @@ class FakeClient:
         STATE.places[sid] = environment
         return {"ok": True}
 
-    async def event_feedback(self, event_id, false):
+    async def event_feedback(self, event_id, value, kind="false"):
         self._check()
-        STATE.feedback[event_id] = false
+        STATE.feedback[event_id] = value if kind == "false" else f"{kind}:{value}"
         return {"ok": True}
+
+    async def delete_clipless(self, flt=None, dry_run=False):
+        self._check()
+        STATE.clip_calls.append(("clipless", {"filter": flt, "dry_run": dry_run}))
+        return {"count": 4, "dry_run": dry_run}
 
     async def resolved(self, source, mid):
         self._check()

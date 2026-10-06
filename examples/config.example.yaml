@@ -12,6 +12,8 @@ defaults:
   min_volume_dbfs: -60            # gate on the loudness of the 0.96 s window; null disables the gate
   schedule: {mode: continuous}    # continuous = listen 24/7 (the explicit "continuous monitoring" option)
   clips: {allowed: true, max_retention_days: 30}
+  # Days to keep the clips of each kind of sound (0 = none), here or per source. Conversations default to 0: nothing is recorded unless you decide it.
+  # clips: {allowed: true, max_retention_days: 30, retention_by_category: {normal: 14, sensitive: 3, context: 7, confidential: 0}}
 
 classes:                          # user choices, valid on every source unless a source overrides them
   "Smoke detector, smoke alarm": {enabled: true, schedule: {mode: continuous}}   # stays 24/7 even on scheduled sources

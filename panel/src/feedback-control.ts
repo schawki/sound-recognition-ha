@@ -39,9 +39,20 @@ export class DetectionFeedback extends LitElement {
     }
   }
 
+  private async confirm(): Promise<void> {
+    this.error = "";
+    try {
+      await this.api.confirm(this.ev.id, true);
+      this.open = false;
+      this.changed("good");
+    } catch (err) {
+      this.error = (err as { message?: string }).message ?? String(err);
+    }
+  }
+
   private async unmark(): Promise<void> {
     try {
-      await this.api.feedback(this.ev.id, false);
+      if (this.ev.feedback === "good") await this.api.confirm(this.ev.id, false); else await this.api.feedback(this.ev.id, false);
       this.changed(null);
     } catch (err) {
       this.error = (err as { message?: string }).message ?? String(err);
@@ -50,6 +61,8 @@ export class DetectionFeedback extends LitElement {
 
   protected render() {
     const t = this.t;
+    if (this.ev.feedback === "good")
+      return html`<span class="chip ok" data-good-chip>${t("markedGood")}</span><button class="link" data-action="unmark" @click=${() => void this.unmark()}>${t("undo")}</button>${this.error ? html`<span class="error">${this.error}</span>` : nothing}`;
     if (this.ev.feedback === "false")
       return html`<span class="chip off" data-false-chip>${t("markedFalse")}</span><button class="link" data-action="unmark" @click=${() => void this.unmark()}>${t("undo")}</button>${this.error ? html`<span class="error">${this.error}</span>` : nothing}`;
     if (this.open)
@@ -57,7 +70,8 @@ export class DetectionFeedback extends LitElement {
         <button class="primary" data-action="mark-raise" @click=${() => void this.mark(true)}>${t("markFalseRaise", { v: this.proposal.toFixed(2), s: this.sourceName })}</button>
         <button class="link" data-action="mark-cancel" @click=${() => (this.open = false)}>${t("cancel")}</button>
         ${this.error ? html`<span class="error">${this.error}</span>` : nothing}`;
-    return html`<button class="link" data-action="false" @click=${() => { this.error = ""; this.open = true; }}>${t("notRealSound")}</button>`;
+    return html`<button data-action="good" @click=${() => void this.confirm()}>${t("detectionGood")}</button>
+      <button class="link" data-action="false" @click=${() => { this.error = ""; this.open = true; }}>${t("notRealSound")}</button>`;
   }
 
   static styles = css`
@@ -66,6 +80,7 @@ export class DetectionFeedback extends LitElement {
     button.primary { background: var(--primary-color); border-color: transparent; color: var(--text-primary-color, #fff); }
     button.link { border: 0; background: none; padding: 2px 0; color: var(--primary-color); text-decoration: underline; font-size: 0.85rem; }
     .chip { font-size: 0.8rem; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--divider-color); color: var(--secondary-text-color); }
+    .chip.ok { border-color: var(--success-color, #43a047); color: var(--success-color, #43a047); }
     .error { color: var(--error-color, #db4437); font-size: 0.85rem; }
   `;
 }

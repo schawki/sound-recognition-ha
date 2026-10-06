@@ -2,6 +2,15 @@
 
 Les versions sont étiquetées `vX.Y.Z` ; le service se met à jour depuis Home Assistant vers la dernière étiquette.
 
+## 0.11.0
+
+- **Durée de conservation des clips, par type de son.** Quatre réglages (sons courants, sons sensibles, sons de contexte comme la musique et la télévision, conversations), globaux (onglet *Clips*) ou par source (formulaire de la source). Le réglage propre à un son l'emporte toujours, et le maximum et l'interrupteur « autoriser les clips » de chaque source s'appliquent encore. Rien ne change tant que vous ne les réglez pas.
+- **Les conversations peuvent être conservées, en connaissance de cause.** L'interdiction du catalogue devient une simple valeur par défaut (0 jour). Le panneau et les conseils avertissent des paroles privées et de la loi dès que des clips de conversations sont conservés.
+- **La détection est bonne.** Un nouveau bouton à côté de « La détection n'est pas bonne », sur les détections qui ont un clip (*En direct* et *Clips*). L'*Aperçu* montre les détections confirmées et la part de bonnes détections parmi celles que vous avez jugées ; *Clips* filtre sur l'avis.
+- **Pas d'avis sans clip.** Une détection sans clip ne peut pas être vérifiée : le contrôle n'est pas proposé, et sa ligne « Pas de clip » dit pourquoi.
+- **Effacer les détections sans clip** (*Clips*), selon les filtres. Celles que vous avez marquées fausses ou confirmées restent.
+- API du service niveau 8 : mettez le service à jour depuis Home Assistant après avoir mis l'intégration à jour.
+
 ## 0.10.1
 
 - **« Pas de clip » dit maintenant pourquoi.** Dans *En direct*, une détection sans clip explique la vraie cause : vous avez désactivé les clips pour ce son ou cette source, le son n'est pas enregistré par défaut (son de contexte), c'est un son privé, la durée maximale est de 0 jour, ou le clip a été supprimé ou a expiré. Seules les causes réellement enregistrées par le service sont affichées ; une détection plus ancienne reçoit une phrase neutre.

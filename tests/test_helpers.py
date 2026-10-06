@@ -29,7 +29,7 @@ def test_source_selection_stores_only_differences():
     assert h.enabled_mids(c, c["sources"][0], IDX) == {MID("Smoke detector, smoke alarm")}
 
 
-def test_class_form_writes_only_changes_and_keeps_forbidden_clips_out():
+def test_class_form_writes_only_changes_and_lets_conversations_be_kept():
     c = cfg()
     sug = CAT.get("Doorbell")["suggestions"]
     vals = {"threshold": sug["threshold"], "min_duration_s": sug["min_duration_s"], "cooldown_s": 99, "pre_roll_s": sug["pre_roll_s"],
@@ -37,7 +37,7 @@ def test_class_form_writes_only_changes_and_keeps_forbidden_clips_out():
     h.apply_class_form(c, IDX, None, MID("Doorbell"), vals)
     assert c["classes"][MID("Doorbell")] == {"cooldown_s": 99, "schedule": {"mode": "continuous"}}
     h.apply_class_form(c, IDX, None, MID("Speech"), dict(vals, clip_retention_days=30))
-    assert "clip_retention_days" not in c["classes"][MID("Speech")]
+    assert c["classes"][MID("Speech")]["clip_retention_days"] == 30           # conversations may be kept, knowingly (0 days by default)
     h.apply_class_form(c, IDX, None, MID("Doorbell"), dict(vals, cooldown_s=99, always_on=False, min_volume_dbfs=-40))
     assert c["classes"][MID("Doorbell")] == {"cooldown_s": 99, "min_volume_dbfs": -40.0}
 

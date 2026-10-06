@@ -247,7 +247,7 @@ async def test_panel_commands(hass, hass_ws_client):
     assert r["success"] and r["result"]["devices"] == []
     r = await call(type="sound_recognition/clips", source="salon", usage="animals", limit=20)
     assert r["success"] and r["result"]["total"] == 1 and r["result"]["clips"][0]["size"] == 32044 and "/api/sound_recognition/" in r["result"]["clips"][0]["clip_url"]
-    assert fs.STATE.clip_calls[-1] == ("list", {"source": "salon", "mid": None, "usage": "animals", "since": None, "until": None, "limit": 20, "offset": 0})
+    assert fs.STATE.clip_calls[-1] == ("list", {"source": "salon", "mid": None, "usage": "animals", "since": None, "until": None, "feedback": None, "limit": 20, "offset": 0})
     r = await call(type="sound_recognition/clips_delete", filter={"usage": "animals"}, dry_run=True)
     assert r["success"] and r["result"] == {"count": 1, "bytes": 32044, "dry_run": True}
     assert fs.STATE.clip_calls[-1] == ("delete", {"ids": None, "filter": {"usage": "animals"}, "dry_run": True})
@@ -258,6 +258,10 @@ async def test_panel_commands(hass, hass_ws_client):
     assert not (await call(type="sound_recognition/stats", hours=0))["success"]
     r = await call(type="sound_recognition/event_feedback", event_id="e1", false=True)
     assert r["success"] and fs.STATE.feedback == {"e1": True}
+    assert (await call(type="sound_recognition/event_feedback", event_id="e2", good=True))["success"] and fs.STATE.feedback["e2"] == "good:True"
+    assert not (await call(type="sound_recognition/event_feedback", event_id="e2"))["success"]
+    r = await call(type="sound_recognition/events_delete_clipless", filter={"source": "salon"}, dry_run=True)
+    assert r["success"] and r["result"] == {"count": 4, "dry_run": True} and fs.STATE.clip_calls[-1] == ("clipless", {"filter": {"source": "salon"}, "dry_run": True})
     # validation is a dry run; a refused save reports the reasons and changes nothing
     cfg = (await call(type="sound_recognition/config"))["result"]
     bad = {**cfg, "sources": [{"id": "x", "type": "rtsp", "url": ""}]}

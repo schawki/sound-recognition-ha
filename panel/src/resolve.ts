@@ -1,5 +1,5 @@
 // Port of service/soundrec/settings.py `resolve`; test/crosscheck_resolve.py compares both on random configurations.
-import type { CatalogClass, ClassBlock, ClassBlocks, Resolved, Schedule, ServiceConfig, SourceCfg } from "./types";
+import type { CatalogClass, ClassBlock, ClassBlocks, Resolved, RetentionCategory, Schedule, ServiceConfig, SourceCfg } from "./types";
 
 export type ByKey = Map<string, string>; // mid or AudioSet name -> mid
 
@@ -65,13 +65,22 @@ export function resolveClass(cfg: ServiceConfig, src: SourceCfg, c: CatalogClass
   let r: number, rw: string;
   if ("clip_retention_days" in sc) { r = sc.clip_retention_days!; rw = "source_class"; }
   else if ("clip_retention_days" in g) { r = g.clip_retention_days!; rw = "class"; }
+  else if (retentionCategory(c) in (src.clips?.retention_by_category ?? {})) { r = src.clips!.retention_by_category![retentionCategory(c)]!; rw = "source_category"; }
+  else if (retentionCategory(c) in (dflt.clips?.retention_by_category ?? {})) { r = dflt.clips!.retention_by_category![retentionCategory(c)]!; rw = "category"; }
+  else if (c.clip_forbidden) { r = 0; rw = "catalog_confidential"; }
   else { r = sug.clip_retention_days; rw = "catalog"; }
   const clips = src.clips ?? {};
   const caps = [clips.max_retention_days, dflt.clips?.max_retention_days].filter((x): x is number => x != null);
   if (caps.length && r > Math.min(...caps)) { r = Math.min(...caps); rw = "cap"; }
   if (!(clips.allowed ?? dflt.clips?.allowed ?? true)) { r = 0; rw = "source_clips_disallowed"; }
-  if (c.clip_forbidden) { r = 0; rw = "catalog_clip_forbidden"; }
   out.clip_retention_days = r; why.clip_retention_days = rw;
   out.provenance = why;
   return out as unknown as Resolved;
+}
+
+/** Which clip-retention setting a class follows: its privacy level first, then whether it is a context sound. */
+export function retentionCategory(c: { privacy: string; clip_forbidden: boolean; interest: string }): RetentionCategory {
+  if (c.privacy === "confidential" || c.clip_forbidden) return "confidential";
+  if (c.privacy === "sensitive") return "sensitive";
+  return c.interest === "context" ? "context" : "normal";
 }

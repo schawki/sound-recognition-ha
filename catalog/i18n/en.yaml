@@ -875,8 +875,8 @@ auto_rules:
     message: '“{parent}” contains “{child}”: one sound will trigger both. Keep the more precise one, or the broader
       one, but not both with different rules (retention, threshold, action).'
   clip_forbidden:
-    condition: clip_retention_days > 0 on a class whose clip_forbidden is true
-    message: '“{class}” detects conversations: no clip may be kept. Retention is forced to 0.'
+    condition: clips are kept (retention above 0) for a class whose clip_forbidden is true
+    message: '“{class}” detects conversations: the clips kept for it may contain private speech. Keep the retention short, only as long as you need to check the detections, and make sure the people concerned know (recording conversations can be regulated by law).'
   low_threshold_high_fp:
     condition: threshold below the suggested threshold on a class whose false_positives.level is high
     message: “{class}” is often triggered by mistake; a threshold this low will multiply false alerts. Add an inhibiting
@@ -923,7 +923,7 @@ enum_help:
   privacy:
     normal: no particular concern
     sensitive: may reveal personal information; keep clips very short
-    confidential: 'conversations: no clip may be kept (clip_forbidden = true)'
+    confidential: 'conversations: no clip is kept by default (clip_forbidden = true); you can choose to keep some, knowingly'
 setting_help:
   threshold: minimum score (0 to 1) for a detection to count; to be tuned, YAMNet scores are not calibrated
   min_duration_s: minimum duration of sustained detection before reporting

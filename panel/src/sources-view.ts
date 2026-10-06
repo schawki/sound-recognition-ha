@@ -9,6 +9,8 @@ import type { Advice, EsphomeDevice, HsPlace, SeparationType, StructureInfo, Cat
 import "./schedule-grid";
 import "./structure-plan";
 import { ESPHOME_YAML } from "./esphome-yaml";
+import { RETENTION_CATEGORIES, RET_KEYS, retBlock, retForm } from "./retention";
+import type { RetentionCategory } from "./types";
 
 const TYPES: [string, "typeRtsp" | "typeGo2rtc" | "typeAlsa" | "typeEsphome" | "typeFile"][] = [
   ["rtsp", "typeRtsp"], ["go2rtc", "typeGo2rtc"], ["alsa_rpi", "typeAlsa"], ["esphome", "typeEsphome"], ["file", "typeFile"],
@@ -26,7 +28,7 @@ interface Form {
   id: string; isNew: boolean; name: string; type: string; url: string; enabled: boolean;
   rows: Row[]; picked: Record<string, string>;
   offset: string; minVolume: string; scheduled: boolean; cells: boolean[];
-  clipsAllowed: boolean; clipsMaxDays: string;
+  clipsAllowed: boolean; clipsMaxDays: string; ret: Record<RetentionCategory, string>;
   environment: string; adaptive: boolean; adaptiveMax: string;
   password: string;
   area: string; devEnabled: boolean; devMax: string; devExclude: string[]; devInclude: string;
@@ -155,6 +157,7 @@ export class SourcesView extends LitElement {
       minVolume: s.min_volume_dbfs == null ? "" : String(s.min_volume_dbfs),
       scheduled: sched?.mode === "scheduled", cells: windowsToCells(sched?.windows ?? []),
       clipsAllowed: s.clips?.allowed !== false, clipsMaxDays: s.clips?.max_retention_days == null ? "" : String(s.clips.max_retention_days),
+      ret: retForm(s.clips?.retention_by_category),
       environment: s.environment ?? "", adaptive: s.adaptive?.enabled === true, adaptiveMax: s.adaptive?.max_offset == null ? "" : String(s.adaptive.max_offset),
       password: typeof s.password === "string" ? s.password : "",
       area: s.area ?? "", devEnabled: s.devices?.enabled === true, devMax: s.devices?.max_offset == null ? "" : String(s.devices.max_offset),
@@ -163,7 +166,7 @@ export class SourcesView extends LitElement {
   }
 
   private blankForm(): Form {
-    return { id: "", isNew: true, name: "", type: lastType, url: "", enabled: true, rows: [newRow()], picked: {}, offset: "", minVolume: "", scheduled: false, cells: new Array(336).fill(false), clipsAllowed: true, clipsMaxDays: "", environment: "", adaptive: false, adaptiveMax: "", password: "", area: "", devEnabled: false, devMax: "", devExclude: [], devInclude: "" };
+    return { id: "", isNew: true, name: "", type: lastType, url: "", enabled: true, rows: [newRow()], picked: {}, offset: "", minVolume: "", scheduled: false, cells: new Array(336).fill(false), clipsAllowed: true, clipsMaxDays: "", ret: retForm(undefined), environment: "", adaptive: false, adaptiveMax: "", password: "", area: "", devEnabled: false, devMax: "", devExclude: [], devInclude: "" };
   }
 
   /** Applies the form on a copy of the stored source, so fields the form does not know (class settings, advice) are kept. */
@@ -201,8 +204,18 @@ export class SourcesView extends LitElement {
     if (!f.clipsAllowed) clips.allowed = false;
     const days = parseInt(f.clipsMaxDays, 10);
     if (f.clipsMaxDays.trim() !== "" && Number.isFinite(days)) clips.max_retention_days = days;
+    const byCat = retBlock(f.ret);
+    if (f.clipsAllowed && Object.keys(byCat).length) clips.retention_by_category = byCat;
     if (Object.keys(clips).length) s.clips = clips; else delete s.clips;
     return s;
+  }
+
+  /** Days to keep the clips of each kind of sound on this source (empty = the global setting). */
+  private retentionFields(f: Form) {
+    const t = this.t;
+    return html`<p class="dim">${t("retentionSource")}</p><div class="two">${RETENTION_CATEGORIES.map((k) => html`
+      <label>${t(RET_KEYS[k])}<input name=${`ret_${k}`} type="number" min="0" max="3650" step="1" .value=${f.ret[k]} @input=${(e: Event) => this.set("ret", { ...f.ret, [k]: (e.target as HTMLInputElement).value })} /></label>`)}</div>
+      ${parseInt(f.ret.confidential, 10) > 0 ? html`<p class="note error" data-confidential-warning>${t("clipForbiddenOn")}</p>` : nothing}`;
   }
 
   private uniqueId(name: string, also: Iterable<string> = []): string {
@@ -589,7 +602,7 @@ export class SourcesView extends LitElement {
         <fieldset>
           <legend>${t("clipsAllowed")}</legend>
           <label class="inline"><input type="checkbox" name="clipsAllowed" .checked=${f.clipsAllowed} @change=${(e: Event) => this.set("clipsAllowed", (e.target as HTMLInputElement).checked)} />${t("clipsAllowed")}</label>
-          ${f.clipsAllowed ? html`<label>${t("clipsMaxDays")}<input name="clipsMaxDays" type="number" min="0" max="3650" step="1" .value=${f.clipsMaxDays} @input=${(e: Event) => this.set("clipsMaxDays", (e.target as HTMLInputElement).value)} /></label>` : nothing}
+          ${f.clipsAllowed ? html`<label>${t("clipsMaxDays")}<input name="clipsMaxDays" type="number" min="0" max="3650" step="1" .value=${f.clipsMaxDays} @input=${(e: Event) => this.set("clipsMaxDays", (e.target as HTMLInputElement).value)} /></label>${this.retentionFields(f)}` : nothing}
         </fieldset>
           </div></details>`
           : html`
@@ -615,7 +628,7 @@ export class SourcesView extends LitElement {
         <fieldset>
           <legend>${t("clipsAllowed")}</legend>
           <label class="inline"><input type="checkbox" name="clipsAllowed" .checked=${f.clipsAllowed} @change=${(e: Event) => this.set("clipsAllowed", (e.target as HTMLInputElement).checked)} />${t("clipsAllowed")}</label>
-          ${f.clipsAllowed ? html`<label>${t("clipsMaxDays")}<input name="clipsMaxDays" type="number" min="0" max="3650" step="1" .value=${f.clipsMaxDays} @input=${(e: Event) => this.set("clipsMaxDays", (e.target as HTMLInputElement).value)} /></label>` : nothing}
+          ${f.clipsAllowed ? html`<label>${t("clipsMaxDays")}<input name="clipsMaxDays" type="number" min="0" max="3650" step="1" .value=${f.clipsMaxDays} @input=${(e: Event) => this.set("clipsMaxDays", (e.target as HTMLInputElement).value)} /></label>${this.retentionFields(f)}` : nothing}
         </fieldset>`}
         <div class="buttons">
           <button type="button" data-action="cancel" @click=${() => { this.form = null; this.errors = []; }}>${t("cancel")}</button>

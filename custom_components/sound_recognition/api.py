@@ -101,8 +101,13 @@ class SoundRecClient:
     async def stats(self, hours: int = 24) -> dict:
         return await self._request("GET", "/stats", params={"hours": hours})
 
-    async def event_feedback(self, event_id: str, false: bool) -> dict:
-        return await self._request("POST", f"/events/{event_id}/feedback", json={"false": false})
+    async def event_feedback(self, event_id: str, value: bool, kind: str = "false") -> dict:
+        """kind "false": mark wrong; kind "good": confirm. value False clears that verdict."""
+        return await self._request("POST", f"/events/{event_id}/feedback", json={kind: value})
+
+    async def delete_clipless(self, flt: dict | None = None, dry_run: bool = False) -> dict:
+        """Deletes the detections with no clip and no verdict; dry_run only counts them."""
+        return await self._request("POST", "/events/delete_clipless", json={"filter": flt or {}, "dry_run": dry_run})
 
     async def set_external(self, sid: str, offset: float, reasons: list[str], detail: list[dict], ttl_s: float = 60) -> dict:
         """Threshold increase computed by the integration for a source; the service forgets it after ttl_s seconds."""

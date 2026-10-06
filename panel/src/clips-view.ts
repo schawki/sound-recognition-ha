@@ -2,13 +2,14 @@ import { LitElement, css, html, nothing } from "lit";
 import { property, state } from "lit/decorators.js";
 import type { PanelApi } from "./api";
 import type { T } from "./i18n";
-import type { Catalog, ClipFilter, ClipRow, ClipsPage, Overview } from "./types";
+import type { Catalog, ClipFilter, ClipRow, ClipsPage, Overview, RetentionCategory } from "./types";
+import { RETENTION_CATEGORIES, RET_KEYS, retBlock, retForm } from "./retention";
 import "./feedback-control";
 import { formatBytes, relativeTime } from "./util";
 
 const PAGE = 100;
 
-interface Pending { ids?: string[]; filter?: ClipFilter; count: number; bytes: number; all: boolean }
+interface Pending { ids?: string[]; filter?: ClipFilter; count: number; bytes: number; all: boolean; clipless?: boolean }
 
 /** The clips kept: size of each, filters (source, sound, category, period) and deletion one by one, selected, matching the filters, or all. */
 export class ClipsView extends LitElement {
@@ -25,6 +26,11 @@ export class ClipsView extends LitElement {
   @state() private usage = "";
   @state() private from = "";
   @state() private to = "";
+  @state() private verdict: "" | "false" | "good" | "unjudged" = "";
+  @state() private clipless = 0;
+  @state() private ret: Record<RetentionCategory, string> = retForm(undefined);
+  @state() private retMsg = "";
+  @state() private retErrors: string[] = [];
   @state() private picked = new Set<string>();
   @state() private pending: Pending | null = null;
   @state() private result = "";
@@ -44,7 +50,46 @@ export class ClipsView extends LitElement {
       this.audio = new Map((cat as Catalog).classes.map((k) => [k.mid, k.audioset_name]));
       this.sources = new Map((ov as Overview).sources.map((s) => [s.id, s.name]));
     } catch { /* the list below reports the connection problem */ }
+    try {
+      this.ret = retForm((await this.api.config()).defaults?.clips?.retention_by_category);
+    } catch { /* the settings block just stays empty */ }
     await this.load(false);
+  }
+
+  /** Saves the global retention by kind of sound (defaults.clips.retention_by_category) on a fresh copy of the configuration. */
+  private async saveRetention(): Promise<void> {
+    this.busy = true;
+    this.retMsg = "";
+    this.retErrors = [];
+    try {
+      const cfg = await this.api.config();
+      const block = retBlock(this.ret);
+      const defaults = { ...(cfg.defaults ?? {}) };
+      const clips = { ...(defaults.clips ?? {}) };
+      if (Object.keys(block).length) clips.retention_by_category = block; else delete clips.retention_by_category;
+      defaults.clips = clips;
+      const next = { ...cfg, defaults };
+      const check = await this.api.validate(next);
+      if (check.errors.length) { this.retErrors = check.errors; return; }
+      await this.api.save(next);
+      this.retMsg = this.t("retentionSaved");
+    } catch (err) {
+      this.retErrors = [(err as { message?: string }).message ?? String(err)];
+    } finally {
+      this.busy = false;
+    }
+  }
+
+  private retentionCard() {
+    const t = this.t;
+    return html`<details class="retention" data-retention><summary>${t("retentionTitle")}</summary>
+      <p class="dim">${t("retentionHelp")}</p>
+      <div class="two">${RETENTION_CATEGORIES.map((k) => html`<label>${t(RET_KEYS[k])}<input name=${`ret_${k}`} type="number" min="0" max="3650" step="1" .value=${this.ret[k]}
+        @input=${(e: Event) => { this.ret = { ...this.ret, [k]: (e.target as HTMLInputElement).value }; this.retMsg = ""; }} /></label>`)}</div>
+      ${parseInt(this.ret.confidential, 10) > 0 ? html`<p class="note error" data-confidential-warning>${t("clipForbiddenOn")}</p>` : nothing}
+      ${this.retErrors.map((e) => html`<p class="note error">${e}</p>`)}
+      <div class="buttons"><button class="primary" data-action="save-retention" ?disabled=${this.busy} @click=${() => void this.saveRetention()}>${t("retentionSave")}</button>
+        ${this.retMsg ? html`<span class="ok" role="status" data-retention-saved>${this.retMsg}</span>` : nothing}</div></details>`;
   }
 
   private get filter(): ClipFilter {
@@ -54,6 +99,7 @@ export class ClipsView extends LitElement {
     if (this.usage) f.usage = this.usage;
     if (this.from) f.since = new Date(`${this.from}T00:00:00`).getTime() / 1000;
     if (this.to) f.until = new Date(`${this.to}T23:59:59.999`).getTime() / 1000;
+    if (this.verdict) f.feedback = this.verdict;
     return f;
   }
 
@@ -69,11 +115,41 @@ export class ClipsView extends LitElement {
       this.page = page;
       if (this.mid && !page.sounds.some((s) => s.mid === this.mid)) this.mid = "";
       if (!more) this.picked = new Set();
+      if (!more) await this.countClipless();
       this.loadError = false;
     } catch {
       this.loadError = true;
     }
     this.ready = true;
+  }
+
+  /** The filters without the verdict one: detections without a clip have no verdict to filter on. */
+  private get cliplessFilter(): ClipFilter {
+    const { feedback: _ignored, ...rest } = this.filter;
+    return rest;
+  }
+
+  /** How many detections have no clip and no verdict (they cannot be checked); an older service just has none to offer. */
+  private async countClipless(): Promise<void> {
+    try {
+      this.clipless = (await this.api.deleteClipless(this.cliplessFilter, true)).count;
+    } catch {
+      this.clipless = 0;
+    }
+  }
+
+  private async askClipless(): Promise<void> {
+    this.result = "";
+    this.busy = true;
+    try {
+      const filter = this.cliplessFilter;
+      const r = await this.api.deleteClipless(filter, true);
+      this.pending = { filter, count: r.count, bytes: 0, all: false, clipless: true };
+    } catch {
+      this.loadError = true;
+    } finally {
+      this.busy = false;
+    }
   }
 
   private change(apply: () => void): void {
@@ -122,8 +198,13 @@ export class ClipsView extends LitElement {
     if (!p) return;
     this.busy = true;
     try {
-      const r = await this.api.deleteClips(p.ids ? { ids: p.ids } : { filter: p.filter ?? {} });
-      this.result = this.t("clipsDeleted", { n: r.count, size: this.size(r.bytes) });
+      if (p.clipless) {
+        const r = await this.api.deleteClipless(p.filter ?? {});
+        this.result = this.t("cliplessDeleted", { n: r.count });
+      } else {
+        const r = await this.api.deleteClips(p.ids ? { ids: p.ids } : { filter: p.filter ?? {} });
+        this.result = this.t("clipsDeleted", { n: r.count, size: this.size(r.bytes) });
+      }
       this.pending = null;
       await this.load(false);
     } catch {
@@ -135,6 +216,7 @@ export class ClipsView extends LitElement {
 
   private confirmText(p: Pending): string {
     const t = this.t, size = this.size(p.bytes);
+    if (p.clipless) return t("confirmClipless", { n: p.count });
     if (p.all) return t("confirmDeleteAll", { n: p.count, size });
     return p.count === 1 && p.ids ? t("confirmDeleteOne", { size }) : t("confirmDelete", { n: p.count, size });
   }
@@ -146,6 +228,7 @@ export class ClipsView extends LitElement {
     const pg = this.page, date = new Intl.DateTimeFormat(this.language, { dateStyle: "medium", timeStyle: "short" });
     const allShown = this.rows.length > 0 && this.rows.every((r) => this.picked.has(r.id));
     return html`
+      ${this.retentionCard()}
       <div class="filters">
         <select name="source" aria-label=${t("allSources")} @change=${(e: Event) => this.change(() => (this.source = (e.target as HTMLSelectElement).value))}>
           <option value="" ?selected=${this.source === ""}>${t("allSources")}</option>${[...this.sources].map(([id, n]) => html`<option value=${id} ?selected=${this.source === id}>${n}</option>`)}</select>
@@ -153,6 +236,8 @@ export class ClipsView extends LitElement {
           <option value="" ?selected=${this.usage === ""}>${t("allUsages")}</option>${[...this.usages].map(([id, n]) => html`<option value=${id} ?selected=${this.usage === id}>${n}</option>`)}</select>
         <select name="sound" aria-label=${t("allSounds")} @change=${(e: Event) => this.change(() => (this.mid = (e.target as HTMLSelectElement).value))}>
           <option value="" ?selected=${this.mid === ""}>${t("allSounds")}</option>${pg.sounds.map((s) => html`<option value=${s.mid} ?selected=${this.mid === s.mid}>${s.name} (${s.count})</option>`)}</select>
+        <select name="verdict" aria-label=${t("verdictAll")} @change=${(e: Event) => this.change(() => (this.verdict = (e.target as HTMLSelectElement).value as typeof this.verdict))}>
+          ${(["", "unjudged", "good", "false"] as const).map((v) => html`<option value=${v} ?selected=${this.verdict === v}>${t(({ "": "verdictAll", unjudged: "verdictUnjudged", good: "verdictGood", false: "verdictFalse" } as const)[v])}</option>`)}</select>
         <label class="date">${t("dateFrom")} <input type="date" name="from" .value=${this.from} @change=${(e: Event) => this.change(() => (this.from = (e.target as HTMLInputElement).value))}></label>
         <label class="date">${t("dateTo")} <input type="date" name="to" .value=${this.to} @change=${(e: Event) => this.change(() => (this.to = (e.target as HTMLInputElement).value))}></label>
         <button data-action="refresh" @click=${() => { this.pending = null; void this.load(false); }}>${t("refresh")}</button>
@@ -167,6 +252,7 @@ export class ClipsView extends LitElement {
         ${!this.filtered ? html`<button data-action="delete-all" ?disabled=${this.busy} @click=${() => void this.askFilter()}>${t("deleteEverything", { n: pg.disk.clips })}</button>` : nothing}
         ${this.picked.size ? html`<span class="dim" data-picked>${t("clipsSelected", { n: this.picked.size, size: this.size(this.pickedBytes()) })}</span>` : nothing}
       </div>` : nothing}
+      ${this.clipless > 0 && !this.verdict ? html`<div class="bulk"><button data-action="delete-clipless" ?disabled=${this.busy} @click=${() => void this.askClipless()}>${t("deleteClipless", { n: this.clipless })}</button><span class="dim">${t("cliplessHelp")}</span></div>` : nothing}
       ${this.pending ? html`<div class="confirm" role="alertdialog" aria-label=${t("confirmYes")} data-confirm><p>${this.confirmText(this.pending)}</p>
         <div class="buttons"><button class="danger" data-action="confirm" ?disabled=${this.busy} @click=${() => void this.confirm()}>${t("confirmYes")}</button>
           <button data-action="cancel" @click=${() => (this.pending = null)}>${t("cancel")}</button></div></div>` : nothing}
@@ -188,6 +274,11 @@ export class ClipsView extends LitElement {
     :host { display: block; }
     .note { color: var(--secondary-text-color); } .note.error { color: var(--error-color, #db4437); } .ok { color: var(--success-color, #43a047); }
     .dim { color: var(--secondary-text-color); font-size: 0.85rem; } p.dim { margin: 2px 0; }
+    .retention { border: 1px solid var(--divider-color); border-radius: 12px; padding: 8px 14px; margin-bottom: 14px; background: var(--card-background-color); }
+    .retention summary { cursor: pointer; font-weight: 500; } .retention label { display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem; }
+    .retention input { font: inherit; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--divider-color); background: var(--primary-background-color); color: var(--primary-text-color); min-width: 0; }
+    .two { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin: 10px 0; }
+    button.primary { background: var(--primary-color); border-color: transparent; color: var(--text-primary-color, #fff); }
     .filters { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; align-items: center; }
     .date { display: flex; gap: 6px; align-items: center; color: var(--secondary-text-color); font-size: 0.9rem; }
     select, input[type=date] { font: inherit; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--divider-color); background: var(--primary-background-color); color: var(--primary-text-color); min-width: 0; }

@@ -168,7 +168,7 @@ export class ClassDetail extends LitElement {
             <option value="on" ?selected=${this.enabled === "on"}>${t("choiceOn")}</option>
             <option value="off" ?selected=${this.enabled === "off"}>${t("choiceOff")}</option>
           </select></label>
-        ${FIELDS.filter((f) => !(forbidden && f.key === "clip_retention_days")).map((f) => html`
+        ${FIELDS.map((f) => html`
           <label>${t(`f_${f.key}` as Key)}
             <input name=${f.key} type="number" min=${f.min} max=${f.max} step=${f.step} .value=${this.values[f.key] ?? ""} placeholder=${this.inherited(f.key)}
               @input=${(e: Event) => this.setValue(f.key, (e.target as HTMLInputElement).value)} />

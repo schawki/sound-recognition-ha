@@ -173,7 +173,7 @@ def test_clip_pre_and_post_roll_and_forbidden():
     secs = len(clips[0]["pcm"]) / 16000
     assert abs(secs - (sug["pre_roll_s"] + 0.975 + sug["post_roll_s"])) < 0.6
     speech = [e for e in det(ev) if e["class"] == "Speech"][0]
-    assert speech["clip_retention_days"] == 0 and speech["clip_reason"] == "catalog_clip_forbidden"
+    assert speech["clip_retention_days"] == 0 and speech["clip_reason"] == "catalog_confidential"
     assert "clip_reason" not in shatter                                           # a clip is coming: nothing to explain
 
 

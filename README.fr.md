@@ -13,7 +13,7 @@ Reconnaît des sons (alarme incendie, pleurs de bébé, sonnette, bris de verre,
 - **Des réglages par source, par son et par source × son** : seuil, volume minimal, horaires ou écoute continue, durée minimale, délai de repos, extraits et leur conservation. Le panneau montre d'où vient chaque valeur.
 - **Moins de fausses alertes** : une télévision, de la musique ou des feux d'artifice relèvent les seuils des sons qui leur ressemblent tant qu'on les entend (les sons de sécurité ne sont relevés que d'un petit montant plafonné). Sensibilité adaptative facultative dans les pièces bruyantes. Rien de ce qui est masqué n'est perdu en silence : c'est compté.
 - **Des conseils avec un bouton** : le panneau vous dit ce qui est risqué ou manquant et le règle en un clic, avec Annuler. Voir [l'onglet Conseils](docs/advice.fr.md).
-- **Vie privée** : les extraits de conversations ne sont jamais conservés (le catalogue l'interdit et le service l'impose) ; les extraits des autres sons expirent après la durée choisie.
+- **Vie privée** : aucun extrait de conversation n'est conservé sans que vous le décidiez (0 jour par défaut, avec un avertissement si vous changez ça) ; vous choisissez la durée de conservation des extraits de chaque type de son, globalement ou par source, et ils s'effacent ensuite tout seuls.
 - **Un panneau dans la barre latérale de Home Assistant**, thèmes clair et sombre, sur téléphone, au clavier.
 - Des entités, des événements et des Réparations dans Home Assistant, utilisables dans vos automatisations.
 

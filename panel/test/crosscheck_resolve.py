@@ -15,6 +15,10 @@ FIELDS = {"threshold": lambda: round(rnd.uniform(0.05, 0.95), 2), "min_duration_
           "schedule": lambda: rnd.choice([{"mode": "continuous"}, {"mode": "scheduled", "windows": [{"days": ["mon"], "from": "08:00", "to": "09:00"}]}])}
 
 
+def rcat():
+    return {k: rnd.choice([0, 2, 7, 90]) for k in ("normal", "sensitive", "context", "confidential") if rnd.random() < 0.6}
+
+
 def block(sample):
     return {k: f() for k, f in FIELDS.items() if rnd.random() < sample}
 
@@ -29,12 +33,12 @@ for _ in range(600):
     cfg = {"classes": {key(c): block(0.3) for c in picks if rnd.random() < 0.7}, "sources": []}
     if rnd.random() < 0.5:
         cfg["defaults"] = {k: v for k, v in {"min_volume_dbfs": rnd.choice([-60, -40]), "schedule": rnd.choice([None, {"mode": "continuous"}]),
-                                              "clips": rnd.choice([None, {"allowed": True, "max_retention_days": 14}, {"allowed": False}])}.items() if v is not None}
+                                              "clips": rnd.choice([None, {"allowed": True, "max_retention_days": 14}, {"allowed": False}, {"retention_by_category": rcat()}, {"max_retention_days": 20, "retention_by_category": rcat()}])}.items() if v is not None}
     src = {"id": "s", "type": "rtsp", "url": "x", "classes": {key(c): block(0.3) for c in picks if rnd.random() < 0.7}}
     if rnd.random() < 0.4: src["threshold_offset"] = rnd.choice([-0.2, 0.1, 0.5])
     if rnd.random() < 0.4: src["min_volume_dbfs"] = rnd.choice([-70, -35])
     if rnd.random() < 0.3: src["enabled"] = False
-    if rnd.random() < 0.3: src["clips"] = rnd.choice([{"allowed": False}, {"max_retention_days": 3}, {"allowed": True}])
+    if rnd.random() < 0.3: src["clips"] = rnd.choice([{"allowed": False}, {"max_retention_days": 3}, {"allowed": True}, {"retention_by_category": rcat()}])
     if rnd.random() < 0.3: src["schedule"] = {"mode": "scheduled", "windows": [{"days": ["tue"], "from": "01:00", "to": "02:00"}]}
     cfg["sources"] = [src]
     c = rnd.choice(picks)

@@ -27,6 +27,18 @@ def _index(d, catalog):
     return {catalog.get(k)['mid']: v for k, v in (d or {}).items()}
 
 
+RETENTION_CATEGORIES = ('normal', 'sensitive', 'context', 'confidential')
+
+
+def retention_category(c):
+    """Which clip-retention setting a class follows: its privacy level first, then whether it is a context sound."""
+    if c['privacy'] == 'confidential' or c['clip_forbidden']:
+        return 'confidential'
+    if c['privacy'] == 'sensitive':
+        return 'sensitive'
+    return 'context' if c['interest'] == 'context' else 'normal'
+
+
 def is_safety(c):
     """safety class = recommended as an alert AND its primary (first) usage is fire, security or baby"""
     return c['interest'] == 'monitor' and bool(c['usages']) and c['usages'][0] in SAFETY_USAGES
@@ -125,18 +137,21 @@ def resolve(cfg, catalog, source_id, cls_key):
     else:
         out['schedule'], why['schedule'] = CONTINUOUS, 'builtin'
 
-    # ---- clips: class/source x class value, capped by source and global maxima; forced to 0 when forbidden or disallowed
+    # ---- clips: source x class > class > category on the source > category (global) > catalog; then capped by the source and global
+    # maxima and forced to 0 when the source disallows clips. The catalog's clip_forbidden (conversations) is only the 0-day default.
+    clips = src.get('clips') or {}
+    cat_key = retention_category(c)
     if 'clip_retention_days' in scls: r, w = scls['clip_retention_days'], 'source_class'
     elif 'clip_retention_days' in gcls: r, w = gcls['clip_retention_days'], 'class'
+    elif cat_key in (clips.get('retention_by_category') or {}): r, w = clips['retention_by_category'][cat_key], 'source_category'
+    elif cat_key in ((dflt.get('clips') or {}).get('retention_by_category') or {}): r, w = dflt['clips']['retention_by_category'][cat_key], 'category'
+    elif c['clip_forbidden']: r, w = 0, 'catalog_confidential'
     else: r, w = sug['clip_retention_days'], 'catalog'
-    clips = src.get('clips') or {}
     caps = [x for x in (clips.get('max_retention_days'), (dflt.get('clips') or {}).get('max_retention_days')) if x is not None]
     if caps and r > min(caps):
         r, w = min(caps), 'cap'
     if not clips.get('allowed', (dflt.get('clips') or {}).get('allowed', True)):
         r, w = 0, 'source_clips_disallowed'
-    if c['clip_forbidden']:
-        r, w = 0, 'catalog_clip_forbidden'
     out['clip_retention_days'], why['clip_retention_days'] = r, w
     out['provenance'] = why
     return out
@@ -160,7 +175,7 @@ def warnings(cfg, catalog):
                 if g is not None and g > -40:
                     res.append(('volume_gate_safety', src['id'], c['audioset_name'], {'gate': g}))
             clips_off = not (src.get('clips') or {}).get('allowed', ((cfg.get('defaults') or {}).get('clips') or {}).get('allowed', True))
-            if clips_off and c['suggestions']['clip_retention_days'] > 0 and not c['clip_forbidden']:
+            if clips_off and s['clip_retention_days'] == 0 and c['suggestions']['clip_retention_days'] > 0 and not c['clip_forbidden']:
                 res.append(('clip_source_disallowed', src['id'], c['audioset_name'], {}))
     seen, out = set(), []
     for r in res:

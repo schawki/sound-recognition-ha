@@ -125,8 +125,8 @@ def compute(cfg, lang="en", root=None, overrides=True):
                 if other in enabled and "context" not in (c["role"], by[other]["role"]):
                     add("parent_child", "auto", autos["parent_child"]["level"], [mid, other],
                         _fmt(autos["parent_child"]["message"], parent=name, child=by[other]["name"]), keep={})
-            if c["clip_forbidden"] and _explicit_retention(cfg, src, mid):
-                add("clip_forbidden", "auto", "danger", [mid], _fmt(autos["clip_forbidden"]["message"], **{"class": name}),
+            if c["clip_forbidden"] and r["clip_retention_days"] > 0:
+                add("clip_forbidden", "auto", "warning", [mid], _fmt(autos["clip_forbidden"]["message"], **{"class": name}),
                     {"set": {mid: {"clip_retention_days": 0}}} if _retention_on_source(cfg, src, mid) else None)
             if c["false_positives"]["level"] == "high" and r["threshold"] < c["suggestions"]["threshold"]:
                 add("low_threshold_high_fp", "auto", autos["low_threshold_high_fp"]["level"], [mid],
@@ -159,13 +159,3 @@ def _retention_on_source(cfg, src, mid):
     catalog = st.Catalog(cat_mod.load_raw())
     on = lambda blk: any(catalog.get(k)["mid"] == mid and (v or {}).get("clip_retention_days", 0) > 0 for k, v in (blk or {}).items())
     return on(src.get("classes")) and not on(cfg.get("classes"))
-
-
-def _explicit_retention(cfg, src, mid):
-    """True if the user explicitly asked to keep clips of a class whose catalog forbids it (the service forces 0 anyway)."""
-    catalog = st.Catalog(cat_mod.load_raw())
-    for blk in ((src.get("classes") or {}), (cfg.get("classes") or {})):
-        for k, v in blk.items():
-            if catalog.get(k)["mid"] == mid and (v or {}).get("clip_retention_days", 0) > 0:
-                return True
-    return False

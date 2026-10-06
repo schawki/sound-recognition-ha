@@ -198,7 +198,9 @@ export class InsightsView extends LitElement {
     return html`<div class="stats">
       <div class="tiles"><div class="tile"><strong data-stat="detected">${st.detections.total}</strong><span>${t("statDetected")}</span></div>
         <div class="tile"><strong data-stat="hidden">${st.masked.total}</strong><span>${t("statHidden")}</span></div>
-        <div class="tile"><strong data-stat="false">${st.false.total}</strong><span>${t("statFalse")}</span></div></div>
+        <div class="tile"><strong data-stat="false">${st.false.total}</strong><span>${t("statFalse")}</span></div>
+        ${st.good && st.good.total + st.false.total > 0 ? html`<div class="tile"><strong data-stat="good">${st.good.total}</strong><span>${t("statGood")}</span></div>
+          <div class="tile"><strong data-stat="rate">${Math.round((st.good.total / (st.good.total + st.false.total)) * 100)}%</strong><span>${t("statRate")}</span></div>` : nothing}</div>
       ${total === 0 ? html`<p class="note">${t("insNoStats")}</p>` : html`
         <div class="chart" role="img" aria-label=${t("statHourly")} data-chart>${det.map((v, i) => html`<div class="col" title=${`${v} / ${mk[i] ?? 0}`}>
           <div class="seg hid" style=${`height:${((mk[i] ?? 0) / max) * 100}%`}></div><div class="seg det" style=${`height:${(v / max) * 100}%`}></div></div>`)}</div>

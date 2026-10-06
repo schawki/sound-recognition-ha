@@ -20,7 +20,7 @@ Du plus fort au plus faible : **source × classe** > **classe (utilisateur)** > 
 | `min_duration_s`, `cooldown_s`, `pre_roll_s`, `post_roll_s` | Source × classe, puis classe, puis suggestion du catalogue. |
 | `min_volume_dbfs` | Une valeur explicite source × classe l'emporte. Sinon **la plus stricte (la plus haute)** entre le seuil de la classe et celui de la source ou des défauts. |
 | `schedule` | Source × classe, puis classe, puis source, puis défauts, puis continu. |
-| `clip_retention_days` | Source × classe, puis classe, puis catalogue ; **plafonnée** par `max_retention_days` de la source et global ; forcée à 0 si la source a `clips.allowed: false`, et **toujours 0 si le catalogue marque la classe `clip_forbidden`** (conversations). |
+| `clip_retention_days` | Source × classe, puis classe, puis `clips.retention_by_category` de la source, puis `defaults.clips.retention_by_category` global, puis catalogue (0 pour les conversations) ; **plafonnée** par `max_retention_days` de la source et global ; forcée à 0 si la source a `clips.allowed: false`. |
 
 ## 3. Seuil de volume minimum
 
@@ -46,7 +46,14 @@ schedule:
 
 ## 5. Clips par source
 
-`clips.allowed: false` signifie qu'aucun son n'est jamais enregistré depuis cette source (par exemple une chambre d'enfant). `clips.max_retention_days` plafonne toutes les classes de la source. Le `clip_forbidden` du catalogue pour les conversations ne peut jamais être contourné.
+`clips.allowed: false` signifie qu'aucun son n'est jamais enregistré depuis cette source (par exemple une chambre d'enfant). `clips.max_retention_days` plafonne toutes les classes de la source. 
+`clips.retention_by_category` (sur une source, ou dans `defaults.clips` pour toutes) fixe le nombre de jours de conservation des clips de chaque type de son : `normal`, `sensitive` (confidentialité « sensible » dans le catalogue), `context` (musique, télévision… les sons qui ne font que relever les seuils) et `confidential` (conversations). Un nombre de jours (0 = pas de clip), ou rien pour garder la suggestion du catalogue. La valeur de la source l'emporte sur la valeur globale, et un réglage sur un son précis l'emporte sur les deux. Garder les clips quelques jours (7, par exemple) permet de vérifier si les détections étaient bonnes : les fichiers s'effacent ensuite tout seuls, les détections restent dans l'historique.
+
+**Conversations.** Le catalogue les met à 0 jour par défaut : rien n'est enregistré sans que vous le décidiez. Vous pouvez le décider, sur une source ou partout. Les clips de conversations peuvent contenir des paroles privées, et l'enregistrement de conversations peut être encadré par la loi et exiger l'accord des personnes enregistrées. Le panneau et les avertissements le rappellent à chaque fois ; gardez une durée courte et informez les personnes concernées.
+
+## Juger les détections
+
+Dans *En direct* et *Clips*, une détection qui a un clip peut être marquée **La détection est bonne** ou **La détection n'est pas bonne** (avec, si vous voulez, un seuil relevé pour ce son sur cette source). Sans clip, rien ne peut être vérifié : le contrôle n'est pas proposé. L'*Aperçu* montre les détections confirmées et la part de bonnes détections parmi celles que vous avez jugées. *Clips* peut filtrer sur l'avis, et peut effacer les détections qui n'ont ni clip ni avis (celles marquées ou confirmées restent).
 
 ## 6. Avertissements ajoutés pour ces réglages
 

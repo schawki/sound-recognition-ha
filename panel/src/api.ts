@@ -54,9 +54,17 @@ export class PanelApi {
   stats(hours = 24): Promise<Stats> {
     return this.hass.callWS({ type: "sound_recognition/stats", hours });
   }
-  /** Marks a detection as false (or clears the mark). */
+  /** Marks a detection as wrong (or clears the mark). */
   feedback(eventId: string, isFalse: boolean): Promise<unknown> {
     return this.hass.callWS({ type: "sound_recognition/event_feedback", event_id: eventId, false: isFalse });
+  }
+  /** Confirms a detection as good (or clears the confirmation). */
+  confirm(eventId: string, isGood: boolean): Promise<unknown> {
+    return this.hass.callWS({ type: "sound_recognition/event_feedback", event_id: eventId, good: isGood });
+  }
+  /** Detections with no clip and no verdict (cannot be checked): how many match, or delete them. Marked and confirmed ones stay. */
+  deleteClipless(filter: ClipFilter, dryRun = false): Promise<{ count: number; dry_run: boolean }> {
+    return this.hass.callWS({ type: "sound_recognition/events_delete_clipless", filter, dry_run: dryRun });
   }
   config(): Promise<ServiceConfig> {
     return this.hass.callWS({ type: "sound_recognition/config" });

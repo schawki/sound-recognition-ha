@@ -164,6 +164,30 @@ def _check_class_block(b, where, errs):
             errs.append(f"{where}.{k}: invalid value {v!r}")
 
 
+def _check_clips(clips, where, errs):
+    if not isinstance(clips, dict):
+        errs.append(f"{where}: must be a mapping")
+        return
+    for k, v in clips.items():
+        if k == "allowed":
+            if not isinstance(v, bool):
+                errs.append(f"{where}.allowed must be true or false")
+        elif k == "max_retention_days":
+            if not _num(v, 0, 3650):
+                errs.append(f"{where}.max_retention_days must be between 0 and 3650")
+        elif k == "retention_by_category":
+            if not isinstance(v, dict):
+                errs.append(f"{where}.retention_by_category must be a mapping")
+                continue
+            for cat, days in v.items():
+                if cat not in ("normal", "sensitive", "context", "confidential"):
+                    errs.append(f"{where}.retention_by_category: unknown category '{cat}' (normal, sensitive, context, confidential)")
+                elif not _num(days, 0, 3650):
+                    errs.append(f"{where}.retention_by_category.{cat} must be between 0 and 3650 days")
+        else:
+            errs.append(f"{where}: unknown field '{k}'")
+
+
 def validate(cfg, catalog: Catalog):
     """Returns a list of human-readable errors (empty = valid)."""
     errs = []
@@ -185,6 +209,7 @@ def validate(cfg, catalog: Catalog):
     if d.get("min_volume_dbfs") is not None and not _num(d["min_volume_dbfs"], -90, 0):
         errs.append("defaults.min_volume_dbfs must be between -90 and 0 (or null)")
     _check_schedule(d.get("schedule", {"mode": "continuous"}), "defaults.schedule", errs)
+    _check_clips(d.get("clips") or {}, "defaults.clips", errs)
     for k, blk in (cfg.get("classes") or {}).items():
         try:
             catalog.get(k)
@@ -234,9 +259,7 @@ def validate(cfg, catalog: Catalog):
             _check_applied_advice(s["applied_advice"], f"{w}.applied_advice", errs)
         if "advice" in s:
             _check_advice(s["advice"], f"{w}.advice", rule_ids, errs)
-        clips = s.get("clips") or {}
-        if "allowed" in clips and not isinstance(clips["allowed"], bool):
-            errs.append(f"{w}.clips.allowed must be true or false")
+        _check_clips(s.get("clips") or {}, f"{w}.clips", errs)
         for k, blk in (s.get("classes") or {}).items():
             try:
                 catalog.get(k)

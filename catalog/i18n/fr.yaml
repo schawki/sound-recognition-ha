@@ -888,9 +888,8 @@ auto_rules:
     message: '« {parent} » contient « {child} » : un même son déclenchera les deux. Gardez la plus précise, ou la
       plus large, mais pas les deux avec des règles différentes (rétention, seuil, action).'
   clip_forbidden:
-    condition: clip_retention_days > 0 sur une classe dont clip_forbidden vaut vrai
-    message: '« {class} » détecte des conversations : aucun clip ne doit être conservé. La rétention est forcée
-      à 0.'
+    condition: des clips sont conservés (rétention supérieure à 0) pour une classe dont clip_forbidden vaut vrai
+    message: '« {class} » détecte des conversations : les clips conservés peuvent contenir des paroles privées. Gardez une rétention courte, le temps de vérifier les détections, et informez les personnes concernées (l''enregistrement de conversations peut être encadré par la loi).'
   low_threshold_high_fp:
     condition: seuil inférieur au seuil suggéré sur une classe dont false_positives.level vaut high
     message: « {class} » est souvent déclenchée à tort ; un seuil aussi bas multipliera les fausses alertes. Ajoutez
@@ -939,7 +938,7 @@ enum_help:
   privacy:
     normal: pas de souci particulier
     sensitive: peut révéler des informations personnelles ; clips à garder très courts
-    confidential: 'conversations : aucun clip ne doit être conservé (clip_interdit = true)'
+    confidential: 'conversations : aucun clip conservé par défaut (clip_forbidden = true) ; vous pouvez choisir d''en garder, en connaissance de cause'
 setting_help:
   threshold: score minimum (0 à 1) à partir duquel la détection compte ; à ajuster, les scores de YAMNet ne sont
     pas calibrés

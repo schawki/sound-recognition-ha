@@ -150,7 +150,7 @@ def apply_class_form(cfg: dict, idx: dict, sid: str | None, mid: str, values: di
     blk = dict(blocks.get(key) or {})
     glob = norm_block(cfg.get("classes"), idx).get(mid, {}) if sid else {}
     for f in NUMERIC:
-        if f not in values or values[f] is None or (f == "clip_retention_days" and c["clip_forbidden"]):
+        if f not in values or values[f] is None:
             continue
         v = values[f]
         v = round(float(v), 3) if f == "threshold" else (int(v) if float(v).is_integer() else float(v))

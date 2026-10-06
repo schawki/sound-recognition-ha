@@ -13,7 +13,7 @@ Recognises sounds (smoke alarm, baby cry, doorbell, breaking glass, barking…) 
 - **Settings per source, per sound and per source × sound**: threshold, minimum volume, schedule or continuous listening, minimum duration, cooldown, clips and their retention. The panel shows where every value comes from.
 - **Fewer false alarms**: a television, music or fireworks raise the thresholds of look-alike sounds while they are heard (safety sounds are raised by a small capped amount only). Optional adaptive sensitivity in noisy rooms. Nothing hidden is lost silently: it is counted.
 - **Advice with a button**: the panel tells you what is risky or missing and fixes it in one click, with Undo. See [the Advice tab](docs/advice.en.md).
-- **Privacy**: clips of conversations are never kept (the catalog forbids it and the service enforces it); clips of other sounds expire after the retention you choose.
+- **Privacy**: no clip of a conversation is kept unless you decide it (0 days by default, with a warning when you change it); you choose how long to keep the clips of each kind of sound, globally or per source, and they delete themselves after that.
 - **A panel in the Home Assistant sidebar**, in light and dark themes, on a phone, with the keyboard.
 - Entities, events and Repairs in Home Assistant, to use in automations.
 

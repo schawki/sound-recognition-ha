@@ -16,14 +16,17 @@ export interface SourceStatus {
 export interface Choice { keep: string; recommended?: boolean; apply: Patch }
 export interface Advice { rule: string; kind: string; level: "info" | "warning" | "danger"; source: string; classes: string[]; safety?: boolean; message: string; apply?: Patch | null; applied?: boolean; choices?: Choice[] }
 
+export type RetentionCategory = "normal" | "sensitive" | "context" | "confidential";
+export interface ClipsCfg { allowed?: boolean; max_retention_days?: number; retention_by_category?: Partial<Record<RetentionCategory, number>> }
+
 export interface SoundEvent {
   id: string; ts: number; source: string; mid: string; name?: string; class?: string; score: number;
   duration_s?: number; clip?: string | null; clip_url?: string; clip_expires?: string | null;
-  threshold?: number; feedback?: string | null; clip_reason?: string | null;
+  threshold?: number; feedback?: "false" | "good" | string | null; clip_reason?: string | null;
 }
 
 export interface ClipRow { id: string; ts: number; source: string; mid: string; name: string; class?: string; score: number; clip: string; clip_url: string; clip_expires: string | null; size: number; threshold?: number; feedback?: string | null }
-export interface ClipFilter { source?: string; mid?: string; usage?: string; since?: number; until?: number }
+export interface ClipFilter { source?: string; mid?: string; usage?: string; since?: number; until?: number; feedback?: "false" | "good" | "unjudged" }
 export interface ClipsPage { clips: ClipRow[]; total: number; total_bytes: number; sounds: { mid: string; name: string; count: number }[]; disk: { clips: number; bytes: number; free_bytes: number | null } }
 export interface ClipsDeleted { count: number; bytes: number; dry_run: boolean }
 
@@ -58,7 +61,7 @@ export interface AppliedAdvice {
 }
 export interface Recommendation { rule: string; level: "info" | "warning" | "danger"; source: string; classes: string[]; message: string; apply: Patch | null; applied?: boolean }
 export interface StatBlock { total: number; by_source: Record<string, number>; by_class: { source: string; mid: string; class: string; count: number }[]; hourly: number[] }
-export interface Stats { hours: number; since: number; detections: StatBlock; masked: StatBlock; false: StatBlock }
+export interface Stats { hours: number; since: number; detections: StatBlock; masked: StatBlock; false: StatBlock; good?: StatBlock }
 
 export interface ClassBlock {
   enabled?: boolean; threshold?: number; min_duration_s?: number; cooldown_s?: number; pre_roll_s?: number; post_roll_s?: number;
@@ -74,7 +77,7 @@ export type LiveMessage =
   | { type: "hello" | "status"; sources: SourceStatus[] }
   | { type: "active"; source: string; active_classes: string[] }
   | { type: "source_state"; source: string; state: string; error?: string | null }
-  | { type: "detection"; id: string; source: string; mid: string; name?: string; class: string; score: number; duration_s: number; detected_at: string; threshold?: number; offset?: number }
+  | { type: "detection"; id: string; source: string; mid: string; name?: string; class: string; score: number; duration_s: number; detected_at: string; threshold?: number; offset?: number; clip_reason?: string }
   | { type: "masked"; id: string; source: string; mid: string; name?: string; class: string; score: number; threshold: number; base_threshold: number; offset: number; reasons: string[]; detected_at: string }
   | { type: "context"; source: string; active_contexts: string[]; ambient_dbfs: number | null; baseline_dbfs: number | null; adaptive_enabled: boolean; adaptive_offset: number; external_offset?: number; external_reasons?: string[]; external_detail?: { label: string; value: number }[] }
   | { type: "clip_ready"; id: string; source: string; mid: string; clip: string; clip_url: string; expires_at: string };
@@ -83,7 +86,7 @@ export interface ScheduleWindow { days?: string[]; from: string; to: string }
 export interface Schedule { mode: "continuous" | "scheduled"; windows?: ScheduleWindow[] }
 export interface SourceCfg {
   id: string; name?: string; type: string; url: string; enabled?: boolean; threshold_offset?: number;
-  min_volume_dbfs?: number | null; schedule?: Schedule; clips?: { allowed?: boolean; max_retention_days?: number };
+  min_volume_dbfs?: number | null; schedule?: Schedule; clips?: ClipsCfg;
   environment?: string; adaptive?: { enabled?: boolean; max_offset?: number };
   area?: string; devices?: { enabled?: boolean; max_offset?: number; exclude?: string[]; include?: string[] };
   advice?: Record<string, AdviceSetting>; applied_advice?: AppliedAdvice[];
@@ -105,7 +108,7 @@ export interface HaOpening { entity_id: string; name: string; area_id: string | 
 export interface HaDevice { entity_id: string; name: string; domain: string; state: string; available: boolean; has_volume: boolean; duplicate_of: string | null; area_id: string; area: string; weight: number }
 export interface HsPlace { described: boolean; environment: string | null; room_type: string; room: string | null }
 export interface ServiceConfig {
-  advice?: Record<string, AdviceSetting>; sources?: SourceCfg[]; classes?: ClassBlocks; defaults?: { min_volume_dbfs?: number | null; schedule?: Schedule; clips?: { allowed?: boolean; max_retention_days?: number } }; [extra: string]: unknown }
+  advice?: Record<string, AdviceSetting>; sources?: SourceCfg[]; classes?: ClassBlocks; defaults?: { min_volume_dbfs?: number | null; schedule?: Schedule; clips?: ClipsCfg }; [extra: string]: unknown }
 export interface Validation { errors: string[]; warnings: Advice[] }
 
 export interface EsphomeDevice { device_id: string; name: string; host: string; port: number; url: string; area_id: string }

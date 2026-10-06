@@ -75,7 +75,7 @@ export class LiveView extends LitElement {
         this.sources = this.sources.map((s) => (s.id === m.source ? { ...s, connected: m.state === "connected", error: m.error ?? null } : s));
         break;
       case "detection":
-        this.events = [{ id: m.id, ts: Date.parse(m.detected_at) / 1000, source: m.source, mid: m.mid, name: m.name, class: m.class, score: m.score, duration_s: m.duration_s, threshold: m.threshold }, ...this.events].slice(0, 100);
+        this.events = [{ id: m.id, ts: Date.parse(m.detected_at) / 1000, source: m.source, mid: m.mid, name: m.name, class: m.class, score: m.score, duration_s: m.duration_s, threshold: m.threshold, clip_reason: m.clip_reason }, ...this.events].slice(0, 100);
         break;
       case "clip_ready":
         this.events = this.events.map((e) => (e.id === m.id ? { ...e, clip: m.clip, clip_url: m.clip_url } : e));
@@ -151,8 +151,8 @@ export class LiveView extends LitElement {
       <li data-event=${e.id} class=${isFalse ? "false" : ""}>
         <div class="what"><strong>${e.name ?? this.classLabel(e.mid, e.class)}</strong><span class="dim">${this.sourceName(e.source)} · ${this.relative(e.ts)}</span></div>
         <span class="score" title=${t("score")}>${Math.round(e.score * 100)}%</span>
-        <sr-detection-feedback class="fb" .api=${this.api} .t=${t} .ev=${e} .sourceName=${this.sourceName(e.source)} .audioName=${(mid: string) => this.audio.get(mid)}
-          @feedback-changed=${(ev: CustomEvent<{ id: string; feedback: string | null }>) => this.feedbackChanged(ev)}></sr-detection-feedback>
+        ${e.clip_url || e.feedback ? html`<sr-detection-feedback class="fb" .api=${this.api} .t=${t} .ev=${e} .sourceName=${this.sourceName(e.source)} .audioName=${(mid: string) => this.audio.get(mid)}
+          @feedback-changed=${(ev: CustomEvent<{ id: string; feedback: string | null }>) => this.feedbackChanged(ev)}></sr-detection-feedback>` : nothing}
         ${e.clip_url ? html`<audio controls preload="none" src=${e.clip_url} aria-label=${t("play")}></audio>`
           : html`<span class="dim" data-noclip>${clipNote(t, e.clip_reason, this.sourceName(e.source), e.name ?? this.classLabel(e.mid, e.class))}</span>`}
       </li>`;
@@ -182,6 +182,7 @@ export class LiveView extends LitElement {
     .events { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
     .events li { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; align-items: center; padding: 10px 14px; background: var(--card-background-color, #fff); border: 1px solid var(--divider-color); border-radius: 12px; }
     .what { display: flex; flex-direction: column; min-width: 0; }
+    .events li [data-noclip] { grid-column: 1 / -1; }
     .score { font-variant-numeric: tabular-nums; color: var(--secondary-text-color); }
     audio { grid-column: 1 / -1; width: 100%; height: 34px; }
     .fb { grid-column: 1 / -1; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }

@@ -138,3 +138,28 @@ async def test_bad_requests(filled):
     assert (await filled.post("/api/v1/clips/delete", data="nope", headers=H)).status == 400
     assert (await filled.post("/api/v1/clips/delete", json={"filter": {}})).status == 401
     assert (await listing(filled))["total"] == 4
+
+
+async def test_verdicts_filter_and_clipless_deletion(filled):
+    c, e = filled, filled.engine
+    for i, src in (("x1", "salon"), ("x2", "salon"), ("x3", "jardin")):                 # detections without a clip
+        when = NOW - dt.timedelta(days=1)
+        e.store.add({"id": i, "source": src, "mid": BARK, "class": "Bark", "score": 0.7, "threshold": 0.5, "duration_s": 1, "level_dbfs": -30,
+                     "started_at": when.isoformat(), "detected_at": when.isoformat(), "clip_reason": "catalog"})
+    r = await c.post("/api/v1/events/a/feedback", json={"good": True}, headers=H); assert r.status == 200
+    r = await c.post("/api/v1/events/b/feedback", json={"false": True}, headers=H); assert r.status == 200
+    r = await c.post("/api/v1/events/x2/feedback", json={"false": True}, headers=H); assert r.status == 200
+    assert (await c.post("/api/v1/events/a/feedback", json={"good": "yes"}, headers=H)).status == 400
+    ids = lambda j: sorted(x["id"] for x in j["clips"])
+    assert ids(await listing(c, "?feedback=good")) == ["a"] and ids(await listing(c, "?feedback=false")) == ["b"]
+    assert ids(await listing(c, "?feedback=unjudged")) == ["c", "d"]
+    assert (await c.get("/api/v1/clips?feedback=maybe", headers=H)).status == 400
+    row = (await listing(c, "?feedback=good"))["clips"][0]
+    assert row["feedback"] == "good" and row["threshold"] == 0.5
+    d = lambda body: c.post("/api/v1/events/delete_clipless", json=body, headers=H)
+    assert await (await d({"dry_run": True})).json() == {"count": 2, "dry_run": True}       # x1, x3: x2 is judged
+    assert await (await d({"filter": {"source": "jardin"}})).json() == {"count": 1, "dry_run": False}
+    assert (await d({"filter": {"feedback": "false"}})).status == 400
+    assert (await c.post("/api/v1/events/delete_clipless", json={})).status == 401
+    left = {r["id"] for r in e.store.query()}
+    assert {"x2", "x1"} <= left and "x3" not in left and {"a", "b", "c", "d"} <= left
