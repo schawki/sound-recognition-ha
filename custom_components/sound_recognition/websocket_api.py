@@ -12,6 +12,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from . import devices as dev, home_rules, structure_link
 from .api import InvalidConfig, SoundRecError
 from .const import DOMAIN, SIGNAL_LIVE
+from .esphome_devices import find_devices
 from .go2rtc import CONF_GO2RTC_URL, Go2RtcError, fetch_streams, normalize_url
 
 ENTRY = {vol.Optional("entry_id"): str}
@@ -326,6 +327,14 @@ async def ws_subscribe(hass, connection, msg, entry):
     connection.send_result(msg["id"])
 
 
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/esphome_devices"})
+@websocket_api.require_admin
+@callback
+def ws_esphome_devices(hass, connection, msg):
+    """ESPHome devices running the Sound Recognition microphone component."""
+    connection.send_result(msg["id"], {"devices": find_devices(hass)})
+
+
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/go2rtc_streams", **ENTRY, vol.Optional("url"): str})
 @websocket_api.require_admin
 @websocket_api.async_response
@@ -350,7 +359,7 @@ async def ws_go2rtc_streams(hass, connection, msg, entry):
     connection.send_result(msg["id"], {"configured": True, "url": base, "streams": streams})
 
 
-COMMANDS = (ws_go2rtc_streams, ws_overview, ws_update, ws_update_install, ws_catalog, ws_warnings, ws_config, ws_config_validate, ws_config_save, ws_resolved, ws_events, ws_clips, ws_clips_delete, ws_recommendations, ws_areas, ws_openings, ws_devices, ws_place, ws_structure, ws_stats, ws_event_feedback, ws_subscribe)
+COMMANDS = (ws_esphome_devices, ws_go2rtc_streams, ws_overview, ws_update, ws_update_install, ws_catalog, ws_warnings, ws_config, ws_config_validate, ws_config_save, ws_resolved, ws_events, ws_clips, ws_clips_delete, ws_recommendations, ws_areas, ws_openings, ws_devices, ws_place, ws_structure, ws_stats, ws_event_feedback, ws_subscribe)
 
 
 def async_register(hass: HomeAssistant) -> None:

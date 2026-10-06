@@ -2,6 +2,14 @@
 
 Releases are tagged `vX.Y.Z`; the service updates itself from Home Assistant to the latest tag.
 
+## 0.10.0
+
+- **ESP32 microphones (ESPHome) as sources.** A small ESPHome component (`esphome/components/sound_recognition_stream`) streams the audio of an I2S microphone (INMP441...) over the network; the service connects to it, reads it and reconnects by itself if the Wi-Fi drops. Guide: `docs/esphome-microphone.en.md`.
+- **A password protects the stream.** It is mandatory in the ESPHome configuration (8 characters or more, in `secrets.yaml`). The service proves it knows it without ever sending it, and the device sends no audio to anyone who cannot. The service never shows the password again (the API and the panel show `***`). The audio is **not encrypted** on the network: see the guide for a separate IoT network.
+- **Found by themselves.** In *Sources → Add → ESP32 microphone*, the devices that run the component are listed (Home Assistant already knows their address and room) with a *Use* button. For a device not flashed yet, the form shows the ESPHome configuration to copy.
+- Service API level 7: update the service from Home Assistant after updating the integration.
+- The component is checked on a PC against the service client (audio, wrong password, takeover by a second client) and compiled for an ESP32 by the CI. It has not been tried on a real microphone yet.
+
 ## 0.9.2
 
 - The *parent and child* advice no longer concerns a context at all (*Fireworks*, *Television*, *Music*...): a context only raises thresholds, so it has no alert rule that could conflict with its parent or child. 0.9.1 only covered two contexts together.

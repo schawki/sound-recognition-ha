@@ -71,7 +71,7 @@ In the panel, *Sources → Add*. A source is a stream URL:
 | Raspberry Pi with a microphone | a go2rtc stream from the Pi, `rtsp://<pi>:8554/mic` |
 | Test file | a path or URL ffmpeg can read |
 
-ESPHome microphones are not supported yet.
+ESP32 microphones (ESPHome): see [ESP32 microphone](esphome-microphone.en.md).
 
 ## Keeping it up to date
 

@@ -2,6 +2,14 @@
 
 Les versions sont étiquetées `vX.Y.Z` ; le service se met à jour depuis Home Assistant vers la dernière étiquette.
 
+## 0.10.0
+
+- **Micros ESP32 (ESPHome) comme sources.** Un petit composant ESPHome (`esphome/components/sound_recognition_stream`) diffuse sur le réseau l'audio d'un micro I2S (INMP441…) ; le service s'y connecte, le lit et se reconnecte tout seul si le Wi-Fi coupe. Guide : `docs/esphome-microphone.fr.md`.
+- **Un mot de passe protège le flux.** Il est obligatoire dans la configuration ESPHome (8 caractères ou plus, dans `secrets.yaml`). Le service prouve qu'il le connaît sans jamais l'envoyer, et l'appareil n'envoie aucun son à qui ne le prouve pas. Le service ne ré-affiche jamais le mot de passe (l'API et le panneau montrent `***`). L'audio n'est **pas chiffré** sur le réseau : voir le guide pour un réseau séparé pour les objets connectés.
+- **Trouvés automatiquement.** Dans *Sources → Ajouter → Micro ESP32*, les appareils qui font tourner le composant sont listés (Home Assistant connaît déjà leur adresse et leur pièce) avec un bouton *Utiliser*. Pour un appareil pas encore flashé, le formulaire montre la configuration ESPHome à copier.
+- API du service niveau 7 : mettez à jour le service depuis Home Assistant après celle de l'intégration.
+- Le composant est vérifié sur PC face au client du service (audio, mauvais mot de passe, reprise par un second client) et compilé pour un ESP32 par la CI. Il n'a pas encore été essayé avec un vrai micro.
+
 ## 0.9.2
 
 - Le conseil *parent et enfant* ne concerne plus du tout un contexte (*Fireworks*, *Television*, *Music*…) : un contexte ne fait que relever les seuils, il n'a donc pas de règle d'alerte qui puisse entrer en conflit avec son parent ou son enfant. La 0.9.1 ne couvrait que deux contextes ensemble.

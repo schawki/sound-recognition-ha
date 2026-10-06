@@ -4,6 +4,7 @@ import logging
 import numpy as np
 
 from .classifier import SAMPLE_RATE
+from . import espstream
 
 log = logging.getLogger("soundrec.audio")
 
@@ -51,26 +52,36 @@ def ffmpeg_args(source):
     return args
 
 
+async def _chunks_from_ffmpeg(source, nbytes, stall_s, state):
+    proc = await asyncio.create_subprocess_exec(*ffmpeg_args(source), stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+    state["proc"] = proc
+    while True:
+        yield await asyncio.wait_for(proc.stdout.readexactly(nbytes), timeout=stall_s)
+
+
+async def _chunks_from_esphome(source, nbytes, stall_s, state):
+    reader, writer = await espstream.connect(source["url"], source.get("password") or "")
+    state["writer"] = writer
+    while True:
+        yield await asyncio.wait_for(reader.readexactly(nbytes), timeout=stall_s)
+
+
 async def read_source(source, on_pcm, on_state, chunk_samples=SAMPLE_RATE // 4, stall_s=15.0):
     """Runs until cancelled. Calls on_pcm(int16 array) for each chunk and on_state('connected'|'reconnecting', error)."""
-    if source["type"] == "esphome":
-        on_state("unsupported", "esphome sources are not implemented yet")
-        return
     backoff = 1.0
+    nbytes = chunk_samples * 2
+    chunks = _chunks_from_esphome if source["type"] == "esphome" else _chunks_from_ffmpeg
     while True:
-        proc = None
+        state = {}
         try:
-            proc = await asyncio.create_subprocess_exec(*ffmpeg_args(source), stdout=asyncio.subprocess.PIPE,
-                                                        stderr=asyncio.subprocess.PIPE)
-            nbytes = chunk_samples * 2
             got_any = False
-            while True:
-                data = await asyncio.wait_for(proc.stdout.readexactly(nbytes), timeout=stall_s)
+            async for data in chunks(source, nbytes, stall_s, state):
                 if not got_any:
                     got_any = True
                     backoff = 1.0
                     on_state("connected", None)
                 on_pcm(np.frombuffer(data, dtype=np.int16))
+            err = "stream ended"
         except asyncio.CancelledError:
             raise
         except asyncio.IncompleteReadError:
@@ -80,9 +91,13 @@ async def read_source(source, on_pcm, on_state, chunk_samples=SAMPLE_RATE // 4, 
         except Exception as e:  # noqa: BLE001
             err = str(e)
         finally:
+            proc = state.get("proc")
             if proc and proc.returncode is None:
                 proc.kill()
                 await proc.wait()
+            if state.get("writer"):
+                state["writer"].close()
+        proc = state.get("proc")
         if proc is not None and proc.stderr:
             try:
                 tail = (await proc.stderr.read())[-300:].decode(errors="replace").strip()

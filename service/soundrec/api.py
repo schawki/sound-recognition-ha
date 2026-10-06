@@ -32,6 +32,9 @@ async def auth(req, handler):
 def _masked(cfg):
     out = json.loads(json.dumps(cfg))
     out["api"]["token"] = "***"
+    for src in out.get("sources") or []:
+        if src.get("password"):
+            src["password"] = "***"
     return out
 
 
@@ -88,6 +91,7 @@ async def validate_config(req):
     except Exception:
         return web.json_response({"errors": ["body must be JSON"]}, status=400)
     cand = cfgmod._merge(cfgmod.DEFAULTS, body)
+    eng.restore_secrets(cand)
     errs = cfgmod.validate(cand, eng.catalog)
     return web.json_response({"errors": errs, "warnings": [] if errs else advisor.compute(cand, _lang(req), eng.catalog_root)})
 

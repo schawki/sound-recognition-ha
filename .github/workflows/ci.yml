@@ -70,3 +70,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: home-assistant/actions/hassfest@master
+
+  esphome:
+    # The microphone component for ESP32 devices: validate the example and compile it with the real toolchain.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install ESPHome
+        run: pip install esphome
+      - name: Validate and compile the example
+        working-directory: esphome
+        run: |
+          mkdir /tmp/esp && cp example.yaml /tmp/esp/example.yaml
+          printf 'wifi_ssid: ci\nwifi_password: ci-password\nsound_recognition_password: ci-password-123\n' > /tmp/esp/secrets.yaml
+          sed -i "s|github://schawki/sound-recognition-ha|$GITHUB_WORKSPACE/esphome/components|" /tmp/esp/example.yaml
+          cd /tmp/esp && esphome config example.yaml && esphome compile example.yaml

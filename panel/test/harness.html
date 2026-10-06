@@ -131,6 +131,9 @@
       const level = typeof e === "string" ? e : e && e.level; const confirm = e && typeof e === "object" && e.confirm;
       return !(level === "ignore" && (!w.safety || confirm));
     })).map(withApplied) }),
+    "sound_recognition/esphome_devices": () => ({ devices: q.get("noesp") ? [] : [
+      { device_id: "d1", name: "Mic living room", host: "192.168.1.50", port: 6055, url: "tcp://192.168.1.50:6055", area_id: "salon" },
+      { device_id: "d2", name: "Mic garage", host: "192.168.1.51", port: 7000, url: "tcp://192.168.1.51:7000", area_id: "" }] }),
     "sound_recognition/go2rtc_streams": (m) => {
       const g = state.go2rtc = state.go2rtc || { url: "", streams: [{ name: "salon", url: "rtsp://192.168.1.5:8554/salon" }, { name: "garage", url: "rtsp://192.168.1.5:8554/garage" }] };
       state.g2calls = (state.g2calls || []).concat([m.url === undefined ? null : m.url]);

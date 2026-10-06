@@ -108,6 +108,7 @@ export interface ServiceConfig {
   advice?: Record<string, AdviceSetting>; sources?: SourceCfg[]; classes?: ClassBlocks; defaults?: { min_volume_dbfs?: number | null; schedule?: Schedule; clips?: { allowed?: boolean; max_retention_days?: number } }; [extra: string]: unknown }
 export interface Validation { errors: string[]; warnings: Advice[] }
 
+export interface EsphomeDevice { device_id: string; name: string; host: string; port: number; url: string; area_id: string }
 export interface Go2rtcStreams { configured: boolean; url: string; streams: { name: string; url: string }[] }
 
 export interface UpdateStatus { state: "idle" | "requested" | "running" | "done" | "failed"; message?: string; log?: string; stalled?: boolean; updated?: number | null }

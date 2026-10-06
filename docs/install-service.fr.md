@@ -71,7 +71,7 @@ Dans le panneau, *Sources → Ajouter*. Une source est l'URL d'un flux :
 | Raspberry Pi avec micro | un flux go2rtc du Pi, `rtsp://<pi>:8554/mic` |
 | Fichier de test | un chemin ou une URL qu'ffmpeg sait lire |
 
-Les micros ESPHome ne sont pas encore pris en charge.
+Micros ESP32 (ESPHome) : voir [Micro ESP32](esphome-microphone.fr.md).
 
 ## Rester à jour
 

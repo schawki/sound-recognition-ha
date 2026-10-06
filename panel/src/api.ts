@@ -1,4 +1,4 @@
-import type { UpdateInfo, Advice, HaArea, HaDevice, HaOpening, StructureInfo, Catalog, Go2rtcStreams, Hass, HsPlace, LiveMessage, Overview, Recommendation, ServiceConfig, SoundEvent, ClipFilter, ClipsDeleted, ClipsPage, Stats, Validation } from "./types";
+import type { UpdateInfo, Advice, HaArea, HaDevice, HaOpening, StructureInfo, Catalog, EsphomeDevice, Go2rtcStreams, Hass, HsPlace, LiveMessage, Overview, Recommendation, ServiceConfig, SoundEvent, ClipFilter, ClipsDeleted, ClipsPage, Stats, Validation } from "./types";
 
 export class PanelApi {
   constructor(private hass: Hass, public language: string) {}
@@ -70,6 +70,10 @@ export class PanelApi {
   /** Streams of the go2rtc server; with `url`, tries that address and lets Home Assistant remember it when it answers. */
   go2rtcStreams(url?: string): Promise<Go2rtcStreams> {
     return this.hass.callWS({ type: "sound_recognition/go2rtc_streams", ...(url === undefined ? {} : { url }) });
+  }
+  /** ESPHome devices that run the Sound Recognition microphone component (found through their diagnostic sensor). */
+  async esphomeDevices(): Promise<EsphomeDevice[]> {
+    return (await this.hass.callWS<{ devices: EsphomeDevice[] }>({ type: "sound_recognition/esphome_devices" })).devices;
   }
   subscribe(cb: (m: LiveMessage) => void): Promise<() => void> {
     return this.hass.connection.subscribeMessage<LiveMessage>(cb, { type: "sound_recognition/subscribe", language: this.language });

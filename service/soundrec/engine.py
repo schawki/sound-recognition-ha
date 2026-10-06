@@ -54,11 +54,19 @@ class Engine:
         await asyncio.gather(*self.tasks.values(), return_exceptions=True)
 
     # ---------------------------------------------------------------- configuration
+    def restore_secrets(self, cfg):
+        """The API never shows a source password: "***" in a submitted configuration means "unchanged"."""
+        old = {x["id"]: x for x in self.cfg.get("sources") or []}
+        for src in cfg.get("sources") or []:
+            if src.get("password") == "***":
+                src["password"] = (old.get(src.get("id")) or {}).get("password")
+
     def apply_config(self, new_cfg):
         """Validates, saves (atomically) and applies a full configuration. Returns the list of errors (empty = applied)."""
         new_cfg = cfgmod._merge(cfgmod.DEFAULTS, new_cfg)
         if new_cfg["api"].get("token") in (None, "", "***"):
             new_cfg["api"]["token"] = self.cfg["api"]["token"]
+        self.restore_secrets(new_cfg)
         errs = cfgmod.validate(new_cfg, self.catalog)
         if errs:
             return errs
@@ -83,7 +91,7 @@ class Engine:
 
     @staticmethod
     def _conn_key(s):
-        return (s["type"], s["url"])
+        return (s["type"], s["url"], s.get("password"))
 
     def _start_source(self, s):
         pipe = SourcePipeline(s, self.cfg, self.catalog, self.clf, tz=self.cfg.get("timezone"))

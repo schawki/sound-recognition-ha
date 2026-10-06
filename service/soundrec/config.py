@@ -7,6 +7,7 @@ import tempfile
 import zoneinfo
 import yaml
 
+from . import espstream
 from .settings import DAYS, Catalog
 
 SOURCE_TYPES = ("rtsp", "go2rtc", "alsa_rpi", "esphome", "file")
@@ -206,6 +207,15 @@ def validate(cfg, catalog: Catalog):
             errs.append(f"{w}: type must be one of {', '.join(SOURCE_TYPES)}")
         if not s.get("url"):
             errs.append(f"{w}: url is required")
+        if s.get("type") == "esphome":
+            try:
+                espstream.parse_url(s.get("url") or "")
+            except ValueError as e:
+                errs.append(f"{w}: {e}")
+            if not s.get("password"):
+                errs.append(f"{w}: password is required for an ESPHome source (the one set in the device configuration)")
+            elif not isinstance(s["password"], str) or len(s["password"]) < 8:
+                errs.append(f"{w}: password must be at least 8 characters")
         if "threshold_offset" in s and not _num(s["threshold_offset"], -1, 1):
             errs.append(f"{w}.threshold_offset must be between -1 and 1")
         if "min_volume_dbfs" in s and s["min_volume_dbfs"] is not None and not _num(s["min_volume_dbfs"], -90, 0):

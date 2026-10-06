@@ -5,9 +5,10 @@ import type { PanelApi } from "./api";
 import type { T } from "./i18n";
 import { cellsToWindows, hoursPerWeek, windowsToCells } from "./schedule";
 import { groupAdvice, type NoticeItem } from "./advice-group";
-import type { Advice, HsPlace, SeparationType, StructureInfo, Catalog, Environment, Go2rtcStreams, HaArea, HaDevice, HaOpening, ServiceConfig, SourceCfg } from "./types";
+import type { Advice, EsphomeDevice, HsPlace, SeparationType, StructureInfo, Catalog, Environment, Go2rtcStreams, HaArea, HaDevice, HaOpening, ServiceConfig, SourceCfg } from "./types";
 import "./schedule-grid";
 import "./structure-plan";
+import { ESPHOME_YAML } from "./esphome-yaml";
 
 const TYPES: [string, "typeRtsp" | "typeGo2rtc" | "typeAlsa" | "typeEsphome" | "typeFile"][] = [
   ["rtsp", "typeRtsp"], ["go2rtc", "typeGo2rtc"], ["alsa_rpi", "typeAlsa"], ["esphome", "typeEsphome"], ["file", "typeFile"],
@@ -27,6 +28,7 @@ interface Form {
   offset: string; minVolume: string; scheduled: boolean; cells: boolean[];
   clipsAllowed: boolean; clipsMaxDays: string;
   environment: string; adaptive: boolean; adaptiveMax: string;
+  password: string;
   area: string; devEnabled: boolean; devMax: string; devExclude: string[]; devInclude: string;
 }
 
@@ -68,6 +70,7 @@ export class SourcesView extends LitElement {
   @state() private hsPlace: HsPlace | null = null;
   @state() private structure: StructureInfo | null = null;
   private devsFor = "";
+  @state() private esp: { devices: EsphomeDevice[]; tried: boolean; copied: boolean } = { devices: [], tried: false, copied: false };
   @state() private g2: { url: string; streams: Go2rtcStreams["streams"]; loading: boolean; error: string; tried: boolean } = { url: "", streams: [], loading: false, error: "", tried: false };
 
   connectedCallback(): void {
@@ -90,6 +93,35 @@ export class SourcesView extends LitElement {
 
   protected willUpdate(): void {
     if (this.form?.type === "go2rtc" && !this.g2.tried && !this.g2.loading) void this.loadStreams();
+    if (this.form?.type === "esphome" && !this.esp.tried) void this.loadEsphome();
+  }
+
+  private async loadEsphome(): Promise<void> {
+    this.esp = { ...this.esp, tried: true };
+    try {
+      this.esp = { ...this.esp, devices: await this.api.esphomeDevices() };
+    } catch {
+      this.esp = { ...this.esp, devices: [] };
+    }
+  }
+
+  /** Adds a detected ESP32 microphone to the rows of a new source (and its room, when the device has one and none is chosen). */
+  private useEsphome(d: EsphomeDevice): void {
+    const f = this.form;
+    if (!f) return;
+    const rows = [...f.rows.filter((r) => r.url.trim() || r.name.trim()), newRow(d.name, d.url)];
+    this.form = { ...f, rows, area: f.area || (this.areas.some((a) => a.area_id === d.area_id) ? d.area_id : "") };
+    if (this.form.area) void this.loadDevices(this.form.area);
+  }
+
+  private async copyYaml(): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(ESPHOME_YAML);
+      this.esp = { ...this.esp, copied: true };
+      setTimeout(() => { this.esp = { ...this.esp, copied: false }; }, 2000);
+    } catch {
+      /* the text is shown: it can be selected by hand */
+    }
   }
 
   /** Without `url`, reads the streams of the address Home Assistant remembers; with it, tries that address. */
@@ -124,18 +156,20 @@ export class SourcesView extends LitElement {
       scheduled: sched?.mode === "scheduled", cells: windowsToCells(sched?.windows ?? []),
       clipsAllowed: s.clips?.allowed !== false, clipsMaxDays: s.clips?.max_retention_days == null ? "" : String(s.clips.max_retention_days),
       environment: s.environment ?? "", adaptive: s.adaptive?.enabled === true, adaptiveMax: s.adaptive?.max_offset == null ? "" : String(s.adaptive.max_offset),
+      password: typeof s.password === "string" ? s.password : "",
       area: s.area ?? "", devEnabled: s.devices?.enabled === true, devMax: s.devices?.max_offset == null ? "" : String(s.devices.max_offset),
       devExclude: [...(s.devices?.exclude ?? [])], devInclude: (s.devices?.include ?? []).join("\n"),
     };
   }
 
   private blankForm(): Form {
-    return { id: "", isNew: true, name: "", type: lastType, url: "", enabled: true, rows: [newRow()], picked: {}, offset: "", minVolume: "", scheduled: false, cells: new Array(336).fill(false), clipsAllowed: true, clipsMaxDays: "", environment: "", adaptive: false, adaptiveMax: "", area: "", devEnabled: false, devMax: "", devExclude: [], devInclude: "" };
+    return { id: "", isNew: true, name: "", type: lastType, url: "", enabled: true, rows: [newRow()], picked: {}, offset: "", minVolume: "", scheduled: false, cells: new Array(336).fill(false), clipsAllowed: true, clipsMaxDays: "", environment: "", adaptive: false, adaptiveMax: "", password: "", area: "", devEnabled: false, devMax: "", devExclude: [], devInclude: "" };
   }
 
   /** Applies the form on a copy of the stored source, so fields the form does not know (class settings, advice) are kept. */
   private fromForm(f: Form, existing?: SourceCfg): SourceCfg {
     const s: SourceCfg = { ...(existing ?? {}), id: f.id, name: f.name.trim(), type: f.type, url: f.url.trim() };
+    if (f.type === "esphome" && f.password.trim()) s.password = f.password.trim(); else delete s.password;
     if (f.enabled) delete s.enabled; else s.enabled = false;
     const off = parseFloat(f.offset);
     if (Number.isFinite(off) && off !== 0) s.threshold_offset = off; else delete s.threshold_offset;
@@ -456,13 +490,28 @@ export class SourcesView extends LitElement {
       })}</div>`;
   }
 
+  private renderEsphome(f: Form) {
+    const t = this.t, e = this.esp;
+    const used = new Set(this.sources.map((x) => x.url));
+    const taken = (d: EsphomeDevice) => used.has(d.url) || f.rows.some((r) => r.url.trim() === d.url);
+    return html`<fieldset class="esp" data-esphome><legend>${t("espDevices")}</legend>
+      ${e.devices.length === 0 ? html`<p class="note" data-esp-none>${t("espNoDevices")}</p>` : e.devices.map((d) => html`<div class="espdev" data-esp-device=${d.url}>
+        <span><strong>${d.name}</strong> <span class="dim">${d.url}</span></span>
+        ${taken(d) ? html`<span class="dim">${t("espUsed")}</span>` : html`<button type="button" data-action="esp-use" @click=${() => this.useEsphome(d)}>${t("espUse")}</button>`}</div>`)}
+      <details class="paste"><summary>${t("espYamlTitle")}</summary>
+        <p class="dim">${t("espYamlHelp")}</p>
+        <pre class="yaml" data-esp-yaml>${ESPHOME_YAML}</pre>
+        <div class="gridbar"><button type="button" data-action="esp-copy" @click=${() => void this.copyYaml()}>${e.copied ? t("espYamlCopied") : t("espYamlCopy")}</button></div></details>
+    </fieldset>`;
+  }
+
   private renderRows(f: Form) {
     const t = this.t;
     const upd = (key: number, patch: Partial<Row>) => this.set("rows", f.rows.map((r) => (r.key === key ? { ...r, ...patch } : r)));
-    return html`<fieldset class="rows"><legend>${f.type === "go2rtc" ? t("otherAddresses") : t("camerasToAdd")}</legend>
+    return html`<fieldset class="rows"><legend>${f.type === "go2rtc" ? t("otherAddresses") : f.type === "esphome" ? t("espAddresses") : t("camerasToAdd")}</legend>
       ${repeat(f.rows, (r) => r.key, (r, i) => html`<div class="rowline" data-row=${i}>
         <input name="row-name" placeholder=${t("name")} aria-label=${t("name")} .value=${r.name} @input=${(e: Event) => upd(r.key, { name: (e.target as HTMLInputElement).value })} />
-        <input name="row-url" placeholder="rtsp://…" aria-label=${t("address")} .value=${r.url} @input=${(e: Event) => upd(r.key, { url: (e.target as HTMLInputElement).value })} />
+        <input name="row-url" placeholder=${f.type === "esphome" ? "tcp://192.168.1.50:6055" : "rtsp://…"} aria-label=${t("address")} .value=${r.url} @input=${(e: Event) => upd(r.key, { url: (e.target as HTMLInputElement).value })} />
         <button type="button" data-action="row-remove" aria-label=${t("remove")} ?disabled=${f.rows.length === 1 && !r.url && !r.name}
           @click=${() => this.set("rows", f.rows.length === 1 ? [newRow()] : f.rows.filter((x) => x.key !== r.key))}>✕</button></div>`)}
       <div class="gridbar"><button type="button" data-action="row-add" @click=${() => this.set("rows", [...f.rows, newRow()])}>${t("addRow")}</button></div>
@@ -476,7 +525,7 @@ export class SourcesView extends LitElement {
           ta.value = "";
           this.set("rows", [...f.rows.filter((r) => r.url.trim() || r.name.trim()), ...parsed]);
         }}>${t("pasteAdd")}</button></div></details>
-      <small>${f.type === "go2rtc" ? t("rowsHelpGo2rtc") : t("addressHelp")}</small>
+      <small>${f.type === "go2rtc" ? t("rowsHelpGo2rtc") : f.type === "esphome" ? t("espAddressHelp") : t("addressHelp")}</small>
     </fieldset>`;
   }
 
@@ -509,8 +558,11 @@ export class SourcesView extends LitElement {
         <label>${t("type")}<select name="type" .value=${f.type} @change=${(e: Event) => this.set("type", (e.target as HTMLSelectElement).value)}>
           ${TYPES.map(([k, key]) => html`<option value=${k} ?selected=${f.type === k}>${t(key)}</option>`)}</select></label>
         ${f.type === "go2rtc" ? this.renderGo2rtc(f) : nothing}
+        ${f.type === "esphome" && f.isNew ? this.renderEsphome(f) : nothing}
         ${f.isNew ? this.renderRows(f) : html`
-        <label>${t("address")}<input name="url" required .value=${f.url} @input=${(e: Event) => this.set("url", (e.target as HTMLInputElement).value)} /><small>${t("addressHelp")}</small></label>`}
+        <label>${t("address")}<input name="url" required .value=${f.url} @input=${(e: Event) => this.set("url", (e.target as HTMLInputElement).value)} /><small>${f.type === "esphome" ? t("espAddressHelp") : t("addressHelp")}</small></label>`}
+        ${f.type === "esphome" ? html`<label>${t("espPassword")}<input name="password" type="password" autocomplete="new-password" required .value=${f.password}
+          @input=${(e: Event) => this.set("password", (e.target as HTMLInputElement).value)} /><small>${t("espPasswordHelp")}</small></label>` : nothing}
         ${this.areas.length ? this.renderRoom(f) : nothing}
         ${this.renderPlace(f)}
         ${f.isNew
@@ -602,6 +654,7 @@ export class SourcesView extends LitElement {
     .gridbar { display: flex; gap: 8px; align-items: center; } .gridbar .dim { flex: 1; }
     .row { display: flex; gap: 8px; } .row input { flex: 1; }
     .streams { display: flex; flex-direction: column; gap: 6px; } .stream { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-height: 34px; } .stream label { min-width: 140px; } .stream .rowname { flex: 1; min-width: 160px; }
+    .espdev { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; min-height: 34px; } pre.yaml { background: var(--secondary-background-color, #f5f5f5); padding: 10px; border-radius: 6px; overflow-x: auto; font-size: 0.8rem; max-height: 320px; margin: 6px 0; user-select: all; }
     .rowline { display: grid; grid-template-columns: minmax(100px, 1fr) minmax(160px, 2fr) auto; gap: 8px; }
     textarea { font: inherit; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--divider-color); background: var(--primary-background-color); color: var(--primary-text-color); width: 100%; box-sizing: border-box; margin: 6px 0; }
     details.adv, details.paste { border: 1px solid var(--divider-color); border-radius: 10px; padding: 8px 14px; } details.paste { border: 0; padding: 0; }

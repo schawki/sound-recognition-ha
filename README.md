@@ -8,6 +8,7 @@ Recognises sounds (smoke alarm, baby cry, doorbell, breaking glass, barking…) 
 
 ## What you get
 
+- **Any audio source**: cameras and go2rtc streams (RTSP), Raspberry Pi, and ESP32 microphones with a small ESPHome component.
 - **521 recognisable sounds** (YAMNet / AudioSet) with English and French names, grouped by category and use, each with a suggested threshold and warnings about look-alike sounds.
 - **Settings per source, per sound and per source × sound**: threshold, minimum volume, schedule or continuous listening, minimum duration, cooldown, clips and their retention. The panel shows where every value comes from.
 - **Fewer false alarms**: a television, music or fireworks raise the thresholds of look-alike sounds while they are heard (safety sounds are raised by a small capped amount only). Optional adaptive sensitivity in noisy rooms. Nothing hidden is lost silently: it is counted.
@@ -32,7 +33,7 @@ It works alongside **[Home Structure](https://github.com/schawki/ha-home-structu
 1. **Install the service** (about ten minutes). On a Proxmox host, one command creates a ready container; any Debian or Ubuntu machine works too, and a Docker image is provided. Step by step: **[Installing the service](docs/install-service.en.md)** ([français](docs/install-service.fr.md)).
 2. **Install the integration.** HACS → three dots → *Custom repositories* → `https://github.com/schawki/sound-recognition-ha` (category *Integration*) → install **Sound Recognition**, restart Home Assistant.
 3. **Connect them.** *Settings → Devices & services → Add integration → Sound Recognition*: the service address, port 8765 and the token printed at the end of the installation.
-4. **Add a source and choose sounds.** Open **Sound Recognition** in the sidebar: *Sources → Add* (the URL of an RTSP/go2rtc stream or a Raspberry Pi microphone), then *Sounds* to enable the ones you care about. The *Advice* tab then tells you what to check.
+4. **Add a source and choose sounds.** Open **Sound Recognition** in the sidebar: *Sources → Add* (the URL of an RTSP/go2rtc stream, a Raspberry Pi microphone, or an [ESP32 microphone found by itself](docs/esphome-microphone.en.md)), then *Sounds* to enable the ones you care about. The *Advice* tab then tells you what to check.
 5. **Stay up to date.** Once connected, the service is updated from Home Assistant: an *Update* entity and a panel banner announce each new release, and one click installs it and keeps your settings (Proxmox/Debian installs; see [Installing the service](docs/install-service.en.md#keeping-it-up-to-date)).
 
 ## The panel
@@ -52,11 +53,11 @@ It works alongside **[Home Structure](https://github.com/schawki/ha-home-structu
 
 ## Status
 
-Version 0.9, used on a real installation and tested (service, integration and panel test suites run on every commit). Not supported yet: ESPHome microphones as sources. The Docker image is provided but not tested yet. Feedback and issues are welcome.
+Version 0.9, used on a real installation and tested (service, integration and panel test suites run on every commit). ESP32 microphones (ESPHome) are supported but not tried on real hardware yet. The Docker image is provided but not tested yet. Feedback and issues are welcome.
 
 ## Known limitations
 
-- ESPHome microphones are not supported as sources yet (in progress); use RTSP/go2rtc streams or a Raspberry Pi.
+- ESP32 microphones (ESPHome) are new and not tried on a real microphone yet. Their audio is protected by a password but not encrypted on your local network ([details](docs/esphome-microphone.en.md#how-the-stream-is-protected)).
 - *Undo* on an advice does not switch a sound back on if the advice switched it off (its base value in the catalog is off). The card says so; switch it on again in the Sounds tab.
 - Advice that asks you to choose between two sounds ("Keep X only") has no button in Home Assistant's *Repairs* page; choose in the Advice tab.
 - Recommendations cannot be hidden (only warnings can).
@@ -66,6 +67,7 @@ Version 0.9, used on a real installation and tested (service, integration and pa
 ## Documentation
 
 - [Installing the service](docs/install-service.en.md) · [Proxmox details and updates](deploy/DEPLOY.md)
+- [ESP32 microphone (ESPHome)](docs/esphome-microphone.en.md)
 - [The Advice tab](docs/advice.en.md)
 - [Per-source settings](docs/source-settings.en.md) · [Contexts, rooms and adaptive sensitivity](docs/context-and-adaptive.en.md)
 - [Service API and development](docs/api.md) · [Example configuration](examples/config.example.yaml)

@@ -37,6 +37,7 @@ sources:
     name: Kitchen
     type: esphome                 # esphome | go2rtc | rtsp | alsa_rpi
     url: tcp://192.168.1.50:6055  # placeholder: stream exposed by the device
+    password: change-me-please    # placeholder: the password set in the ESPHome configuration of the device
     threshold_offset: 0.05        # added to every class threshold of this source (noisy room)
     min_volume_dbfs: -55
     schedule:                     # scheduled mode: only these windows are listened to
@@ -60,6 +61,7 @@ sources:
     name: Nursery
     type: esphome
     url: tcp://192.168.1.51:6055
+    password: change-me-too       # placeholder
     schedule: {mode: continuous}
     clips: {allowed: false}       # no audio is ever stored from this room
 
