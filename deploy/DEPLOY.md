@@ -1,6 +1,6 @@
 # Test deployment (Proxmox LXC)
 
-Short recipe to get the service running in its own unprivileged Debian 13 container. A full user tutorial will come once the project is finished.
+Short recipe to get the service running in its own unprivileged Debian 13 container. Step-by-step guide with the Docker and plain-Debian options: [docs/install-service.en.md](../docs/install-service.en.md).
 
 ## 1. On the Proxmox host
 

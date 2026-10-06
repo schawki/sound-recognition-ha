@@ -1,6 +1,6 @@
 # Déploiement de test (LXC Proxmox)
 
-Recette courte pour faire tourner le service dans son propre conteneur Debian 13 non privilégié. Le tutoriel utilisateur complet viendra quand le projet sera terminé.
+Recette courte pour faire tourner le service dans son propre conteneur Debian 13 non privilégié. Guide pas à pas, avec Docker et les autres options : [docs/install-service.fr.md](../docs/install-service.fr.md).
 
 ## 1. Sur l'hôte Proxmox
 

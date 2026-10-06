@@ -1,56 +1,70 @@
-# Sound recognition for Home Assistant
+# Sound Recognition for Home Assistant
 
-Recognises sounds (smoke alarm, baby cry, doorbell, breaking glass, barking…) from network microphones, cameras and Raspberry Pi, and reports them to Home Assistant. Think "Frigate's audio detection", but with any audio source and a configuration you can manage from Home Assistant.
+Recognises sounds (smoke alarm, baby cry, doorbell, breaking glass, barking…) from network microphones, cameras and Raspberry Pi, and reports them to Home Assistant. Think "Frigate's audio detection", but for any audio source and with every setting managed from the Home Assistant interface.
 
-**Status: early development (service and integration v0.1, tests passing, not yet run against real streams or a real Home Assistant).**
+*Français : [README.fr.md](README.fr.md)*
+
+![The Live tab](docs/images/live.png)
+
+## What you get
+
+- **521 recognisable sounds** (YAMNet / AudioSet) with English and French names, grouped by category and use, each with a suggested threshold and warnings about look-alike sounds.
+- **Settings per source, per sound and per source × sound**: threshold, minimum volume, schedule or continuous listening, minimum duration, cooldown, clips and their retention. The panel shows where every value comes from.
+- **Fewer false alarms**: a television, music or fireworks raise the thresholds of look-alike sounds while they are heard (safety sounds are raised by a small capped amount only). Optional adaptive sensitivity in noisy rooms. Nothing hidden is lost silently: it is counted.
+- **Advice with a button**: the panel tells you what is risky or missing and fixes it in one click, with Undo. See [the Advice tab](docs/advice.en.md).
+- **Privacy**: clips of conversations are never kept (the catalog forbids it and the service enforces it); clips of other sounds expire after the retention you choose.
+- **A panel in the Home Assistant sidebar**, in light and dark themes, on a phone, with the keyboard.
+- Entities, events and Repairs in Home Assistant, to use in automations.
 
 ## How it fits together
 
-- **`service/`**: the classifier. A small Python service (Docker image) meant to run in its own LXC/container. It reads audio streams with ffmpeg, runs YAMNet (TFLite), applies per-source settings, keeps short clips with a retention per class, and exposes a local HTTP/WebSocket API.
-- **`custom_components/`**: the Home Assistant integration installed through HACS. It talks to the service over that API: sources, classes, thresholds, schedules, entities and advice, all from the Home Assistant UI.
-- **`catalog/`**: the 521 YAMNet/AudioSet classes, language-neutral, with English and French texts (more languages can be added). Includes per-class suggestions and warnings about close classes and risky combinations.
+Two parts, because audio analysis should not run inside Home Assistant:
 
-## What the service does today
+1. **The service** (`service/`) listens. It runs in its own container or machine, reads your streams with ffmpeg, runs YAMNet and keeps short clips. It has a local HTTP/WebSocket API.
+2. **The integration** (`custom_components/`) is installed with HACS. It connects to the service and gives you the panel, entities and advice inside Home Assistant.
 
-- Sources: any URL ffmpeg can read (RTSP from go2rtc or cameras, Raspberry Pi with go2rtc, files for tests). ESPHome sources: not yet.
-- Settings per source, per class and per source × class: threshold, minimum volume (dBFS), schedules or continuous monitoring, minimum duration, cooldown, pre/post-roll, clip retention. See `docs/source-settings.en.md`.
-- Context sounds (television, radio, music; fireworks and firecrackers for gunshots) raise the thresholds of look-alike sounds while they are heard. Safety sounds (smoke alarm, glass, screams, baby cry…) are raised by at most `analysis.safety_boost_cap` (0.05 by default; 0 = never). Each source can be given a kind of place (living room, kitchen, bedroom, outdoors…) to get recommendations, and an optional **adaptive sensitivity** that raises thresholds while the room is much noisier than usual. Sounds hidden this way are counted, never lost silently. Each source can also be given a Home Assistant room: the integration then finds its media players and vacuum cleaners and, if enabled, raises the thresholds while they play (rooms can be connected: the description of the home comes from the companion integration [Home Structure](https://github.com/schawki/ha-home-structure) when installed). See `docs/context-and-adaptive.en.md`.
-- Clips of conversations are never kept: the catalog forbids it and the service enforces it.
-- API (all under `/api/v1`, bearer token): `health`, `languages`, `catalog?lang=`, `config` (GET/PUT), `config/validate` (dry run with warnings), `warnings`, `recommendations`, `stats?hours=`, `sources`, `resolved`, `events`, `events/{id}/feedback` (POST `{"false": true}`), `clips` (list with size, filtered by `source`, `mid`, `usage`, `since`, `until`), `clips/delete` (POST `{"ids": [...]}` or `{"filter": {...}}`, `dry_run`), `clips/{path}`, `ws` (live events).
+The catalog (`catalog/`) holds the sounds, their English and French texts and the advice, neutral in language so more can be added.
+
+It works alongside **[Home Structure](https://github.com/schawki/ha-home-structure)**, a companion integration that describes your home (which rooms are next to each other, what separates them, whether the doors are open). When Home Structure is installed, Sound Recognition uses it to estimate how much a sound passes from one room to the next (an open door lets it through, a closed one muffles it), and to find the media players and vacuum cleaners of a room. Home Structure is optional: without it, rooms are simply treated as separate.
+
+## Quick start
+
+1. **Install the service** (about ten minutes). On a Proxmox host, one command creates a ready container; any Debian or Ubuntu machine works too, and a Docker image is provided. Step by step: **[Installing the service](docs/install-service.en.md)** ([français](docs/install-service.fr.md)).
+2. **Install the integration.** HACS → three dots → *Custom repositories* → `https://github.com/schawki/sound-recognition-ha` (category *Integration*) → install **Sound Recognition**, restart Home Assistant.
+3. **Connect them.** *Settings → Devices & services → Add integration → Sound Recognition*: the service address, port 8765 and the token printed at the end of the installation.
+4. **Add a source and choose sounds.** Open **Sound Recognition** in the sidebar: *Sources → Add* (the URL of an RTSP/go2rtc stream or a Raspberry Pi microphone), then *Sounds* to enable the ones you care about. The *Advice* tab then tells you what to check.
+
+## The panel
+
+| | |
+|---|---|
+| **Live** | Sources with level and connection state, sounds active now, recent detections with clip playback and a "not a real sound" button. |
+| **Overview** | What each source hears, how its thresholds react right now, the last 24 hours, and a live timeline. |
+| **Sources** | Add, edit, disable and remove sources; a week grid for when each one listens. |
+| **Sounds** | Search the 521 sounds, enable them everywhere or per source, tune each one with the origin of every value shown. |
+| **Advice** | What is risky or missing, with Apply, Undo and Hide ([details](docs/advice.en.md)). |
+| **Clips** | Find and play saved clips; delete one, a selection or all, after a confirmation showing the count and size. |
+
+![Overview](docs/images/overview.png)
+![Sounds](docs/images/sounds.png)
+![Advice](docs/images/advice.png)
+
+## Status
+
+Version 0.9, used on a real installation and tested (service, integration and panel test suites run on every commit). Not supported yet: ESPHome microphones as sources. The Docker image is provided but not tested yet. Feedback and issues are welcome.
+
+## Documentation
+
+- [Installing the service](docs/install-service.en.md) · [Proxmox details and updates](deploy/DEPLOY.md)
+- [The Advice tab](docs/advice.en.md)
+- [Per-source settings](docs/source-settings.en.md) · [Contexts, rooms and adaptive sensitivity](docs/context-and-adaptive.en.md)
+- [Service API and development](docs/api.md) · [Example configuration](examples/config.example.yaml)
+- [Changelog](CHANGELOG.md) · [Releasing](RELEASING.md)
 
 ## Measured
 
 On a 2-core test machine, ten simultaneous sources (continuous, 12 enabled classes) used about 12 % of one core and about 0.6 GB of RAM in total, including ffmpeg. One inference takes about 2 ms. Real RTSP streams add audio decoding; expect to re-measure on your hardware.
 
-## Development
-
-```
-cd service && pip install -e '.[test]' && SOUNDREC_MODEL=/path/to/yamnet.tflite python -m pytest
-SOUNDREC_CONFIG=config.yaml SOUNDREC_MODEL=... SOUNDREC_CATALOG=../catalog python -m soundrec
-```
-
-The Docker image downloads the model at build time and verifies its SHA-256 (`service/Dockerfile`; not yet built in CI). Example configuration: `examples/config.example.yaml`.
-
 ## Credits and licences
 
-Code: MIT. YAMNet: Google, Apache-2.0 ([source](https://github.com/tensorflow/models/tree/master/research/audioset/yamnet)); AudioSet ontology: Google, CC BY-SA 4.0. The TFLite conversion of YAMNet used by default comes from a public fork; its checksum is pinned in the Dockerfile.
-
-## Panel (sidebar)
-
-The integration adds a **Sound Recognition** panel to the Home Assistant sidebar (administrators only). It has a live view (sources with level and connection state, sounds active right now, recent detections with clip playback and a “not a real sound” button that can raise the threshold for you), an **Overview** tab (what each source hears and how its thresholds react right now, the numbers of the last 24 hours with hidden and false detections, a summary of what needs your attention, and a live timeline), an **Advice** tab (every advice says why, what its button changes and where it stands, in four sections: to do, information, applied, hidden; filter by source; *Undo* puts an applied advice back to the base value of the catalog; any advice can be hidden and shown again), a Sources tab (add, edit, disable and remove sources, with a week grid to choose when each one listens), a Sounds tab (search the 521 classes, enable them for all sources or per source, tune each one with the effective values and their origin shown, and see the advice before saving) and a Clips tab (find and play saved clips, with the size of each, filtered by source, sound, category such as animals, and period; delete one, a selection, everything the filters show, or all of them, after a confirmation that shows the count and the size). Everything works with the keyboard, in light and dark themes and on a phone.
-
-The panel source is in `panel/` (Lit + TypeScript). The bundled file `custom_components/sound_recognition/frontend/sound-recognition-panel.js` is committed because HACS does not run builds. To change the panel:
-
-```
-cd panel && npm install && npm run build      # rebuilds the committed file
-python3 test/run.py                            // headless Chromium checks against a stand-in for Home Assistant
-python3 test/crosscheck_advice.py             // the advice levels shown by the panel match the service's
-python3 test/crosscheck_resolve.py            // the panel's settings resolution matches the service's, on random configurations
-node --test test/schedule.test.mjs             // schedule grid <-> service windows
-```
-
-## Deployment
-
-Test deployment on Proxmox (unprivileged Debian 13 LXC, systemd service, no Docker): see [deploy/DEPLOY.md](deploy/DEPLOY.md) ([français](deploy/DEPLOY.fr.md)).
-
-Updates: from version 0.2.0 the service can be updated from Home Assistant (Update entity and panel banner, tagged releases only); see [CHANGELOG.md](CHANGELOG.md) ([français](CHANGELOG.fr.md)).
+Code: MIT. YAMNet: Google, Apache-2.0 ([source](https://github.com/tensorflow/models/tree/master/research/audioset/yamnet)); AudioSet ontology: Google, CC BY-SA 4.0. The TFLite conversion of YAMNet used by default comes from a public fork; its checksum is pinned in the installer and the Dockerfile.
