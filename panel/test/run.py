@@ -410,6 +410,11 @@ with sync_playwright() as p:
     pg.fill("input[name=from]", "")
     pg.fill("input[name=to]", "")
     pg.wait_for_function("document.querySelector('sound-recognition-panel').shadowRoot.querySelector('sound-recognition-clips').shadowRoot.querySelectorAll('li[data-event]').length == 4")
+    n_fb = pg.evaluate("(window.__state.feedback || []).length")
+    pg.locator("sound-recognition-clips li[data-event=e1] button[data-action=false]").click()
+    pg.locator("sound-recognition-clips li[data-event=e1] button[data-action=mark-only]").click()
+    pg.wait_for_selector("sound-recognition-clips li[data-event=e1] [data-false-chip]")
+    ok(pg.evaluate("window.__state.feedback.length") == n_fb + 1 and pg.evaluate("window.__state.feedback.at(-1)") == ["e1", True], "clips: a wrong detection can be reported from the clip", )
     pg.screenshot(path=os.path.join(OUT, "clips.png"), full_page=True)
 
     # deleting one clip: confirmation first, nothing happens when cancelled
@@ -579,6 +584,8 @@ with sync_playwright() as p:
     pg.locator("li[data-event=e1] button[data-action=unmark]").click()
     pg.wait_for_function("window.__state.feedback.length == 2")
     ok(pg.evaluate("window.__state.feedback.at(-1)") == ["e1", False] and pg.locator("li[data-event=e1] [data-false-chip]").count() == 0, "false detection: can be undone")
+    ok("The detection is wrong" in pg.locator("li[data-event=e1] button[data-action=false]").text_content(), "false detection: explicit wording")
+    ok("by default" in text(pg, "li[data-event=e2] [data-noclip]")[0] and "Sounds tab" in text(pg, "li[data-event=e2] [data-noclip]")[0], "no clip: the real reason is explained")
     pg.locator("li[data-event=e3] button[data-action=false]").click()
     pg.locator("li[data-event=e3] button[data-action=mark-only]").click()
     pg.wait_for_selector("li[data-event=e3] [data-false-chip]")

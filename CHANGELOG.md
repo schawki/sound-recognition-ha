@@ -2,6 +2,11 @@
 
 Releases are tagged `vX.Y.Z`; the service updates itself from Home Assistant to the latest tag.
 
+## 0.10.1
+
+- **"No clip" now says why.** In *Live*, a detection without a clip explains the real cause: you turned clips off for this sound or this source, the sound is not recorded by default (a context sound), it is a private sound, the retention maximum is 0 days, or the clip was deleted or expired. Only causes the service really recorded are shown; an older detection gets a neutral sentence.
+- **"The detection is wrong"** replaces "Not a real sound", and the same control is now on every clip in the *Clips* tab.
+
 ## 0.10.0
 
 - **ESP32 microphones (ESPHome) as sources.** A small ESPHome component (`esphome/components/sound_recognition_stream`) streams the audio of an I2S microphone (INMP441...) over the network; the service connects to it, reads it and reconnects by itself if the Wi-Fi drops. Guide: `docs/esphome-microphone.en.md`.

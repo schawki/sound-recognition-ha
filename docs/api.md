@@ -10,7 +10,7 @@ For developers. The service exposes a local HTTP/WebSocket API under `/api/v1`, 
 | `warnings`, `recommendations` | Advice computed from the configuration (see [the Advice tab](advice.en.md)) |
 | `stats?hours=` | Counts for the overview |
 | `sources`, `resolved` | Sources and the effective setting of each class, with its origin |
-| `events`, `events/{id}/feedback` | Detections; POST `{"false": true}` marks one as not a real sound |
+| `events`, `events/{id}/feedback` | Detections; POST `{"false": true}` marks one as a wrong detection; an event without clip carries `clip_reason` (why: a clip setting, `catalog_clip_forbidden`, `expired`, `deleted`...) |
 | `clips`, `clips/delete`, `clips/{path}` | List (filter by `source`, `mid`, `usage`, `since`, `until`), delete (`ids` or `filter`, `dry_run`), download |
 | `ws` | Live events |
 

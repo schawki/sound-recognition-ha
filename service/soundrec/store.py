@@ -4,7 +4,7 @@ import sqlite3
 import threading
 
 COLS = ("id", "ts", "source", "mid", "class", "score", "threshold", "duration_s", "level_dbfs", "started_at", "detected_at",
-        "clip", "clip_expires", "feedback")
+        "clip", "clip_expires", "feedback", "clip_reason")
 HOUR = 3600
 
 
@@ -18,6 +18,8 @@ class EventStore:
         self.db.execute("CREATE INDEX IF NOT EXISTS ix_ts ON events(ts)")
         if "feedback" not in {r[1] for r in self.db.execute("PRAGMA table_info(events)")}:
             self.db.execute("ALTER TABLE events ADD COLUMN feedback TEXT")              # 'false' = marked as a false detection
+        if "clip_reason" not in {r[1] for r in self.db.execute("PRAGMA table_info(events)")}:
+            self.db.execute("ALTER TABLE events ADD COLUMN clip_reason TEXT")           # why there is no clip (resolution provenance, 'expired', 'deleted')
         self.db.execute("""CREATE TABLE IF NOT EXISTS masked(
             id TEXT PRIMARY KEY, ts REAL, source TEXT, mid TEXT, class TEXT, score REAL, base_threshold REAL, threshold REAL,
             reasons TEXT)""")
@@ -27,9 +29,10 @@ class EventStore:
     def add(self, ev):
         ts = dt.datetime.fromisoformat(ev["detected_at"]).timestamp()
         with self.lock:
-            self.db.execute("INSERT OR REPLACE INTO events VALUES(?,?,?,?,?,?,?,?,?,?,?,NULL,NULL,NULL)",
+            self.db.execute("INSERT OR REPLACE INTO events(id, ts, source, mid, class, score, threshold, duration_s, level_dbfs, started_at, detected_at, clip_reason) "
+                            "VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
                             (ev["id"], ts, ev["source"], ev["mid"], ev["class"], ev["score"], ev["threshold"], ev["duration_s"],
-                             ev["level_dbfs"], ev["started_at"], ev["detected_at"]))
+                             ev["level_dbfs"], ev["started_at"], ev["detected_at"], ev.get("clip_reason")))
             self.db.commit()
 
     def set_clip(self, event_id, rel, expires):
@@ -104,12 +107,12 @@ class EventStore:
     def clips(self, limit=None, offset=0, **flt):
         """Events that still have a clip, newest first, matching the filters (source, mids, since, until). limit=None: all of them."""
         q, a = self._clip_where(**flt)
-        q = "SELECT id, ts, source, mid, class, score, clip, clip_expires" + q + " ORDER BY ts DESC"
+        q = "SELECT id, ts, source, mid, class, score, threshold, feedback, clip, clip_expires" + q + " ORDER BY ts DESC"
         if limit is not None:
             q += " LIMIT ? OFFSET ?"; a += [max(0, int(limit)), max(0, int(offset))]
         with self.lock:
             rows = self.db.execute(q, a).fetchall()
-        return [dict(zip(("id", "ts", "source", "mid", "class", "score", "clip", "clip_expires"), r)) for r in rows]
+        return [dict(zip(("id", "ts", "source", "mid", "class", "score", "threshold", "feedback", "clip", "clip_expires"), r)) for r in rows]
 
     def clips_by_ids(self, ids):
         out = []
@@ -124,10 +127,10 @@ class EventStore:
         """Drops the clip reference of these events (all of them when ids is None); the detections themselves stay."""
         with self.lock:
             if ids is None:
-                self.db.execute("UPDATE events SET clip=NULL, clip_expires=NULL WHERE clip IS NOT NULL")
+                self.db.execute("UPDATE events SET clip=NULL, clip_expires=NULL, clip_reason='deleted' WHERE clip IS NOT NULL")
             for i in range(0, len(ids or []), 500):
                 chunk = ids[i:i + 500]
-                self.db.execute(f"UPDATE events SET clip=NULL, clip_expires=NULL WHERE id IN ({','.join('?' * len(chunk))})", chunk)
+                self.db.execute(f"UPDATE events SET clip=NULL, clip_expires=NULL, clip_reason='deleted' WHERE id IN ({','.join('?' * len(chunk))})", chunk)
             self.db.commit()
 
     def purge(self, before_ts, now_iso):
@@ -135,5 +138,5 @@ class EventStore:
         with self.lock:
             self.db.execute("DELETE FROM events WHERE ts < ?", (before_ts,))
             self.db.execute("DELETE FROM masked WHERE ts < ?", (before_ts,))
-            self.db.execute("UPDATE events SET clip=NULL, clip_expires=NULL WHERE clip_expires IS NOT NULL AND clip_expires <= ?", (now_iso,))
+            self.db.execute("UPDATE events SET clip=NULL, clip_expires=NULL, clip_reason='expired' WHERE clip_expires IS NOT NULL AND clip_expires <= ?", (now_iso,))
             self.db.commit()

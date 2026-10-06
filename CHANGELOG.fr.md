@@ -2,6 +2,11 @@
 
 Les versions sont étiquetées `vX.Y.Z` ; le service se met à jour depuis Home Assistant vers la dernière étiquette.
 
+## 0.10.1
+
+- **« Pas de clip » dit maintenant pourquoi.** Dans *En direct*, une détection sans clip explique la vraie cause : vous avez désactivé les clips pour ce son ou cette source, le son n'est pas enregistré par défaut (son de contexte), c'est un son privé, la durée maximale est de 0 jour, ou le clip a été supprimé ou a expiré. Seules les causes réellement enregistrées par le service sont affichées ; une détection plus ancienne reçoit une phrase neutre.
+- **« La détection n'est pas bonne »** remplace « Ce n'est pas un vrai son », et le même contrôle est disponible sur chaque clip de l'onglet *Clips*.
+
 ## 0.10.0
 
 - **Micros ESP32 (ESPHome) comme sources.** Un petit composant ESPHome (`esphome/components/sound_recognition_stream`) diffuse sur le réseau l'audio d'un micro I2S (INMP441…) ; le service s'y connecte, le lit et se reconnecte tout seul si le Wi-Fi coupe. Guide : `docs/esphome-microphone.fr.md`.

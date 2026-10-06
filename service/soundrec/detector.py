@@ -174,6 +174,8 @@ class SourcePipeline:
               "score": round(run["peak"], 3), "threshold": thr, "offset": round(offset, 3), "duration_s": round(covered, 2),
               "level_dbfs": self.state["level_dbfs"], "started_at": started.isoformat(), "detected_at": t_end.isoformat(),
               "clip_retention_days": r["clip_retention_days"]}
+        if r["clip_retention_days"] <= 0:
+            ev["clip_reason"] = r["provenance"]["clip_retention_days"]        # why no clip will exist (see settings.resolve)
         if r["clip_retention_days"] > 0:
             self._pending.append({"id": ev["id"], "mid": m, "from": onset_abs - int(r["pre_roll_s"] * SAMPLE_RATE),
                                   "to": end + int(r["post_roll_s"] * SAMPLE_RATE), "retention": r["clip_retention_days"],

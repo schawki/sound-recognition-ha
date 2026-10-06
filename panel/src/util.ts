@@ -17,3 +17,11 @@ export function formatBytes(n: number, language: string, t: T): string {
   while (v >= 1000 && i < units.length - 1) { v /= 1000; i++; }
   return `${new Intl.NumberFormat(language, { maximumFractionDigits: i === 0 ? 0 : 1 }).format(v)} ${units[i]}`;
 }
+
+const CLIP_REASONS = ["source_class", "class", "catalog", "cap", "source_clips_disallowed", "catalog_clip_forbidden", "expired", "deleted"];
+
+/** Why a detection has no clip, in words: only causes the service actually recorded (unknown or missing: a neutral sentence). */
+export function clipNote(t: T, reason: string | null | undefined, source: string, sound: string): string {
+  const key = reason && CLIP_REASONS.includes(reason) ? (`clipWhy_${reason}` as const) : "clipWhy_unknown";
+  return t(key as Parameters<T>[0], { source, sound });
+}

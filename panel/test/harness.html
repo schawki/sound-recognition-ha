@@ -165,7 +165,7 @@
     "sound_recognition/events": () => ({ events: [
       { id: "e1", ts: now - 125, source: "garden", mid: "/m/05tny_", class: "Bark", score: 0.91, clip: "garden/e1.wav", clip_url: "/clip.wav", clip_expires: new Date(Date.now() + 5 * 86400000).toISOString() },
       { id: "e3", ts: now - 900, source: "kitchen", mid: SMOKE, class: "Smoke", score: 0.7, clip: "kitchen/e3.wav", clip_url: "/clip.wav", clip_expires: new Date(Date.now() + 86400000).toISOString() },
-      { id: "e2", ts: now - 7200, source: "kitchen", mid: "/m/01b82r", class: "Smoke", score: 0.64, clip: null },
+      { id: "e2", ts: now - 7200, source: "kitchen", mid: "/m/01b82r", class: "Smoke", score: 0.64, clip: null, clip_reason: "catalog" },
     ] }),
   };
   window.hass = {

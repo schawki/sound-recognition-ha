@@ -40,7 +40,7 @@ It works alongside **[Home Structure](https://github.com/schawki/ha-home-structu
 
 | | |
 |---|---|
-| **Live** | Sources with level and connection state, sounds active now, recent detections with clip playback and a "not a real sound" button. |
+| **Live** | Sources with level and connection state, sounds active now, recent detections with clip playback and a "The detection is wrong" button (also on each clip in Clips). |
 | **Overview** | What each source hears, how its thresholds react right now, the last 24 hours, and a live timeline. |
 | **Sources** | Add, edit, disable and remove sources; a week grid for when each one listens. |
 | **Sounds** | Search the 521 sounds, enable them everywhere or per source, tune each one with the origin of every value shown. |

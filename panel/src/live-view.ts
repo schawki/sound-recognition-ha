@@ -2,8 +2,8 @@ import { LitElement, css, html, nothing } from "lit";
 import { property, state } from "lit/decorators.js";
 import type { PanelApi } from "./api";
 import type { T } from "./i18n";
-import { relativeTime } from "./util";
-import { applyAndSave } from "./patch";
+import { clipNote, relativeTime } from "./util";
+import "./feedback-control";
 import { attention, buildItems, openAdvice, type Item } from "./advice-items";
 import type { Advice, Catalog, LiveMessage, Recommendation, ServiceConfig, SoundEvent, SourceStatus } from "./types";
 
@@ -19,8 +19,6 @@ export class LiveView extends LitElement {
   @state() private recs: Recommendation[] = [];
   @state() private config: ServiceConfig = {};
   @state() private names = new Map<string, string>();
-  @state() private marking: string | null = null;
-  @state() private markError = "";
   private audio = new Map<string, string>();
   @state() private error: "unreachable" | "not_loaded" | null = null;
   @state() private ready = false;
@@ -142,33 +140,8 @@ export class LiveView extends LitElement {
       </section>`;
   }
 
-  private proposal(e: SoundEvent): number {
-    return Math.min(0.95, Math.round((Math.max(e.score, e.threshold ?? 0) + 0.03) * 100) / 100);
-  }
-
-  /** Marks a detection as false; with `raise`, also raises the threshold of that sound on that source just above this score. */
-  private async mark(e: SoundEvent, raise: boolean): Promise<void> {
-    this.markError = "";
-    try {
-      if (raise) {
-        const errs = await applyAndSave(this.api, { source: e.source, class_patch: { [e.mid]: { threshold: this.proposal(e) } } }, (mid) => this.audio.get(mid));
-        if (errs.length) { this.markError = errs.join("; "); return; }
-      }
-      await this.api.feedback(e.id, true);
-      this.events = this.events.map((x) => (x.id === e.id ? { ...x, feedback: "false" } : x));
-      this.marking = null;
-    } catch (err) {
-      this.markError = (err as { message?: string }).message ?? String(err);
-    }
-  }
-
-  private async unmark(e: SoundEvent): Promise<void> {
-    try {
-      await this.api.feedback(e.id, false);
-      this.events = this.events.map((x) => (x.id === e.id ? { ...x, feedback: null } : x));
-    } catch (err) {
-      this.markError = (err as { message?: string }).message ?? String(err);
-    }
+  private feedbackChanged(ev: CustomEvent<{ id: string; feedback: string | null }>): void {
+    this.events = this.events.map((x) => (x.id === ev.detail.id ? { ...x, feedback: ev.detail.feedback } : x));
   }
 
   private eventRow(e: SoundEvent) {
@@ -178,15 +151,10 @@ export class LiveView extends LitElement {
       <li data-event=${e.id} class=${isFalse ? "false" : ""}>
         <div class="what"><strong>${e.name ?? this.classLabel(e.mid, e.class)}</strong><span class="dim">${this.sourceName(e.source)} · ${this.relative(e.ts)}</span></div>
         <span class="score" title=${t("score")}>${Math.round(e.score * 100)}%</span>
-        <div class="fb">${isFalse
-          ? html`<span class="chip off" data-false-chip>${t("markedFalse")}</span><button class="link" data-action="unmark" @click=${() => void this.unmark(e)}>${t("undo")}</button>`
-          : this.marking === e.id
-            ? html`<button data-action="mark-only" @click=${() => void this.mark(e, false)}>${t("markFalse")}</button>
-                <button class="primary" data-action="mark-raise" @click=${() => void this.mark(e, true)}>${t("markFalseRaise", { v: this.proposal(e).toFixed(2), s: this.sourceName(e.source) })}</button>
-                <button class="link" data-action="mark-cancel" @click=${() => (this.marking = null)}>${t("cancel")}</button>
-                ${this.markError ? html`<span class="error">${this.markError}</span>` : nothing}`
-            : html`<button class="link" data-action="false" @click=${() => { this.markError = ""; this.marking = e.id; }}>${t("notRealSound")}</button>`}</div>
-        ${e.clip_url ? html`<audio controls preload="none" src=${e.clip_url} aria-label=${t("play")}></audio>` : html`<span class="dim">${t("noClip")}</span>`}
+        <sr-detection-feedback class="fb" .api=${this.api} .t=${t} .ev=${e} .sourceName=${this.sourceName(e.source)} .audioName=${(mid: string) => this.audio.get(mid)}
+          @feedback-changed=${(ev: CustomEvent<{ id: string; feedback: string | null }>) => this.feedbackChanged(ev)}></sr-detection-feedback>
+        ${e.clip_url ? html`<audio controls preload="none" src=${e.clip_url} aria-label=${t("play")}></audio>`
+          : html`<span class="dim" data-noclip>${clipNote(t, e.clip_reason, this.sourceName(e.source), e.name ?? this.classLabel(e.mid, e.class))}</span>`}
       </li>`;
   }
 

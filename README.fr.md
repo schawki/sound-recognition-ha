@@ -40,7 +40,7 @@ Elle fonctionne avec **[Home Structure](https://github.com/schawki/ha-home-struc
 
 | | |
 |---|---|
-| **En direct** | Sources avec niveau et état de connexion, sons actifs, détections récentes avec lecture de l'extrait et bouton « ce n'est pas un vrai son ». |
+| **En direct** | Sources avec niveau et état de connexion, sons actifs, détections récentes avec lecture de l'extrait et bouton « La détection n'est pas bonne » (aussi sur chaque clip dans Clips). |
 | **Aperçu** | Ce que chaque source entend, comment ses seuils réagissent en ce moment, les dernières 24 heures et une chronologie en direct. |
 | **Sources** | Ajouter, modifier, désactiver et supprimer des sources ; une grille de semaine pour les horaires d'écoute. |
 | **Sons** | Chercher parmi les 521 sons, les activer partout ou par source, régler chacun avec l'origine de chaque valeur. |

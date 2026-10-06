@@ -3,6 +3,7 @@ import { property, state } from "lit/decorators.js";
 import type { PanelApi } from "./api";
 import type { T } from "./i18n";
 import type { Catalog, ClipFilter, ClipRow, ClipsPage, Overview } from "./types";
+import "./feedback-control";
 import { formatBytes, relativeTime } from "./util";
 
 const PAGE = 100;
@@ -18,6 +19,7 @@ export class ClipsView extends LitElement {
   @state() private page: ClipsPage | null = null;
   @state() private sources = new Map<string, string>();
   @state() private usages = new Map<string, string>();
+  private audio = new Map<string, string>();
   @state() private source = "";
   @state() private mid = "";
   @state() private usage = "";
@@ -39,6 +41,7 @@ export class ClipsView extends LitElement {
     try {
       const [cat, ov] = await Promise.all([this.api.catalog(), this.api.overview()]);
       this.usages = new Map(Object.entries((cat as Catalog).usages ?? {}));
+      this.audio = new Map((cat as Catalog).classes.map((k) => [k.mid, k.audioset_name]));
       this.sources = new Map((ov as Overview).sources.map((s) => [s.id, s.name]));
     } catch { /* the list below reports the connection problem */ }
     await this.load(false);
@@ -174,6 +177,8 @@ export class ClipsView extends LitElement {
             <span class="dim">${this.sources.get(e.source) ?? e.source} · ${date.format(new Date(e.ts * 1000))} (${relativeTime(e.ts, this.language, t)}) · ${Math.round(e.score * 100)}% · <span data-size>${this.size(e.size)}</span></span>
             ${e.clip_expires ? html`<span class="dim">${t("keptUntil", { d: date.format(new Date(e.clip_expires)) })}</span>` : nothing}</div>
           <audio controls preload="none" src=${e.clip_url} aria-label=${t("play")}></audio>
+          <sr-detection-feedback class="fb" .api=${this.api} .t=${t} .ev=${e} .sourceName=${this.sources.get(e.source) ?? e.source} .audioName=${(mid: string) => this.audio.get(mid)}
+            @feedback-changed=${(ev: CustomEvent<{ id: string; feedback: string | null }>) => { this.rows = this.rows.map((x) => (x.id === ev.detail.id ? { ...x, feedback: ev.detail.feedback } : x)); }}></sr-detection-feedback>
           <button data-action="delete-one" ?disabled=${this.busy} @click=${() => this.askIds([e])}>${t("deleteClip")}</button>
         </li>`)}</ul>
         ${this.rows.length < pg.total ? html`<div class="buttons"><button data-action="more" @click=${() => void this.load(true)}>${t("clipsMore")} (${this.rows.length}/${pg.total})</button></div>` : nothing}`}`;
@@ -193,7 +198,7 @@ export class ClipsView extends LitElement {
     .confirm { border: 1px solid var(--error-color, #db4437); border-radius: 12px; padding: 4px 14px 12px; margin-bottom: 12px; background: var(--card-background-color); }
     .buttons { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
     .list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
-    .list li { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(220px, 360px) auto; gap: 8px 14px; align-items: center; padding: 10px 14px; background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: 12px; }
+    .list li { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(220px, 360px) auto auto; gap: 8px 14px; align-items: center; padding: 10px 14px; background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: 12px; }
     .what { display: flex; flex-direction: column; min-width: 0; } audio { width: 100%; height: 36px; }
     @media (max-width: 700px) { .list li { grid-template-columns: auto minmax(0, 1fr) auto; } .list li audio { grid-column: 1 / -1; } }
   `;
