@@ -22,6 +22,8 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 KEEPALIVE_S, TTL_S, DEBOUNCE_S = 20, 60, 1.0
+HS_EVENT = "home_structure_changed"                                  # fired by Home Structure; it carries only a `reason`, which is not read
+STRUCTURE_DEBOUNCE_S = 3.0                                           # a burst of events gives one re-read (and lets a loading Home Structure finish loading)
 
 
 class DynamicManager:
@@ -32,6 +34,7 @@ class DynamicManager:
         self._track: CALLBACK_TYPE | None = None
         self._tracked: set[str] = set()
         self._timer: CALLBACK_TYPE | None = None
+        self._structure_timer: CALLBACK_TYPE | None = None
         self.links: list[dict] = []
         self.origin = "none"
         self.structure: dict | None = None
@@ -49,6 +52,7 @@ class DynamicManager:
             return
         self._unsubs.append(async_dispatcher_connect(self.hass, SIGNAL_LIVE.format(self.coordinator.config_entry.entry_id), self._on_live))
         self._unsubs.append(async_track_time_interval(self.hass, self._tick, timedelta(seconds=KEEPALIVE_S)))
+        self._unsubs.append(self.hass.bus.async_listen(HS_EVENT, self._on_structure_changed))
         self._retrack()
         self._schedule()
 
@@ -57,7 +61,7 @@ class DynamicManager:
         for u in self._unsubs:
             u()
         self._unsubs = []
-        for attr in ("_track", "_timer"):
+        for attr in ("_track", "_timer", "_structure_timer"):
             if (u := getattr(self, attr)):
                 u()
                 setattr(self, attr, None)
@@ -85,6 +89,16 @@ class DynamicManager:
     def _on_live(self, msg: dict) -> None:
         if msg.get("type") == "context":
             self._schedule()
+
+    @callback
+    def _on_structure_changed(self, _event) -> None:
+        """Home Structure says something changed. Nothing is deduced from the event: the home is read again from its service, once per burst."""
+        if self._structure_timer is None:
+            self._structure_timer = async_call_later(self.hass, STRUCTURE_DEBOUNCE_S, self._reread_structure)
+
+    async def _reread_structure(self, _now) -> None:
+        self._structure_timer = None
+        await self.push()
 
     @callback
     def _schedule(self) -> None:

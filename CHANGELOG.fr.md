@@ -2,6 +2,10 @@
 
 Les versions sont étiquetées `vX.Y.Z` ; le service se met à jour depuis Home Assistant vers la dernière étiquette.
 
+## 0.11.1
+
+- **Sound Recognition relit le logement dès que Home Structure annonce un changement** (événement `home_structure_changed`), au lieu d'attendre son prochain rafraîchissement. Plusieurs événements de suite ne donnent qu'une relecture, et rien ne casse si Home Structure n'est pas encore chargé. Rien à régler ; il faut Home Structure 0.9.0 ou plus pour que ce soit immédiat (les versions plus anciennes restent relues toutes les 20 secondes).
+
 ## 0.11.0
 
 - **Durée de conservation des clips, par type de son.** Quatre réglages (sons courants, sons sensibles, sons de contexte comme la musique et la télévision, conversations), globaux (onglet *Clips*) ou par source (formulaire de la source). Le réglage propre à un son l'emporte toujours, et le maximum et l'interrupteur « autoriser les clips » de chaque source s'appliquent encore. Rien ne change tant que vous ne les réglez pas.

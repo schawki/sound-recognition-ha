@@ -202,7 +202,7 @@ def test_states_of_home_structure_are_understood():
 
 
 # ------------------------------------------------------------------------------------------------ link with Home Structure
-from custom_components.sound_recognition import structure_link as sl  # noqa: E402
+from custom_components.sound_recognition import dynamic, structure_link as sl  # noqa: E402
 
 HS = {"spaces": [], "connections": [
     {"id": "c1", "a": "area:salon", "b": "area:entree", "separations": [{"id": "1", "type": "open_space", "state": "open", "sensor": None, "entity_id": "sensor.hs_1"}]},
@@ -278,6 +278,74 @@ async def test_manager_uses_home_structure(hass, home):
         async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=4))
         await hass.async_block_till_done()
         assert fs.STATE.pushed["hall"]["offset"] == pytest.approx(0.02, abs=2e-3)
+        await hass.config_entries.async_unload(entry.entry_id)
+        fs.STATE.stop.set()
+
+
+async def test_manager_rereads_the_structure_when_home_structure_announces_a_change(hass, home):
+    e = home["Entrée"]
+    calls, answer = [0], {"spaces": [], "connections": []}
+
+    async def handler(call):
+        calls[0] += 1
+        return answer
+
+    from homeassistant.core import SupportsResponse
+    hass.services.async_register("home_structure", "get_structure", handler, supports_response=SupportsResponse.ONLY)
+    _hs_entry(hass)
+    cfg = {"classes": {"Bark": {"enabled": True}}, "sources": [{"id": "hall", "name": "Hall", "type": "rtsp", "url": "rtsp://x/h", "area": e, "devices": {"enabled": True}}]}
+    fs.reset(cfg)
+    with patch("custom_components.sound_recognition.SoundRecClient", fs.FakeClient), \
+         patch("custom_components.sound_recognition.config_flow.SoundRecClient", fs.FakeClient):
+        entry = MockConfigEntry(domain=DOMAIN, data=DATA, unique_id="x", title="Sound Recognition")
+        entry.add_to_hass(hass)
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+        dyn = entry.runtime_data.dynamic
+        now = dt_util.utcnow()
+        async_fire_time_changed(hass, now + timedelta(seconds=2))
+        await hass.async_block_till_done()
+        assert dyn.origin == "none"
+        calls[0] = 0
+        answer = {"spaces": [], "connections": [{"id": "c", "a": "area:x", "b": "area:y", "separations": [{"id": "1", "type": "door", "state": "open", "sensor": "binary_sensor.b", "entity_id": "sensor.hs_door"}]}]}
+        for reason in ("saved_structure", "saved_groups", "loaded", "loaded", "saved_structure"):      # a burst
+            hass.bus.async_fire("home_structure_changed", {"reason": reason})
+        await hass.async_block_till_done()
+        assert calls[0] == 0                                                                           # not yet: the burst is gathered
+        async_fire_time_changed(hass, now + timedelta(seconds=2 + dynamic.STRUCTURE_DEBOUNCE_S + 1))
+        await hass.async_block_till_done()
+        assert calls[0] == 1 and dyn.origin == "home_structure" and dyn.links[0]["type"] == "door"      # one re-read, whatever the reasons
+        await hass.config_entries.async_unload(entry.entry_id)
+        fs.STATE.stop.set()
+        hass.bus.async_fire("home_structure_changed", {"reason": "loaded"})                            # listening stopped with the entry
+        async_fire_time_changed(hass, now + timedelta(seconds=60))
+        await hass.async_block_till_done()
+        assert calls[0] == 1
+
+
+async def test_home_structure_not_loaded_yet_is_not_an_error(hass, home):
+    e = home["Entrée"]
+    cfg = {"classes": {"Bark": {"enabled": True}}, "sources": [{"id": "hall", "name": "Hall", "type": "rtsp", "url": "rtsp://x/h", "area": e, "devices": {"enabled": True}}]}
+    fs.reset(cfg)
+    with patch("custom_components.sound_recognition.SoundRecClient", fs.FakeClient), \
+         patch("custom_components.sound_recognition.config_flow.SoundRecClient", fs.FakeClient):
+        entry = MockConfigEntry(domain=DOMAIN, data=DATA, unique_id="x", title="Sound Recognition")
+        entry.add_to_hass(hass)
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+        now = dt_util.utcnow()
+        hass.bus.async_fire("home_structure_changed", {"reason": "saved_structure"})                   # Home Structure is not there
+        await hass.async_block_till_done()
+        async_fire_time_changed(hass, now + timedelta(seconds=dynamic.STRUCTURE_DEBOUNCE_S + 1))
+        await hass.async_block_till_done()
+        assert entry.runtime_data.dynamic.origin == "none"
+        _hs_entry(hass)                                                                                  # it loads later and says so
+        _hs_service(hass, HS)
+        hass.bus.async_fire("home_structure_changed", {"reason": "loaded"})
+        await hass.async_block_till_done()
+        async_fire_time_changed(hass, now + timedelta(seconds=2 * dynamic.STRUCTURE_DEBOUNCE_S + 2))
+        await hass.async_block_till_done()
+        assert entry.runtime_data.dynamic.origin == "home_structure"
         await hass.config_entries.async_unload(entry.entry_id)
         fs.STATE.stop.set()
 
