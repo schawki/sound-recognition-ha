@@ -2,6 +2,10 @@
 
 Les versions sont étiquetées `vX.Y.Z` ; le service se met à jour depuis Home Assistant vers la dernière étiquette.
 
+## 0.11.2
+
+- **Le service annonce maintenant la bonne version.** Après la mise à jour du service en 0.11.1, il disait encore 0.11.0 et Home Assistant continuait à proposer la même mise à jour. Le service et l'intégration portent désormais le même numéro. Mettez le service à jour une fois depuis Home Assistant : la proposition disparaît.
+
 ## 0.11.1
 
 - **Sound Recognition relit le logement dès que Home Structure annonce un changement** (événement `home_structure_changed`), au lieu d'attendre son prochain rafraîchissement. Plusieurs événements de suite ne donnent qu'une relecture, et rien ne casse si Home Structure n'est pas encore chargé. Rien à régler ; il faut Home Structure 0.9.0 ou plus pour que ce soit immédiat (les versions plus anciennes restent relues toutes les 20 secondes).

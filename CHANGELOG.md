@@ -2,6 +2,14 @@
 
 Releases are tagged `vX.Y.Z`; the service updates itself from Home Assistant to the latest tag.
 
+## 0.11.2
+
+- **The service now reports the right version.** After updating the service to 0.11.1 it still said 0.11.0, so Home Assistant kept offering the same update. The service and the integration now carry the same number. Update the service once from Home Assistant; the offer then disappears.
+
+## 0.11.1
+
+- **Sound Recognition re-reads the home as soon as Home Structure announces a change** (event `home_structure_changed`), instead of waiting for its next refresh. Several events in a row give one re-read, and nothing breaks if Home Structure is not loaded yet. Nothing to set up; needs Home Structure 0.9.0 or later to be instant (older versions are still read every 20 seconds).
+
 ## 0.11.0
 
 - **How long to keep clips, by kind of sound.** Four settings (usual sounds, sensitive sounds, context sounds such as music and television, conversations), global (*Clips* tab) or per source (source form). A sound's own setting still wins, and the maximum and the "allow clips" switch of each source still apply. Nothing changes until you set them.
