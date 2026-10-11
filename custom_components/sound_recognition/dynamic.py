@@ -94,6 +94,7 @@ class DynamicManager:
     def _on_structure_changed(self, _event) -> None:
         """Home Structure says something changed. Nothing is deduced from the event: the home is read again from its service, once per burst."""
         if self._structure_timer is None:
+            _LOGGER.debug("Home Structure announced a change: reading the home again in %s s", STRUCTURE_DEBOUNCE_S)
             self._structure_timer = async_call_later(self.hass, STRUCTURE_DEBOUNCE_S, self._reread_structure)
 
     async def _reread_structure(self, _now) -> None:
@@ -123,6 +124,7 @@ class DynamicManager:
 
     async def refresh_links(self) -> None:
         self.links, self.origin, self.structure = await structure_link.read(self.hass)
+        _LOGGER.debug("Home read again: %s links (%s)", len(self.links), self.origin)
         self._retrack()
 
     async def push_places(self) -> None:

@@ -2,6 +2,10 @@
 
 Releases are tagged `vX.Y.Z`; the service updates itself from Home Assistant to the latest tag.
 
+## 0.11.3
+
+- **Easier to check that the link with Home Structure works.** With debug logging on for Sound Recognition, the log now says when Home Structure announced a change and how many links were read again. No change in behaviour.
+
 ## 0.11.2
 
 - **The service now reports the right version.** After updating the service to 0.11.1 it still said 0.11.0, so Home Assistant kept offering the same update. The service and the integration now carry the same number. Update the service once from Home Assistant; the offer then disappears.

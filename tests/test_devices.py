@@ -282,7 +282,7 @@ async def test_manager_uses_home_structure(hass, home):
         fs.STATE.stop.set()
 
 
-async def test_manager_rereads_the_structure_when_home_structure_announces_a_change(hass, home):
+async def test_manager_rereads_the_structure_when_home_structure_announces_a_change(hass, home, caplog):
     e = home["Entrée"]
     calls, answer = [0], {"spaces": [], "connections": []}
 
@@ -295,6 +295,7 @@ async def test_manager_rereads_the_structure_when_home_structure_announces_a_cha
     _hs_entry(hass)
     cfg = {"classes": {"Bark": {"enabled": True}}, "sources": [{"id": "hall", "name": "Hall", "type": "rtsp", "url": "rtsp://x/h", "area": e, "devices": {"enabled": True}}]}
     fs.reset(cfg)
+    caplog.set_level("DEBUG", logger="custom_components.sound_recognition.dynamic")
     with patch("custom_components.sound_recognition.SoundRecClient", fs.FakeClient), \
          patch("custom_components.sound_recognition.config_flow.SoundRecClient", fs.FakeClient):
         entry = MockConfigEntry(domain=DOMAIN, data=DATA, unique_id="x", title="Sound Recognition")
@@ -315,6 +316,7 @@ async def test_manager_rereads_the_structure_when_home_structure_announces_a_cha
         async_fire_time_changed(hass, now + timedelta(seconds=2 + dynamic.STRUCTURE_DEBOUNCE_S + 1))
         await hass.async_block_till_done()
         assert calls[0] == 1 and dyn.origin == "home_structure" and dyn.links[0]["type"] == "door"      # one re-read, whatever the reasons
+        assert caplog.text.count("announced a change") == 1 and "Home read again: 1 links (home_structure)" in caplog.text   # visible in the debug log
         await hass.config_entries.async_unload(entry.entry_id)
         fs.STATE.stop.set()
         hass.bus.async_fire("home_structure_changed", {"reason": "loaded"})                            # listening stopped with the entry

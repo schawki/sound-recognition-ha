@@ -2,6 +2,10 @@
 
 Les versions sont étiquetées `vX.Y.Z` ; le service se met à jour depuis Home Assistant vers la dernière étiquette.
 
+## 0.11.3
+
+- **Plus facile de vérifier que le lien avec Home Structure fonctionne.** Avec les journaux de débogage activés pour Sound Recognition, le journal indique quand Home Structure a annoncé un changement et combien de liens ont été relus. Aucun changement de comportement.
+
 ## 0.11.2
 
 - **Le service annonce maintenant la bonne version.** Après la mise à jour du service en 0.11.1, il disait encore 0.11.0 et Home Assistant continuait à proposer la même mise à jour. Le service et l'intégration portent désormais le même numéro. Mettez le service à jour une fois depuis Home Assistant : la proposition disparaît.
