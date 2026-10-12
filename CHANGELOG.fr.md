@@ -2,6 +2,10 @@
 
 Les versions sont étiquetées `vX.Y.Z` ; le service se met à jour depuis Home Assistant vers la dernière étiquette.
 
+## 0.11.4
+
+- **Les micros ESP32 sont maintenant trouvés tout seuls.** La liste de *Sources → Ajouter → Micro ESP32* restait vide, même pour un appareil qui exécute le composant : Home Assistant range les capteurs texte d'ESPHome dans le domaine `sensor`, et la recherche regardait ailleurs. Découvert avec le premier vrai micro. L'ajout à la main avec l'adresse a toujours fonctionné.
+
 ## 0.11.3
 
 - **Plus facile de vérifier que le lien avec Home Structure fonctionne.** Avec les journaux de débogage activés pour Sound Recognition, le journal indique quand Home Structure a annoncé un changement et combien de liens ont été relus. Aucun changement de comportement.

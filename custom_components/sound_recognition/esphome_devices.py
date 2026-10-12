@@ -1,6 +1,6 @@
 """Finds the ESPHome devices that run the Sound Recognition microphone component (esphome/ in the repository).
 
-The component adds a diagnostic text sensor whose state is "sound-recognition-stream/1 port=6055"; Home Assistant already knows
+The component adds a diagnostic text sensor (Home Assistant files the text sensors of ESPHome under the `sensor` domain) whose state is "sound-recognition-stream/1 port=6055"; Home Assistant already knows
 the address of every ESPHome device, so the panel can offer them with one click.
 """
 from __future__ import annotations
@@ -28,7 +28,7 @@ def find_devices(hass: HomeAssistant) -> list[dict[str, Any]]:
     entities, devices = er.async_get(hass), dr.async_get(hass)
     found: dict[str, dict[str, Any]] = {}
     for entry in entities.entities.values():
-        if entry.platform != "esphome" or entry.domain != "text_sensor" or entry.disabled:
+        if entry.platform != "esphome" or entry.domain != "sensor" or entry.disabled:
             continue
         st = hass.states.get(entry.entity_id)
         port = parse_state(st.state if st else None)

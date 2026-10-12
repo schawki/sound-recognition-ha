@@ -15,11 +15,12 @@ def test_parse_state():
         assert ed.parse_state(bad) is None
 
 
-def _esphome_device(hass, host, name, text_state, area=None, platform="esphome", unique="mac-text_sensor-1"):
+def _esphome_device(hass, host, name, text_state, area=None, platform="esphome", unique="mac-stream-1"):
     entry = MockConfigEntry(domain="esphome_stand_in", data={"host": host})   # never set up: no real ESPHome connection
     entry.add_to_hass(hass)
     dev = dr.async_get(hass).async_get_or_create(config_entry_id=entry.entry_id, identifiers={("esphome", unique)}, name=name)
-    ent = er.async_get(hass).async_get_or_create("text_sensor", platform, unique, config_entry=entry, device_id=dev.id,
+    ent = er.async_get(hass).async_get_or_create("sensor", platform,   # an ESPHome text sensor is a `sensor` entity in Home Assistant
+                                                  unique, config_entry=entry, device_id=dev.id,
                                                  suggested_object_id=f"{unique}_stream")
     if area:
         er.async_get(hass).async_update_entity(ent.entity_id, area_id=area)

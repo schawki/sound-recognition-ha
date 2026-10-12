@@ -2,6 +2,10 @@
 
 Releases are tagged `vX.Y.Z`; the service updates itself from Home Assistant to the latest tag.
 
+## 0.11.4
+
+- **ESP32 microphones are now found by themselves.** The panel's *Sources → Add → ESP32 microphone* list stayed empty even for a device running the component: Home Assistant files the text sensors of ESPHome under the `sensor` domain, and the search looked elsewhere. Found on the first real microphone. Adding a device by hand with its address always worked.
+
 ## 0.11.3
 
 - **Easier to check that the link with Home Structure works.** With debug logging on for Sound Recognition, the log now says when Home Structure announced a change and how many links were read again. No change in behaviour.
