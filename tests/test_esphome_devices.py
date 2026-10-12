@@ -51,3 +51,98 @@ async def test_panel_command(hass, hass_ws_client):
     await ws.send_json({"id": 1, "type": "sound_recognition/esphome_devices"})
     r = await ws.receive_json()
     assert r["success"] and [d["url"] for d in r["result"]["devices"]] == ["tcp://192.168.1.50:6055"]
+
+
+# ------------------------------------------------------------------------------------------------ microphones still to add
+from homeassistant.helpers import issue_registry as ir  # noqa: E402
+
+from custom_components.sound_recognition.const import DOMAIN  # noqa: E402
+import fake_service as fs  # noqa: E402
+
+
+def test_host_of_and_pending():
+    assert ed.host_of("tcp://192.168.1.50:6055") == "192.168.1.50" and ed.host_of("tcp://[FE80::1]:6055") == "fe80::1"
+    assert ed.host_of("tcp://Mic.LOCAL:6055") == "mic.local" and ed.host_of("") == "" and ed.host_of(None) == ""
+    devices = [{"id": "a", "url": "tcp://192.168.1.50:6055"}, {"id": "b", "url": "tcp://192.168.1.51:6055"}, {"id": "c", "url": "tcp://192.168.1.52:6055"}]
+    cfg = {"sources": [{"id": "x", "type": "esphome", "url": "tcp://192.168.1.50:7000"}, {"id": "y", "type": "rtsp", "url": "rtsp://192.168.1.51/s"}]}
+    rows = {d["id"]: d for d in ed.annotate(devices, cfg, {"c"})}
+    assert rows["a"]["added"] and not rows["b"]["added"] and rows["c"]["ignored"]      # an ESPHome source with this host counts, a camera does not
+    assert [d["id"] for d in ed.pending(devices, cfg, {"c"})] == ["b"]
+
+
+def esp_issues(hass):
+    return [i for i in ir.async_get(hass).issues.values() if i.domain == DOMAIN and i.issue_id.startswith("esp_microphone_")]
+
+
+async def ws_call(ws, n, **kw):
+    await ws.send_json({"id": n, **kw})
+    return await ws.receive_json()
+
+
+async def test_a_microphone_to_add_raises_one_repair_a_counter_and_an_advice(hass, hass_ws_client):
+    entry = await setup_entry(hass)
+    area = ar.async_get(hass).async_create("Kitchen")
+    _esphome_device(hass, "192.168.1.50", "Sound Node", "sound-recognition-stream/1 port=6055", area=area.id, unique="a")
+    await entry.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+    issues = esp_issues(hass)
+    assert len(issues) == 1 and issues[0].is_fixable and issues[0].translation_placeholders == {"name": "Sound Node", "area": " (Kitchen)", "host": "192.168.1.50"}
+    ws = await hass_ws_client(hass)
+    r = await ws_call(ws, 1, type="sound_recognition/esphome_devices")
+    assert r["result"]["pending"] == 1 and r["result"]["devices"][0]["added"] is False and r["result"]["devices"][0]["ignored"] is False
+    recs = (await ws_call(ws, 2, type="sound_recognition/recommendations"))["result"]["recommendations"]
+    esp = [x for x in recs if x["rule"] == "add_esp_microphone"]
+    assert len(esp) == 1 and "Sound Node (Kitchen)" in esp[0]["message"]
+    _esphome_device(hass, "192.168.1.51", "Mic bedroom", "sound-recognition-stream/1 port=6055", unique="b")
+    esp = [x for x in (await ws_call(ws, 3, type="sound_recognition/recommendations"))["result"]["recommendations"] if x["rule"] == "add_esp_microphone"]
+    assert len(esp) == 1 and "Sound Node" in esp[0]["message"] and "Mic bedroom" in esp[0]["message"]       # several: one advice naming them all
+
+
+async def test_adding_the_device_as_a_source_removes_everything(hass, hass_ws_client):
+    entry = await setup_entry(hass)
+    _esphome_device(hass, "192.168.1.50", "Sound Node", "sound-recognition-stream/1 port=6055", unique="a")
+    await entry.runtime_data.coordinator.async_refresh()
+    assert len(esp_issues(hass)) == 1
+    fs.STATE.cfg["sources"] = [*fs.STATE.cfg["sources"], {"id": "node", "name": "Sound Node", "type": "esphome", "url": "tcp://192.168.1.50:6055", "password": "12345678"}]   # new list: never mutate the shared defaults
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    assert esp_issues(hass) == []
+    ws = await hass_ws_client(hass)
+    r = (await ws_call(ws, 1, type="sound_recognition/esphome_devices"))["result"]
+    assert r["pending"] == 0 and r["devices"][0]["added"] is True
+    recs = (await ws_call(ws, 2, type="sound_recognition/recommendations"))["result"]["recommendations"]
+    assert not [x for x in recs if x["rule"] == "add_esp_microphone"]
+
+
+async def test_ignore_and_stop_ignoring(hass, hass_ws_client):
+    entry = await setup_entry(hass)
+    _esphome_device(hass, "192.168.1.50", "Sound Node", "sound-recognition-stream/1 port=6055", unique="a")
+    await entry.runtime_data.coordinator.async_refresh()
+    ws = await hass_ws_client(hass)
+    dev_id = (await ws_call(ws, 1, type="sound_recognition/esphome_devices"))["result"]["devices"][0]["id"]
+    r = (await ws_call(ws, 2, type="sound_recognition/esphome_ignore", device=dev_id, ignored=True))["result"]
+    assert r["pending"] == 0 and r["devices"][0]["ignored"] is True and esp_issues(hass) == []
+    assert entry.options["ignored_esp_devices"] == [dev_id]
+    await entry.runtime_data.coordinator.async_refresh()
+    assert esp_issues(hass) == []                                                                       # stays ignored after the next refresh
+    r = (await ws_call(ws, 3, type="sound_recognition/esphome_ignore", device=dev_id, ignored=False))["result"]
+    assert r["pending"] == 1 and len(esp_issues(hass)) == 1 and entry.options["ignored_esp_devices"] == []
+
+
+async def test_the_repair_flow_ignores_the_device(hass, hass_client):
+    entry = await setup_entry(hass)
+    _esphome_device(hass, "192.168.1.50", "Sound Node", "sound-recognition-stream/1 port=6055", unique="a")
+    await entry.runtime_data.coordinator.async_refresh()
+    issue = esp_issues(hass)[0]
+    http = await hass_client()
+    flow = await (await http.post("/api/repairs/issues/fix", json={"handler": DOMAIN, "issue_id": issue.issue_id})).json()
+    assert flow["step_id"] == "confirm" and flow["description_placeholders"]["name"] == "Sound Node"
+    assert (await (await http.post(f"/api/repairs/issues/fix/{flow['flow_id']}", json={})).json())["type"] == "create_entry"
+    assert esp_issues(hass) == [] and len(entry.options["ignored_esp_devices"]) == 1
+
+
+async def test_nothing_is_raised_when_no_device_runs_the_component(hass):
+    entry = await setup_entry(hass)
+    _esphome_device(hass, "192.168.1.60", "Some other ESP", "hello", unique="c")
+    await entry.runtime_data.coordinator.async_refresh()
+    assert esp_issues(hass) == []

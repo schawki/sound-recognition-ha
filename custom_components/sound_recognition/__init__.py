@@ -24,7 +24,7 @@ from .const import CLIP_SIGN_HOURS, CLIP_URL_TEMPLATE, CLIP_VIEW_URL, DOMAIN, PA
 from .coordinator import SoundRecCoordinator
 from .dynamic import DynamicManager
 from .entity import register_source_devices
-from .repairs import clear_stale_issue, sync_stale_issue
+from .repairs import clear_esp_issues, clear_stale_issue, sync_esp_issues, sync_stale_issue
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -105,6 +105,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: SoundRecConfigEntry) -> 
         hass.data[f"{DOMAIN}_view"] = True
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     sync_stale_issue(hass, entry, coordinator.service_config, coordinator.index)
+    sync_esp_issues(hass, entry, coordinator.service_config)
     coordinator.start_listener()
     entry.runtime_data.dynamic = DynamicManager(hass, coordinator)
     entry.runtime_data.dynamic.start()
@@ -119,6 +120,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: SoundRecConfigEntry) ->
     if ok:
         entry.runtime_data.coordinator.clear_issues()
         clear_stale_issue(hass, entry)
+        clear_esp_issues(hass, entry)
     return ok
 
 

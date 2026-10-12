@@ -5,7 +5,7 @@ import type { PanelApi } from "./api";
 import type { T } from "./i18n";
 import { cellsToWindows, hoursPerWeek, windowsToCells } from "./schedule";
 import { groupAdvice, type NoticeItem } from "./advice-group";
-import type { Advice, EsphomeDevice, HsPlace, SeparationType, StructureInfo, Catalog, Environment, Go2rtcStreams, HaArea, HaDevice, HaOpening, ServiceConfig, SourceCfg } from "./types";
+import type { Advice, EsphomeDevice, EsphomeState, HsPlace, SeparationType, StructureInfo, Catalog, Environment, Go2rtcStreams, HaArea, HaDevice, HaOpening, ServiceConfig, SourceCfg } from "./types";
 import "./schedule-grid";
 import "./structure-plan";
 import { ESPHOME_YAML } from "./esphome-yaml";
@@ -72,6 +72,7 @@ export class SourcesView extends LitElement {
   @state() private hsPlace: HsPlace | null = null;
   @state() private structure: StructureInfo | null = null;
   private devsFor = "";
+  @property({ type: Boolean }) wantEsp = false;                  // set by the panel banner: opens the form on "ESP32 microphone", then says it did
   @state() private esp: { devices: EsphomeDevice[]; tried: boolean; copied: boolean } = { devices: [], tried: false, copied: false };
   @state() private g2: { url: string; streams: Go2rtcStreams["streams"]; loading: boolean; error: string; tried: boolean } = { url: "", streams: [], loading: false, error: "", tried: false };
 
@@ -94,6 +95,12 @@ export class SourcesView extends LitElement {
   }
 
   protected willUpdate(): void {
+    if (this.wantEsp && this.config) {
+      this.wantEsp = false;
+      lastType = "esphome";
+      this.openForm(this.blankForm());
+      this.dispatchEvent(new CustomEvent("esp-opened", { bubbles: true, composed: true }));
+    }
     if (this.form?.type === "go2rtc" && !this.g2.tried && !this.g2.loading) void this.loadStreams();
     if (this.form?.type === "esphome" && !this.esp.tried) void this.loadEsphome();
   }
@@ -101,10 +108,21 @@ export class SourcesView extends LitElement {
   private async loadEsphome(): Promise<void> {
     this.esp = { ...this.esp, tried: true };
     try {
-      this.esp = { ...this.esp, devices: await this.api.esphomeDevices() };
+      this.takeEsp(await this.api.esphomeState());
     } catch {
       this.esp = { ...this.esp, devices: [] };
     }
+  }
+
+  private takeEsp(s: EsphomeState): void {
+    this.esp = { ...this.esp, devices: s.devices };
+    this.dispatchEvent(new CustomEvent("esp-pending", { detail: s.pending, bubbles: true, composed: true }));
+  }
+
+  private async ignoreEsp(d: EsphomeDevice, ignored: boolean): Promise<void> {
+    try {
+      this.takeEsp(await this.api.esphomeIgnore(d.id ?? d.device_id, ignored));
+    } catch { /* the list stays as it was */ }
   }
 
   /** Adds a detected ESP32 microphone to the rows of a new source (and its room, when the device has one and none is chosen). */
@@ -506,11 +524,13 @@ export class SourcesView extends LitElement {
   private renderEsphome(f: Form) {
     const t = this.t, e = this.esp;
     const used = new Set(this.sources.map((x) => x.url));
-    const taken = (d: EsphomeDevice) => used.has(d.url) || f.rows.some((r) => r.url.trim() === d.url);
+    const taken = (d: EsphomeDevice) => used.has(d.url) || d.added === true || f.rows.some((r) => r.url.trim() === d.url);
     return html`<fieldset class="esp" data-esphome><legend>${t("espDevices")}</legend>
-      ${e.devices.length === 0 ? html`<p class="note" data-esp-none>${t("espNoDevices")}</p>` : e.devices.map((d) => html`<div class="espdev" data-esp-device=${d.url}>
+      ${e.devices.length === 0 ? html`<p class="note" data-esp-none>${t("espNoDevices")}</p>` : e.devices.map((d) => html`<div class="espdev ${d.ignored && !taken(d) ? "ignored" : ""}" data-esp-device=${d.url}>
         <span><strong>${d.name}</strong> <span class="dim">${d.url}</span></span>
-        ${taken(d) ? html`<span class="dim">${t("espUsed")}</span>` : html`<button type="button" data-action="esp-use" @click=${() => this.useEsphome(d)}>${t("espUse")}</button>`}</div>`)}
+        ${taken(d) ? html`<span class="dim">${t("espUsed")}</span>` : d.ignored
+          ? html`<span class="dim">${t("espIgnored")}</span> <button type="button" data-action="esp-unignore" @click=${() => void this.ignoreEsp(d, false)}>${t("espUnignore")}</button>`
+          : html`<span><button type="button" data-action="esp-use" @click=${() => this.useEsphome(d)}>${t("espUse")}</button> <button type="button" data-action="esp-ignore" @click=${() => void this.ignoreEsp(d, true)}>${t("espIgnore")}</button></span>`}</div>`)}
       <details class="paste"><summary>${t("espYamlTitle")}</summary>
         <p class="dim">${t("espYamlHelp")}</p>
         <pre class="yaml" data-esp-yaml>${ESPHOME_YAML}</pre>
@@ -667,7 +687,7 @@ export class SourcesView extends LitElement {
     .gridbar { display: flex; gap: 8px; align-items: center; } .gridbar .dim { flex: 1; }
     .row { display: flex; gap: 8px; } .row input { flex: 1; }
     .streams { display: flex; flex-direction: column; gap: 6px; } .stream { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-height: 34px; } .stream label { min-width: 140px; } .stream .rowname { flex: 1; min-width: 160px; }
-    .espdev { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; min-height: 34px; } pre.yaml { background: var(--secondary-background-color, #f5f5f5); padding: 10px; border-radius: 6px; overflow-x: auto; font-size: 0.8rem; max-height: 320px; margin: 6px 0; user-select: all; }
+    .espdev.ignored { opacity: .6; } .espdev { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; min-height: 34px; } pre.yaml { background: var(--secondary-background-color, #f5f5f5); padding: 10px; border-radius: 6px; overflow-x: auto; font-size: 0.8rem; max-height: 320px; margin: 6px 0; user-select: all; }
     .rowline { display: grid; grid-template-columns: minmax(100px, 1fr) minmax(160px, 2fr) auto; gap: 8px; }
     textarea { font: inherit; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--divider-color); background: var(--primary-background-color); color: var(--primary-text-color); width: 100%; box-sizing: border-box; margin: 6px 0; }
     details.adv, details.paste { border: 1px solid var(--divider-color); border-radius: 10px; padding: 8px 14px; } details.paste { border: 0; padding: 0; }

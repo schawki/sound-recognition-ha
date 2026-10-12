@@ -2,6 +2,12 @@
 
 Les versions sont étiquetées `vX.Y.Z` ; le service se met à jour depuis Home Assistant vers la dernière étiquette.
 
+## 0.12.0
+
+- **Vous êtes prévenu quand un micro ESP32 est prêt à être ajouté.** Sound Recognition reconnaît maintenant les appareils ESPHome qui exécutent le composant micro et ne sont pas encore une source, et le signale par un bandeau en haut du panneau (il ouvre *Sources → Ajouter → Micro ESP32*), un compteur sur l'onglet *Sources*, un conseil, et une alerte dans les *Réparations* de Home Assistant. Cette alerte est la seule que Sound Recognition envoie volontairement aux Réparations, et seulement pour les micros à ajouter.
+- **Ignorer un appareil.** Une carte qui ne doit pas devenir un micro peut être ignorée depuis la liste (ou avec *Envoyer* dans l'alerte des Réparations) ; *Ne plus ignorer* la fait revenir. Les appareils ajoutés ne sont plus signalés d'eux-mêmes.
+- Mettez à jour l'intégration par HACS, redémarrez Home Assistant, puis mettez à jour le service depuis Home Assistant.
+
 ## 0.11.4
 
 - **Les micros ESP32 sont maintenant trouvés tout seuls.** La liste de *Sources → Ajouter → Micro ESP32* restait vide, même pour un appareil qui exécute le composant : Home Assistant range les capteurs texte d'ESPHome dans le domaine `sensor`, et la recherche regardait ailleurs. Découvert avec le premier vrai micro. L'ajout à la main avec l'adresse a toujours fonctionné.

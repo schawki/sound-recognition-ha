@@ -259,6 +259,8 @@ TEXTS = {
         "install_home_structure": "Install the Home Structure integration to describe which rooms are next to each other and what separates them (open space, door, window, shutter, sensors). Sound Recognition uses it to share what is heard between connected rooms, and other integrations can use it too. You can still describe the rooms here, in the Sources tab.",
         "setup_home_structure": "Home Structure is installed: add it in Settings, Devices & services, then describe your home there. Sound Recognition will use it.",
         "describe_home_structure": "Home Structure is set up but describes nothing yet. Describe which rooms are next to each other and what separates them there: Sound Recognition will use it.",
+        "add_esp_microphone": "{devices} runs the Sound Recognition microphone and is not a source yet. Add it in Sources, Add, ESP32 microphone, or ignore it there.",
+        "add_esp_microphones": "{devices} run the Sound Recognition microphone and are not sources yet. Add them in Sources, Add, ESP32 microphone, or ignore them there.",
     },
     "fr": {
         "set_area": "Attribuez une pièce Home Assistant à « {source} » pour prendre en compte les appareils qui l'entourent (TV, enceintes...).",
@@ -266,15 +268,21 @@ TEXTS = {
         "install_home_structure": "Installez l'intégration Home Structure pour décrire quelles pièces sont voisines et ce qui les sépare (espace ouvert, porte, fenêtre, volet, capteurs). Sound Recognition s'en sert pour partager ce qui est entendu entre pièces reliées, et d'autres intégrations peuvent s'en servir aussi. Vous pouvez quand même décrire les pièces ici, dans l'onglet Sources.",
         "setup_home_structure": "Home Structure est installée : ajoutez-la dans Paramètres, Appareils et services, puis décrivez-y votre logement. Sound Recognition s'en servira.",
         "describe_home_structure": "Home Structure est configurée mais ne décrit encore rien. Décrivez-y quelles pièces sont voisines et ce qui les sépare : Sound Recognition s'en servira.",
+        "add_esp_microphone": "{devices} exécute le micro de Sound Recognition et n'est pas encore une source. Ajoutez-le dans Sources, Ajouter, Micro ESP32, ou ignorez-le à cet endroit.",
+        "add_esp_microphones": "{devices} exécutent le micro de Sound Recognition et ne sont pas encore des sources. Ajoutez-les dans Sources, Ajouter, Micro ESP32, ou ignorez-les à cet endroit.",
     },
 }
 
 
-def recommendations(hass: HomeAssistant, cfg: dict, lang: str, hs_status: str = "ready", hs_described: bool = True) -> list[dict]:
+def recommendations(hass: HomeAssistant, cfg: dict, lang: str, hs_status: str = "ready", hs_described: bool = True, esp_pending: list[dict] | None = None) -> list[dict]:
     """What only Home Assistant can see: sources without a room, and rooms with devices that could be used."""
     txt = {**TEXTS["en"], **TEXTS.get(lang, {})}
     area_names = {a["area_id"]: a["name"] for a in areas(hass)}
     out = []
+    if esp_pending:                                                   # ESP32 microphones seen by Home Assistant and not added yet: one advice for all of them
+        label = ", ".join(d["name"] + (f" ({area_names.get(d['area_id']) or ''})" if area_names.get(d["area_id"]) else "") for d in esp_pending)
+        rule = "add_esp_microphone" if len(esp_pending) == 1 else "add_esp_microphones"
+        out.append({"rule": "add_esp_microphone", "level": "info", "source": "", "classes": [], "message": txt[rule].format(devices=label), "apply": None, "applied": False})
     if any(s.get("enabled", True) and s.get("area") for s in cfg.get("sources", [])):
         rule = {"not_installed": "install_home_structure", "not_configured": "setup_home_structure"}.get(hs_status)
         if rule is None and not hs_described:

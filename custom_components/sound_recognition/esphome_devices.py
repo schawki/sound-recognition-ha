@@ -5,6 +5,7 @@ the address of every ESPHome device, so the panel can offer them with one click.
 """
 from __future__ import annotations
 
+import hashlib
 import re
 from typing import Any
 
@@ -12,6 +13,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
 MARK = "sound-recognition-stream/1"
+CONF_IGNORED = "ignored_esp_devices"      # config entry option: ids of the devices the administrator does not want as microphones
 _PORT = re.compile(r"\bport=(\d{1,5})\b")
 
 
@@ -42,6 +44,7 @@ def find_devices(hass: HomeAssistant) -> list[dict[str, Any]]:
         host = f"[{host}]" if ":" in host and not host.startswith("[") else host
         key = entry.device_id or entry.entity_id
         found[key] = {
+            "id": entry.device_id or "url-" + hashlib.sha1(f"{host}:{port}".encode()).hexdigest()[:10],   # stable, safe in an issue id
             "device_id": entry.device_id or "",
             "name": (device.name_by_user or device.name) if device else entry.entity_id,
             "host": host,
@@ -50,3 +53,26 @@ def find_devices(hass: HomeAssistant) -> list[dict[str, Any]]:
             "area_id": entry.area_id or (device.area_id if device else None) or "",
         }
     return sorted(found.values(), key=lambda d: d["name"].lower())
+
+
+def host_of(url: str | None) -> str:
+    """Host of a `tcp://host:port` address, lower case and without the IPv6 brackets; empty when there is none."""
+    m = re.match(r"^\w+://(\[[^\]]+\]|[^/:]+)", (url or "").strip())
+    return m.group(1).strip("[]").lower() if m else ""
+
+
+def annotate(devices: list[dict[str, Any]], cfg: dict, ignored: set[str]) -> list[dict[str, Any]]:
+    """The devices with `added` (a source of the configuration already uses this address) and `ignored` (the administrator said no)."""
+    used = {host_of(s.get("url")) for s in cfg.get("sources", []) if s.get("type") == "esphome"}
+    return [{**d, "added": host_of(d["url"]) in used, "ignored": d["id"] in ignored} for d in devices]
+
+
+def pending(devices: list[dict[str, Any]], cfg: dict, ignored: set[str]) -> list[dict[str, Any]]:
+    """The devices that could be added as a microphone and are not yet: not a source, not ignored."""
+    return [d for d in annotate(devices, cfg, ignored) if not d["added"] and not d["ignored"]]
+
+
+def area_name(hass: HomeAssistant, area_id: str) -> str:
+    from homeassistant.helpers import area_registry as ar
+    area = ar.async_get(hass).async_get_area(area_id) if area_id else None
+    return area.name if area else ""

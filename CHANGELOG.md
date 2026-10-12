@@ -2,6 +2,12 @@
 
 Releases are tagged `vX.Y.Z`; the service updates itself from Home Assistant to the latest tag.
 
+## 0.12.0
+
+- **You are told when an ESP32 microphone is ready to be added.** Sound Recognition now recognises the ESPHome devices that run the microphone component and are not a source yet, and says so with a banner at the top of the panel (it opens *Sources → Add → ESP32 microphone*), a counter on the *Sources* tab, an advice, and an alert in Home Assistant *Repairs*. That alert is the only one Sound Recognition sends to Repairs on purpose, and only for microphones to add.
+- **Ignore a device.** A board that is not meant to be a microphone can be ignored from the list (or with *Submit* in the Repairs alert); *Stop ignoring* brings it back. Added devices stop being reported by themselves.
+- Update the integration through HACS, restart Home Assistant, then update the service from Home Assistant.
+
 ## 0.11.4
 
 - **ESP32 microphones are now found by themselves.** The panel's *Sources → Add → ESP32 microphone* list stayed empty even for a device running the component: Home Assistant files the text sensors of ESPHome under the `sensor` domain, and the search looked elsewhere. Found on the first real microphone. Adding a device by hand with its address always worked.

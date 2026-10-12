@@ -15,6 +15,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .api import CannotConnect, InvalidAuth, SoundRecClient, SoundRecError
 from .const import DOMAIN, MANUAL_UPDATE_COMMAND, SIGNAL_LIVE, SIGNAL_MESSAGE, UPDATE_INTERVAL_S
 from .helpers import build_index
+from .repairs import sync_esp_issues
 from .updates import ServiceUpdate
 
 if TYPE_CHECKING:
@@ -78,6 +79,7 @@ class SoundRecCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             raise UpdateFailed(str(err)) from err
         self._sync_issues(warnings)
         self._sync_outdated_issue()
+        sync_esp_issues(self.hass, self.config_entry, self.service_config)
         await self.updates.async_check()
         return {"sources": {s["id"]: s for s in sources}, "warnings": warnings}
 

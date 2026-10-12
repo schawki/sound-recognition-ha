@@ -272,6 +272,20 @@
           "invalid": "Le service a refusé le changement : {errors}"
         }
       }
+    },
+    "esp_microphone": {
+      "title": "{name}{area} peut devenir un micro Sound Recognition",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Micro ESP32 prêt à être ajouté",
+            "description": "**{name}**{area} exécute le micro de Sound Recognition et n'est pas encore une source.\n\nPour l'ajouter : ouvrez Sound Recognition dans la barre latérale, puis *Sources*, *Ajouter*, *Micro ESP32*, et appuyez sur *Utiliser* à côté de l'appareil.\n\nSi vous ne voulez pas de cet appareil comme micro, appuyez sur Envoyer : il sera ignoré et ce message disparaît. Vous pouvez arrêter de l'ignorer depuis la même liste, dans le panneau."
+          }
+        },
+        "abort": {
+          "not_loaded": "L'intégration n'est pas chargée ; réessayez quand elle l'est."
+        }
+      }
     }
   },
   "selector": {

@@ -48,6 +48,17 @@ Open the panel, *Sources → Add*, choose **ESP32 microphone (ESPHome)**. The de
 
 If the list is empty, the device is probably not flashed yet or not connected to Home Assistant. The detection looks for a diagnostic sensor named *Sound Recognition stream* on ESPHome devices.
 
+### You are told when a microphone is ready to add
+
+As soon as Home Assistant sees a device running the component that is not a source yet, Sound Recognition says so, in four places:
+
+- a **banner** at the top of the panel ("1 ESP32 microphone ready to add"); pressing it opens *Sources → Add → ESP32 microphone*;
+- a **counter** on the *Sources* tab ("Sources (1)");
+- an **advice** in the *Advice* tab;
+- an alert in Home Assistant **Repairs** (and so a badge on *Settings*). It is the only Sound Recognition warning sent there on purpose, and only for microphones to add.
+
+Not a microphone for Sound Recognition (a test board, say)? Press **Ignore** next to it in the list, or **Submit** in the Repairs alert: the four notices disappear. **Stop ignoring** in the same list brings it back. Once the device is added as a source, everything goes away by itself.
+
 ## How the stream is protected
 
 - The device waits on its port; **the service connects to it**. Nobody else is sent any audio.

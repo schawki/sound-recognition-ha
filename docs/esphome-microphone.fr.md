@@ -48,6 +48,17 @@ Ouvrez le panneau, *Sources → Ajouter*, choisissez **Micro ESP32 (ESPHome)**. 
 
 Si la liste est vide, l'appareil n'est sans doute pas encore flashé ou pas connecté à Home Assistant. La détection cherche, sur les appareils ESPHome, un capteur de diagnostic nommé *Sound Recognition stream*.
 
+### Être prévenu qu'un micro est prêt à être ajouté
+
+Dès que Home Assistant voit un appareil qui exécute le composant et qui n'est pas encore une source, Sound Recognition le signale à quatre endroits :
+
+- un **bandeau** en haut du panneau (« 1 micro ESP32 prêt à être ajouté ») ; l'appuyer ouvre *Sources → Ajouter → Micro ESP32* ;
+- un **compteur** sur l'onglet *Sources* (« Sources (1) ») ;
+- un **conseil** dans l'onglet *Conseils* ;
+- une alerte dans les **Réparations** de Home Assistant (donc un badge sur *Paramètres*). C'est le seul avertissement de Sound Recognition envoyé volontairement là, et seulement pour les micros à ajouter.
+
+Ce n'est pas un micro pour Sound Recognition (une carte d'essai, par exemple) ? Appuyez sur **Ignorer** à côté dans la liste, ou sur **Envoyer** dans l'alerte des Réparations : les quatre signalements disparaissent. **Ne plus ignorer**, dans la même liste, le fait revenir. Une fois l'appareil ajouté comme source, tout disparaît de soi-même.
+
 ## Comment le flux est protégé
 
 - L'appareil attend sur son port ; **le service s'y connecte**. Personne d'autre ne reçoit d'audio.

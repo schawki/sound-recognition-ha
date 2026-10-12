@@ -12,7 +12,8 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from . import devices as dev, home_rules, structure_link
 from .api import InvalidConfig, SoundRecError
 from .const import DOMAIN, SIGNAL_LIVE
-from .esphome_devices import find_devices
+from .esphome_devices import CONF_IGNORED, annotate, find_devices, pending
+from .repairs import set_ignored, sync_esp_issues
 from .go2rtc import CONF_GO2RTC_URL, Go2RtcError, fetch_streams, normalize_url
 
 ENTRY = {vol.Optional("entry_id"): str}
@@ -211,7 +212,8 @@ async def ws_recommendations(hass, connection, msg, entry):
     cfg = await entry.runtime_data.client.get_config()          # fresh: a saved change reloads the entry later, the cached copy can still be the old one
     hs = await structure_link.status(hass)
     _, origin = await structure_link.effective_links(hass, cfg)
-    mine = dev.recommendations(hass, cfg, lang, hs, origin == "home_structure")
+    _, to_add = await _esp_state(hass, entry)
+    mine = dev.recommendations(hass, cfg, lang, hs, origin == "home_structure", to_add)
     if origin == "home_structure":
         cat = await entry.runtime_data.client.catalog(lang)
         rules = await hass.async_add_executor_job(home_rules.load_rules)
@@ -347,12 +349,37 @@ async def ws_subscribe(hass, connection, msg, entry):
     connection.send_result(msg["id"])
 
 
-@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/esphome_devices"})
+async def _esp_state(hass: HomeAssistant, entry) -> tuple[list[dict], list[dict]]:
+    """(every device running the microphone component with `added` and `ignored`, the ones still to add). The configuration is read fresh when the service answers."""
+    try:
+        cfg = await entry.runtime_data.client.get_config()
+    except SoundRecError:
+        cfg = entry.runtime_data.coordinator.service_config
+    ignored = set(entry.options.get(CONF_IGNORED, []))
+    devices = find_devices(hass)
+    return annotate(devices, cfg, ignored), pending(devices, cfg, ignored)
+
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/esphome_devices", **ENTRY})
 @websocket_api.require_admin
-@callback
-def ws_esphome_devices(hass, connection, msg):
-    """ESPHome devices running the Sound Recognition microphone component."""
-    connection.send_result(msg["id"], {"devices": find_devices(hass)})
+@websocket_api.async_response
+@_with_entry
+async def ws_esphome_devices(hass, connection, msg, entry):
+    """ESPHome devices running the Sound Recognition microphone component, and how many of them can still be added."""
+    devices, to_add = await _esp_state(hass, entry)
+    connection.send_result(msg["id"], {"devices": devices, "pending": len(to_add)})
+
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/esphome_ignore", **ENTRY, vol.Required("device"): str, vol.Required("ignored"): bool})
+@websocket_api.require_admin
+@websocket_api.async_response
+@_with_entry
+async def ws_esphome_ignore(hass, connection, msg, entry):
+    """Ignores (or stops ignoring) a device: it is no longer offered as a microphone to add."""
+    set_ignored(hass, entry, msg["device"], msg["ignored"])
+    sync_esp_issues(hass, entry, entry.runtime_data.coordinator.service_config)
+    devices, to_add = await _esp_state(hass, entry)
+    connection.send_result(msg["id"], {"devices": devices, "pending": len(to_add)})
 
 
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/go2rtc_streams", **ENTRY, vol.Optional("url"): str})
@@ -379,7 +406,7 @@ async def ws_go2rtc_streams(hass, connection, msg, entry):
     connection.send_result(msg["id"], {"configured": True, "url": base, "streams": streams})
 
 
-COMMANDS = (ws_esphome_devices, ws_go2rtc_streams, ws_overview, ws_update, ws_update_install, ws_catalog, ws_warnings, ws_config, ws_config_validate, ws_config_save, ws_resolved, ws_events, ws_clips, ws_clips_delete, ws_events_delete_clipless, ws_recommendations, ws_areas, ws_openings, ws_devices, ws_place, ws_structure, ws_stats, ws_event_feedback, ws_subscribe)
+COMMANDS = (ws_esphome_devices, ws_esphome_ignore, ws_go2rtc_streams, ws_overview, ws_update, ws_update_install, ws_catalog, ws_warnings, ws_config, ws_config_validate, ws_config_save, ws_resolved, ws_events, ws_clips, ws_clips_delete, ws_events_delete_clipless, ws_recommendations, ws_areas, ws_openings, ws_devices, ws_place, ws_structure, ws_stats, ws_event_feedback, ws_subscribe)
 
 
 def async_register(hass: HomeAssistant) -> None:

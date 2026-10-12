@@ -272,6 +272,20 @@
           "invalid": "The service refused the change: {errors}"
         }
       }
+    },
+    "esp_microphone": {
+      "title": "{name}{area} can be a Sound Recognition microphone",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "ESP32 microphone ready to add",
+            "description": "**{name}**{area} runs the Sound Recognition microphone and is not a source yet.\n\nTo add it: open Sound Recognition in the sidebar, then *Sources*, *Add*, *ESP32 microphone*, and press *Use* next to the device.\n\nIf you do not want this device as a microphone, press Submit: it will be ignored and this message disappears. You can stop ignoring it from the same list in the panel."
+          }
+        },
+        "abort": {
+          "not_loaded": "The integration is not loaded; try again once it is."
+        }
+      }
     }
   },
   "selector": {

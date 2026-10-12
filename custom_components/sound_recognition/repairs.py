@@ -11,6 +11,7 @@ from homeassistant.helpers import selector as sel
 
 from .api import SoundRecError
 from .const import DOMAIN
+from .esphome_devices import CONF_IGNORED, area_name, find_devices, pending
 from .helpers import expected_unique_ids
 from .patch import apply_patch, describe_patch
 
@@ -117,4 +118,68 @@ async def async_create_fix_flow(hass: HomeAssistant, issue_id: str, data: dict |
     data = data or {}
     if data.get("kind") == "advice":
         return AdviceFixFlow(issue_id, data["entry_id"], data.get("apply") or {})
+    if data.get("kind") == "esp":
+        return EspMicrophoneFlow(data["entry_id"], data["device"])
     return StaleEntitiesFlow(data["entry_id"])
+
+
+# ---------------------------------------------------------------------------------------------- ESP32 microphones to add
+ESP_PREFIX = "esp_microphone_"
+
+
+def esp_issue_id(entry_id: str, device_id: str) -> str:
+    return f"{ESP_PREFIX}{entry_id}_{device_id}"
+
+
+def sync_esp_issues(hass: HomeAssistant, entry: ConfigEntry, cfg: dict) -> None:
+    """One repair per ESP32 microphone that Home Assistant sees and that is neither a source nor ignored. Nothing else is raised here."""
+    wanted: dict[str, dict] = {}
+    for d in pending(find_devices(hass), cfg, set(entry.options.get(CONF_IGNORED, []))):
+        wanted[esp_issue_id(entry.entry_id, d["id"])] = d
+    for iid, d in wanted.items():
+        area = area_name(hass, d["area_id"])
+        ir.async_create_issue(
+            hass, DOMAIN, iid, is_fixable=True, severity=ir.IssueSeverity.WARNING, translation_key="esp_microphone",
+            translation_placeholders={"name": d["name"], "area": f" ({area})" if area else "", "host": d["host"]},
+            data={"entry_id": entry.entry_id, "kind": "esp", "device": d["id"]},
+        )
+    mine = f"{ESP_PREFIX}{entry.entry_id}_"
+    for domain, iid in list(ir.async_get(hass).issues):
+        if domain == DOMAIN and iid.startswith(mine) and iid not in wanted:
+            ir.async_delete_issue(hass, DOMAIN, iid)
+
+
+def clear_esp_issues(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    mine = f"{ESP_PREFIX}{entry.entry_id}_"
+    for domain, iid in list(ir.async_get(hass).issues):
+        if domain == DOMAIN and iid.startswith(mine):
+            ir.async_delete_issue(hass, DOMAIN, iid)
+
+
+def set_ignored(hass: HomeAssistant, entry: ConfigEntry, device_id: str, ignored: bool) -> None:
+    current = set(entry.options.get(CONF_IGNORED, []))
+    current = current | {device_id} if ignored else current - {device_id}
+    hass.config_entries.async_update_entry(entry, options={**entry.options, CONF_IGNORED: sorted(current)})
+
+
+class EspMicrophoneFlow(RepairsFlow):
+    """Submitting ignores the device; to add it, the text sends the administrator to the panel."""
+
+    def __init__(self, entry_id: str, device_id: str) -> None:
+        self.entry_id, self.device_id = entry_id, device_id
+
+    async def async_step_init(self, user_input: dict | None = None) -> data_entry_flow.FlowResult:
+        return await self.async_step_confirm()      # the repairs view opens `init` with an empty dict: a submit must be a later step
+
+    async def async_step_confirm(self, user_input: dict | None = None) -> data_entry_flow.FlowResult:
+        entry = self.hass.config_entries.async_get_entry(self.entry_id)
+        if entry is None or not hasattr(entry, "runtime_data"):
+            return self.async_abort(reason="not_loaded")
+        device = next((d for d in find_devices(self.hass) if d["id"] == self.device_id), None)
+        if user_input is not None:
+            set_ignored(self.hass, entry, self.device_id, True)
+            sync_esp_issues(self.hass, entry, entry.runtime_data.coordinator.service_config)
+            return self.async_create_entry(data={})
+        area = area_name(self.hass, device["area_id"]) if device else ""
+        return self.async_show_form(step_id="confirm", data_schema=vol.Schema({}), description_placeholders={
+            "name": device["name"] if device else self.device_id, "area": f" ({area})" if area else ""})

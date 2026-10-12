@@ -1,4 +1,4 @@
-import type { UpdateInfo, Advice, HaArea, HaDevice, HaOpening, StructureInfo, Catalog, EsphomeDevice, Go2rtcStreams, Hass, HsPlace, LiveMessage, Overview, Recommendation, ServiceConfig, SoundEvent, ClipFilter, ClipsDeleted, ClipsPage, Stats, Validation } from "./types";
+import type { UpdateInfo, Advice, HaArea, HaDevice, HaOpening, StructureInfo, Catalog, EsphomeState, Go2rtcStreams, Hass, HsPlace, LiveMessage, Overview, Recommendation, ServiceConfig, SoundEvent, ClipFilter, ClipsDeleted, ClipsPage, Stats, Validation } from "./types";
 
 export class PanelApi {
   constructor(private hass: Hass, public language: string) {}
@@ -80,8 +80,12 @@ export class PanelApi {
     return this.hass.callWS({ type: "sound_recognition/go2rtc_streams", ...(url === undefined ? {} : { url }) });
   }
   /** ESPHome devices that run the Sound Recognition microphone component (found through their diagnostic sensor). */
-  async esphomeDevices(): Promise<EsphomeDevice[]> {
-    return (await this.hass.callWS<{ devices: EsphomeDevice[] }>({ type: "sound_recognition/esphome_devices" })).devices;
+  esphomeState(): Promise<EsphomeState> {
+    return this.hass.callWS<EsphomeState>({ type: "sound_recognition/esphome_devices" });
+  }
+  /** Ignores a device (it is no longer offered as a microphone to add) or stops ignoring it. */
+  esphomeIgnore(device: string, ignored: boolean): Promise<EsphomeState> {
+    return this.hass.callWS<EsphomeState>({ type: "sound_recognition/esphome_ignore", device, ignored });
   }
   subscribe(cb: (m: LiveMessage) => void): Promise<() => void> {
     return this.hass.connection.subscribeMessage<LiveMessage>(cb, { type: "sound_recognition/subscribe", language: this.language });
