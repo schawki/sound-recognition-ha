@@ -44,7 +44,7 @@ def find_devices(hass: HomeAssistant) -> list[dict[str, Any]]:
         host = f"[{host}]" if ":" in host and not host.startswith("[") else host
         key = entry.device_id or entry.entity_id
         found[key] = {
-            "id": entry.device_id or "url-" + hashlib.sha1(f"{host}:{port}".encode()).hexdigest()[:10],   # stable, safe in an issue id
+            "id": entry.device_id or "url-" + hashlib.sha1(f"{host}:{port}".encode(), usedforsecurity=False).hexdigest()[:10],   # stable, safe in an issue id
             "device_id": entry.device_id or "",
             "name": (device.name_by_user or device.name) if device else entry.entity_id,
             "host": host,
@@ -64,7 +64,11 @@ def host_of(url: str | None) -> str:
 def annotate(devices: list[dict[str, Any]], cfg: dict, ignored: set[str]) -> list[dict[str, Any]]:
     """The devices with `added` (a source of the configuration already uses this address) and `ignored` (the administrator said no)."""
     used = {host_of(s.get("url")) for s in cfg.get("sources", []) if s.get("type") == "esphome"}
-    return [{**d, "added": host_of(d["url"]) in used, "ignored": d["id"] in ignored} for d in devices]
+    out = []
+    for d in devices:
+        added = host_of(d["url"]) in used
+        out.append({**d, "added": added, "ignored": d["id"] in ignored and not added})      # a source is never "ignored"
+    return out
 
 
 def pending(devices: list[dict[str, Any]], cfg: dict, ignored: set[str]) -> list[dict[str, Any]]:

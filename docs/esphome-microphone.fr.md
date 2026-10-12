@@ -57,7 +57,7 @@ Dès que Home Assistant voit un appareil qui exécute le composant et qui n'est 
 - un **conseil** dans l'onglet *Conseils* ;
 - une alerte dans les **Réparations** de Home Assistant (donc un badge sur *Paramètres*). C'est le seul avertissement de Sound Recognition envoyé volontairement là, et seulement pour les micros à ajouter.
 
-Ce n'est pas un micro pour Sound Recognition (une carte d'essai, par exemple) ? Appuyez sur **Ignorer** à côté dans la liste, ou sur **Envoyer** dans l'alerte des Réparations : les quatre signalements disparaissent. **Ne plus ignorer**, dans la même liste, le fait revenir. Une fois l'appareil ajouté comme source, tout disparaît de soi-même.
+Ce n'est pas un micro pour Sound Recognition (une carte d'essai, par exemple) ? Appuyez sur **Ignorer** à côté dans la liste, ou sur **Envoyer** dans l'alerte des Réparations : les quatre signalements disparaissent. **Ne plus ignorer**, dans la même liste, le fait revenir. Une fois l'appareil ajouté comme source, tout disparaît de soi-même et il est oublié de la liste des ignorés : si vous retirez la source plus tard, l'appareil sera de nouveau proposé.
 
 ## Comment le flux est protégé
 

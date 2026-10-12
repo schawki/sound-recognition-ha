@@ -11,7 +11,7 @@ from homeassistant.helpers import selector as sel
 
 from .api import SoundRecError
 from .const import DOMAIN
-from .esphome_devices import CONF_IGNORED, area_name, find_devices, pending
+from .esphome_devices import CONF_IGNORED, annotate, area_name, find_devices, pending
 from .helpers import expected_unique_ids
 from .patch import apply_patch, describe_patch
 
@@ -134,7 +134,13 @@ def esp_issue_id(entry_id: str, device_id: str) -> str:
 def sync_esp_issues(hass: HomeAssistant, entry: ConfigEntry, cfg: dict) -> None:
     """One repair per ESP32 microphone that Home Assistant sees and that is neither a source nor ignored. Nothing else is raised here."""
     wanted: dict[str, dict] = {}
-    for d in pending(find_devices(hass), cfg, set(entry.options.get(CONF_IGNORED, []))):
+    ignored = set(entry.options.get(CONF_IGNORED, []))
+    devices = find_devices(hass)
+    added = {d["id"] for d in annotate(devices, cfg, ignored) if d["added"]}
+    if ignored & added:          # a device that became a source is forgotten: removing the source later offers it again
+        hass.config_entries.async_update_entry(entry, options={**entry.options, CONF_IGNORED: sorted(ignored - added)})
+        ignored -= added
+    for d in pending(devices, cfg, ignored):
         wanted[esp_issue_id(entry.entry_id, d["id"])] = d
     for iid, d in wanted.items():
         area = area_name(hass, d["area_id"])

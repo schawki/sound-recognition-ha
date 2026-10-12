@@ -57,7 +57,7 @@ As soon as Home Assistant sees a device running the component that is not a sour
 - an **advice** in the *Advice* tab;
 - an alert in Home Assistant **Repairs** (and so a badge on *Settings*). It is the only Sound Recognition warning sent there on purpose, and only for microphones to add.
 
-Not a microphone for Sound Recognition (a test board, say)? Press **Ignore** next to it in the list, or **Submit** in the Repairs alert: the four notices disappear. **Stop ignoring** in the same list brings it back. Once the device is added as a source, everything goes away by itself.
+Not a microphone for Sound Recognition (a test board, say)? Press **Ignore** next to it in the list, or **Submit** in the Repairs alert: the four notices disappear. **Stop ignoring** in the same list brings it back. Once the device is added as a source, everything goes away by itself, and it is forgotten by the ignored list: if you remove the source later, the device is offered again.
 
 ## How the stream is protected
 

@@ -1,6 +1,5 @@
 """Orchestration: sources -> pipelines -> events (store, clips, subscribers); live reload of the configuration."""
 import asyncio
-import copy
 import datetime as dt
 import logging
 import os

@@ -2,6 +2,14 @@
 
 Les versions sont étiquetées `vX.Y.Z` ; le service se met à jour depuis Home Assistant vers la dernière étiquette.
 
+## 0.12.1
+
+- **Un micro ajouté n'est plus jamais affiché comme « ignoré ».** Un ESP32 ignoré (par exemple avec *Envoyer* dans l'alerte des Réparations) puis ajouté comme source restait marqué ignoré. Il est maintenant oublié de la liste des ignorés dès qu'il est une source : le retirer plus tard le fait proposer de nouveau.
+- L'historique (`/events`) répond une erreur claire, et non une erreur du serveur, quand `since` ou `limit` n'est pas un nombre.
+- Petits nettoyages issus d'une revue du code (imports et variables inutilisés, un hachage signalé comme non destiné à la sécurité).
+- **Documentation :** nouvelle page [Pourquoi et comment Home Structure est utilisée](docs/home-structure.fr.md) ; le README ne dit plus que les micros ESP32 n'ont jamais été essayés sur du vrai matériel.
+- Mettez à jour l'intégration par HACS, redémarrez Home Assistant, puis mettez à jour le service depuis Home Assistant.
+
 ## 0.12.0
 
 - **Vous êtes prévenu quand un micro ESP32 est prêt à être ajouté.** Sound Recognition reconnaît maintenant les appareils ESPHome qui exécutent le composant micro et ne sont pas encore une source, et le signale par un bandeau en haut du panneau (il ouvre *Sources → Ajouter → Micro ESP32*), un compteur sur l'onglet *Sources*, un conseil, et une alerte dans les *Réparations* de Home Assistant. Cette alerte est la seule que Sound Recognition envoie volontairement aux Réparations, et seulement pour les micros à ajouter.

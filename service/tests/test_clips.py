@@ -163,3 +163,10 @@ async def test_verdicts_filter_and_clipless_deletion(filled):
     assert (await c.post("/api/v1/events/delete_clipless", json={})).status == 401
     left = {r["id"] for r in e.store.query()}
     assert {"x2", "x1"} <= left and "x3" not in left and {"a", "b", "c", "d"} <= left
+
+
+async def test_events_with_a_bad_number_answer_400_not_500(filled):
+    for q in ("since=yesterday", "limit=many"):
+        r = await filled.get(f"/api/v1/events?{q}", headers=H)
+        assert r.status == 400
+    assert (await filled.get("/api/v1/events?since=0&limit=5", headers=H)).status == 200

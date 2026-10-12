@@ -10,8 +10,6 @@ from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.loader import async_get_custom_components
 
-from . import devices
-
 _LOGGER = logging.getLogger(__name__)
 HS_DOMAIN, HS_SERVICE = "home_structure", "get_structure"
 HS_URL = "https://github.com/schawki/ha-home-structure"

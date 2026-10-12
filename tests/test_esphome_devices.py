@@ -146,3 +146,22 @@ async def test_nothing_is_raised_when_no_device_runs_the_component(hass):
     _esphome_device(hass, "192.168.1.60", "Some other ESP", "hello", unique="c")
     await entry.runtime_data.coordinator.async_refresh()
     assert esp_issues(hass) == []
+
+
+async def test_a_device_that_becomes_a_source_is_forgotten_by_the_ignored_list(hass, hass_ws_client):
+    entry = await setup_entry(hass)
+    _esphome_device(hass, "192.168.1.50", "Sound Node", "sound-recognition-stream/1 port=6055", unique="a")
+    await entry.runtime_data.coordinator.async_refresh()
+    ws = await hass_ws_client(hass)
+    dev_id = (await ws_call(ws, 1, type="sound_recognition/esphome_devices"))["result"]["devices"][0]["id"]
+    await ws_call(ws, 2, type="sound_recognition/esphome_ignore", device=dev_id, ignored=True)
+    fs.STATE.cfg["sources"] = [*fs.STATE.cfg["sources"], {"id": "node", "name": "Sound Node", "type": "esphome", "url": "tcp://192.168.1.50:6055", "password": "12345678"}]
+    r = (await ws_call(ws, 3, type="sound_recognition/esphome_devices"))["result"]
+    assert r["devices"][0]["added"] is True and r["devices"][0]["ignored"] is False       # never both
+    assert await hass.config_entries.async_reload(entry.entry_id)                          # what saving a source does
+    await hass.async_block_till_done()
+    assert entry.options["ignored_esp_devices"] == []                                      # forgotten
+    fs.STATE.cfg["sources"] = [s for s in fs.STATE.cfg["sources"] if s["id"] != "node"]    # the source is removed later: offered again
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    assert len(esp_issues(hass)) == 1

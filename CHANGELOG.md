@@ -2,6 +2,14 @@
 
 Releases are tagged `vX.Y.Z`; the service updates itself from Home Assistant to the latest tag.
 
+## 0.12.1
+
+- **A microphone you added is never shown as "ignored".** An ESP32 that was ignored (for example by pressing *Submit* in the Repairs alert) and then added as a source stayed marked as ignored. It is now forgotten by the ignored list as soon as it is a source, so removing the source later offers it again.
+- The history (`/events`) answers a clear error instead of a server error when `since` or `limit` is not a number.
+- Small clean-ups found by a code review (unused imports and variables, a hash flagged as not for security).
+- **Documentation:** new page [Why and how Home Structure is used](docs/home-structure.en.md); the README no longer says that ESP32 microphones were never tried on real hardware.
+- Update the integration through HACS, restart Home Assistant, then update the service from Home Assistant.
+
 ## 0.12.0
 
 - **You are told when an ESP32 microphone is ready to be added.** Sound Recognition now recognises the ESPHome devices that run the microphone component and are not a source yet, and says so with a banner at the top of the panel (it opens *Sources → Add → ESP32 microphone*), a counter on the *Sources* tab, an advice, and an alert in Home Assistant *Repairs*. That alert is the only one Sound Recognition sends to Repairs on purpose, and only for microphones to add.

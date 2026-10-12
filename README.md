@@ -53,11 +53,11 @@ It works alongside **[Home Structure](https://github.com/schawki/ha-home-structu
 
 ## Status
 
-Version 0.9, used on a real installation and tested (service, integration and panel test suites run on every commit). ESP32 microphones (ESPHome) are supported but not tried on real hardware yet. The Docker image is provided but not tested yet. Feedback and issues are welcome.
+Version 0.12, used on a real installation and tested (service, integration and panel test suites run on every commit). ESP32 microphones (ESPHome) work on a real microphone; the sound quality of homemade boards depends on the microphone and its placement. The Docker image is provided but not tested yet. Feedback and issues are welcome.
 
 ## Known limitations
 
-- ESP32 microphones (ESPHome) are new and not tried on a real microphone yet. Their audio is protected by a password but not encrypted on your local network ([details](docs/esphome-microphone.en.md#how-the-stream-is-protected)).
+- The audio of ESP32 microphones (ESPHome) is protected by a password but not encrypted on your local network ([details](docs/esphome-microphone.en.md#how-the-stream-is-protected)).
 - *Undo* on an advice does not switch a sound back on if the advice switched it off (its base value in the catalog is off). The card says so; switch it on again in the Sounds tab.
 - Advice that asks you to choose between two sounds ("Keep X only") has no button in Home Assistant's *Repairs* page; choose in the Advice tab.
 - Recommendations cannot be hidden (only warnings can).
@@ -68,6 +68,7 @@ Version 0.9, used on a real installation and tested (service, integration and pa
 
 - [Installing the service](docs/install-service.en.md) · [Proxmox details and updates](deploy/DEPLOY.md)
 - [ESP32 microphone (ESPHome)](docs/esphome-microphone.en.md)
+- [Why and how Home Structure is used](docs/home-structure.en.md)
 - [The Advice tab](docs/advice.en.md)
 - [Per-source settings](docs/source-settings.en.md) · [Contexts, rooms and adaptive sensitivity](docs/context-and-adaptive.en.md)
 - [Service API and development](docs/api.md) · [Example configuration](examples/config.example.yaml)

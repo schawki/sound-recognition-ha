@@ -53,11 +53,11 @@ Elle fonctionne avec **[Home Structure](https://github.com/schawki/ha-home-struc
 
 ## État du projet
 
-Version 0.9, utilisée sur une installation réelle et testée (les tests du service, de l'intégration et du panneau tournent à chaque commit). Les micros ESP32 (ESPHome) sont pris en charge mais pas encore essayés sur du vrai matériel. L'image Docker est fournie mais pas encore testée. Retours et tickets bienvenus.
+Version 0.12, utilisée sur une installation réelle et testée (les tests du service, de l'intégration et du panneau tournent à chaque commit). Les micros ESP32 (ESPHome) fonctionnent avec un vrai micro ; la qualité du son d'une carte maison dépend du micro et de son emplacement. L'image Docker est fournie mais pas encore testée. Retours et tickets bienvenus.
 
 ## Limites connues
 
-- Les micros ESP32 (ESPHome) sont nouveaux et pas encore essayés avec un vrai micro. Leur audio est protégé par un mot de passe mais pas chiffré sur votre réseau local ([détails](docs/esphome-microphone.fr.md#comment-le-flux-est-protégé)).
+- L'audio des micros ESP32 (ESPHome) est protégé par un mot de passe mais pas chiffré sur votre réseau local ([détails](docs/esphome-microphone.fr.md#comment-le-flux-est-protégé)).
 - *Annuler* un conseil ne réactive pas un son que le conseil avait désactivé (sa valeur de base dans le catalogue est « désactivé »). La carte le dit ; réactivez-le dans l'onglet Sons.
 - Les conseils qui demandent de choisir entre deux sons (« Garder X seulement ») n'ont pas de bouton dans la page *Réparations* de Home Assistant ; choisissez dans l'onglet Conseils.
 - Les recommandations ne peuvent pas être masquées (seuls les avertissements le peuvent).

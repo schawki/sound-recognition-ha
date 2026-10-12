@@ -1,6 +1,5 @@
 """Local HTTP + WebSocket API (aiohttp). Every route except /health needs 'Authorization: Bearer <token>'."""
 import asyncio
-import datetime as dt
 import hmac
 import json
 
@@ -118,8 +117,12 @@ async def resolved(req):
 async def events(req):
     eng = req.app["engine"]
     names = cm.class_names(_lang(req), eng.catalog_root)
-    since = float(req.query["since"]) if "since" in req.query else None
-    rows = eng.store.query(since, req.query.get("source"), req.query.get("mid"), req.query.get("limit", 100))
+    try:
+        since = float(req.query["since"]) if "since" in req.query else None
+        limit = int(req.query.get("limit", 100))
+    except ValueError:
+        return web.json_response({"error": "since must be a number (epoch seconds) and limit an integer"}, status=400)
+    rows = eng.store.query(since, req.query.get("source"), req.query.get("mid"), limit)
     for r in rows:
         r["name"] = names.get(r["mid"], r["class"])
     return web.json_response({"events": rows})
@@ -317,7 +320,6 @@ async def ws(req):
     await sock.send_json({"type": "hello", "version": __version__, "sources": eng.status()})
 
     async def pump():
-        last = 0.0
         while True:
             try:
                 msg = await asyncio.wait_for(q.get(), timeout=5.0)
