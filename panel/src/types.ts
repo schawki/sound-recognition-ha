@@ -115,6 +115,7 @@ export interface ServiceConfig {
 export interface Validation { errors: string[]; warnings: Advice[] }
 
 export interface EsphomeDevice { id?: string; device_id: string; name: string; host: string; port: number; url: string; area_id: string; added?: boolean; ignored?: boolean }
+export interface ConnectionInfo { host: string; port: number; version: string | null; connected: boolean }
 export interface EsphomeState { devices: EsphomeDevice[]; pending: number }
 export interface Go2rtcStreams { configured: boolean; url: string; streams: { name: string; url: string }[] }
 

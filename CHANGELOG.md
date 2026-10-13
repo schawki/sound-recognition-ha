@@ -2,6 +2,13 @@
 
 Releases are tagged `vX.Y.Z`; the service updates itself from Home Assistant to the latest tag.
 
+## 0.15.0
+
+- **A new *Settings* tab** gathers what is set once and rarely changed, on one page: the **connection** (address of the service, its version, the **Change the token** button), the **storage** (the two limits), the **default values** (quietest sound taken into account, clips kept by default, longest retention), the **link with Home Structure** (and why Sound Recognition uses it), and the ESP32 microphones you put aside (with *Stop ignoring*). Sources, sounds and advice keep their own tabs.
+- The *Storage* card of the *Clips* tab now only shows the figures, with a *Change the limits* button that leads to *Settings*.
+- **Home Assistant's *Configure* form is reduced to the address of the service**, with a text that says where everything else is set. Sources, sounds, advice and defaults were already in the panel; the default values (which were only in that form) now live in *Settings*.
+- No service change: only the version number moves. Update the integration through HACS and restart Home Assistant.
+
 ## 0.14.0
 
 - **A Storage card in the Clips tab.** It shows where the clips are, what they take, the free space, how fast they grow, how long before the disk is full and how much your retention would take. An advice appears when less than 2 GB is left or the disk would be full within two weeks. New guide: [Storage of the clips](docs/storage.en.md), including how to keep the clips on another disk or a NAS.

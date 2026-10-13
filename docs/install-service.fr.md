@@ -63,7 +63,7 @@ journalctl -u soundrec -f                               # journaux (options A et
 
 ## Garder le service privé
 
-Le service est fait pour votre réseau local uniquement. Ne redirigez pas le port 8765 sur votre box et ne le publiez pas sur internet : seul Home Assistant a besoin de le joindre, et il relaie ce que le panneau affiche. Si vous pensez que le jeton (le secret partagé entre Home Assistant et le service) a fuité, ouvrez le panneau, onglet *Clips*, carte *Stockage*, et appuyez sur **Changer le jeton** : un nouveau est créé et enregistré automatiquement, il n'y a rien à copier.
+Le service est fait pour votre réseau local uniquement. Ne redirigez pas le port 8765 sur votre box et ne le publiez pas sur internet : seul Home Assistant a besoin de le joindre, et il relaie ce que le panneau affiche. Si vous pensez que le jeton (le secret partagé entre Home Assistant et le service) a fuité, ouvrez le panneau, onglet *Réglages*, section *Connexion*, et appuyez sur **Changer le jeton** : un nouveau est créé et enregistré automatiquement, il n'y a rien à copier.
 
 ## Ajouter une source audio
 

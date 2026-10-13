@@ -12,6 +12,8 @@ export class StorageCard extends LitElement {
   @property({ attribute: false }) api!: PanelApi;
   @property({ attribute: false }) t!: T;
   @property({ attribute: false }) language = "en";
+  /** Shown in the Clips tab: figures only, with a link to the Settings tab where the limits are set. */
+  @property({ type: Boolean }) readonly = false;
   @state() private info: StorageInfo | null = null;
   @state() private stopOn = false;
   @state() private stopGb = "";
@@ -21,8 +23,6 @@ export class StorageCard extends LitElement {
   @state() private errors: string[] = [];
   @state() private saved = false;
   @state() private busy = false;
-  @state() private confirmToken = false;
-  @state() private tokenMsg = "";
   @state() private failed = false;
 
   connectedCallback(): void {
@@ -56,16 +56,6 @@ export class StorageCard extends LitElement {
     } finally { this.busy = false; }
   }
 
-  private async changeToken(): Promise<void> {
-    this.busy = true; this.tokenMsg = "";
-    try {
-      await this.api.rotateToken();
-      this.tokenMsg = this.t("tokenDone");
-    } catch (err) {
-      this.tokenMsg = (err as { message?: string }).message ?? String(err);
-    } finally { this.busy = false; this.confirmToken = false; }
-  }
-
   private limit(on: boolean, gb: string, set: (v: boolean) => void, setGb: (v: string) => void, label: "storageStopLow" | "storageAutoDelete", help: "storageStopLowHelp" | "storageAutoDeleteHelp", name: string) {
     const t = this.t;
     return html`<div class="limit"><label class="check"><input type="checkbox" name=${`${name}_on`} .checked=${on} @change=${(e: Event) => { set((e.target as HTMLInputElement).checked); this.saved = false; }}> ${t(label)}</label>
@@ -88,19 +78,14 @@ export class StorageCard extends LitElement {
       ${i.auto_deleted > 0 ? html`<p class="dim" data-storage-autodeleted>${t("storageAutoDeleted", { n: i.auto_deleted })}</p>` : nothing}
       ${i.skipped > 0 ? html`<p class="dim" data-storage-skipped>${t("storageSkipped", { n: i.skipped })}</p>` : nothing}
       <p class="dim"><a href=${`${GUIDE}.${lang}.md`} target="_blank" rel="noreferrer noopener">${t("storageGuide")}</a></p>
-      ${this.limit(this.stopOn, this.stopGb, (v) => (this.stopOn = v), (v) => (this.stopGb = v), "storageStopLow", "storageStopLowHelp", "stop")}
+      ${this.readonly ? html`${i.min_free_gb != null ? html`<p class="dim" data-limit-stop>${t("storageLimitStop", { n: i.min_free_gb })}</p>` : nothing}
+        ${i.max_gb != null ? html`<p class="dim" data-limit-delete>${t("storageLimitDelete", { n: i.max_gb })}</p>` : nothing}
+        <div class="buttons"><button data-action="storage-settings" @click=${() => this.dispatchEvent(new CustomEvent("open-tab", { detail: { tab: "settings" }, bubbles: true, composed: true }))}>${t("storageEdit")}</button></div>`
+      : html`${this.limit(this.stopOn, this.stopGb, (v) => (this.stopOn = v), (v) => (this.stopGb = v), "storageStopLow", "storageStopLowHelp", "stop")}
       ${this.limit(this.delOn, this.delGb, (v) => (this.delOn = v), (v) => (this.delGb = v), "storageAutoDelete", "storageAutoDeleteHelp", "del")}
       ${this.errors.map((e) => html`<p class="note error">${e}</p>`)}
       <div class="buttons"><button class="primary" data-action="save-storage" ?disabled=${this.busy} @click=${() => void this.save()}>${t("storageSave")}</button>
-        ${this.saved ? html`<span class="ok" role="status" data-storage-saved>${t("storageSaved")}</span>` : nothing}</div>
-      <hr>
-      <h3>${t("tokenTitle")}</h3>
-      <p class="dim">${t("tokenHelp")}</p>
-      ${this.confirmToken ? html`<div class="confirm" role="alertdialog" data-token-confirm><p>${t("tokenConfirm")}</p>
-        <div class="buttons"><button class="danger" data-action="token-yes" ?disabled=${this.busy} @click=${() => void this.changeToken()}>${t("tokenYes")}</button>
-          <button data-action="token-cancel" @click=${() => (this.confirmToken = false)}>${t("cancel")}</button></div></div>`
-        : html`<button data-action="token-change" @click=${() => { this.confirmToken = true; this.tokenMsg = ""; }}>${t("tokenChange")}</button>`}
-      ${this.tokenMsg ? html`<span class="ok" role="status" data-token-msg>${this.tokenMsg}</span>` : nothing}
+        ${this.saved ? html`<span class="ok" role="status" data-storage-saved>${t("storageSaved")}</span>` : nothing}</div>`}
     </details>`;
   }
 

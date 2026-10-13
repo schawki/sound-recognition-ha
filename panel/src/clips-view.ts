@@ -229,7 +229,7 @@ export class ClipsView extends LitElement {
     const pg = this.page, date = new Intl.DateTimeFormat(this.language, { dateStyle: "medium", timeStyle: "short" });
     const allShown = this.rows.length > 0 && this.rows.every((r) => this.picked.has(r.id));
     return html`
-      <sound-recognition-storage .api=${this.api} .t=${t} .language=${this.language}></sound-recognition-storage>
+      <sound-recognition-storage readonly .api=${this.api} .t=${t} .language=${this.language}></sound-recognition-storage>
       ${this.retentionCard()}
       <div class="filters">
         <select name="source" aria-label=${t("allSources")} @change=${(e: Event) => this.change(() => (this.source = (e.target as HTMLSelectElement).value))}>

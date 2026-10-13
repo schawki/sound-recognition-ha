@@ -31,168 +31,19 @@
   "options": {
     "step": {
       "init": {
-        "title": "Reconnaissance de sons",
-        "menu_options": {
-          "sources": "Sources audio",
-          "classes": "Quels sons écouter",
-          "class_settings": "Réglages d'un son",
-          "defaults": "Valeurs par défaut",
-          "advice": "Conseils et avertissements",
-          "advice_rule": "Ajuster un conseil",
-          "finish": "Terminer (appliquer dans Home Assistant)"
-        }
-      },
-      "advice": {
-        "title": "Conseils et avertissements",
-        "description": "{advice}"
-      },
-      "advice_none": {
-        "title": "Conseils et avertissements",
-        "description": "Rien à signaler pour la configuration actuelle."
-      },
-      "advice_rule": {
-        "title": "Ajuster un conseil",
-        "description": "{errors}\nChoisissez un conseil, le niveau voulu et, au besoin, une seule source (vide = toutes les sources). « Ignorer » le masque ; pour un conseil concernant des sons de sécurité (incendie, bébé, intrusion), cochez aussi la confirmation.",
+        "title": "Adresse du service",
+        "description": "Les sources, les sons, les conseils, le stockage et le jeton se règlent dans le panneau **Reconnaissance de sons** (barre latérale → Reconnaissance de sons → onglet *Réglages*). On ne change ici que l'adresse du service, par exemple après l'avoir déplacé sur une autre machine.",
         "data": {
-          "rule": "Conseil",
-          "source": "Seulement pour cette source",
-          "level": "Niveau",
-          "confirm": "Je comprends que cela concerne un son de sécurité"
-        }
-      },
-      "sources": {
-        "title": "Sources audio",
-        "menu_options": {
-          "add_source": "Ajouter une source",
-          "edit_source": "Modifier une source",
-          "remove_source": "Supprimer une source",
-          "init": "Retour"
-        }
-      },
-      "add_source": {
-        "title": "Ajouter une source",
-        "description": "{errors}\nCaméra ou Raspberry Pi via go2rtc : utilisez son adresse RTSP (rtsp://hôte:8554/nom).",
-        "data": {
-          "name": "Nom",
-          "type": "Type",
-          "url": "Adresse (URL)",
-          "enabled": "Activée",
-          "threshold_offset": "Décalage de seuil",
-          "min_volume_dbfs": "Volume minimum",
-          "schedule_mode": "Écoute",
-          "window_days": "Jours",
-          "window_from": "De",
-          "window_to": "Jusqu'à",
-          "clips_allowed": "Autoriser les clips audio",
-          "clips_max_days": "Conserver les clips au plus (jours)"
-        },
-        "data_description": {
-          "threshold_offset": "Ajouté à tous les seuils de cette source (positif = moins sensible, pour une pièce bruyante).",
-          "min_volume_dbfs": "Les sons plus faibles sont ignorés. Laissez vide pour utiliser la valeur globale.",
-          "schedule_mode": "Continue : écoute en permanence. Planifiée : écoute seulement pendant la plage ci-dessous.",
-          "clips_allowed": "Désactivez pour ne jamais enregistrer d'audio depuis cette source."
-        }
-      },
-      "edit_source": {
-        "title": "Modifier une source",
-        "description": "Choisissez la source à modifier.",
-        "data": {
-          "source": "Source"
-        }
-      },
-      "edit_source_form": {
-        "title": "Modifier {source}",
-        "description": "{errors}\nPlages horaires supplémentaires conservées : {extra_windows} (à modifier dans le fichier YAML).",
-        "data": {
-          "name": "Nom",
-          "type": "Type",
-          "url": "Adresse (URL)",
-          "enabled": "Activée",
-          "threshold_offset": "Décalage de seuil",
-          "min_volume_dbfs": "Volume minimum",
-          "schedule_mode": "Écoute",
-          "window_days": "Jours",
-          "window_from": "De",
-          "window_to": "Jusqu'à",
-          "clips_allowed": "Autoriser les clips audio",
-          "clips_max_days": "Conserver les clips au plus (jours)"
-        }
-      },
-      "remove_source": {
-        "title": "Supprimer une source",
-        "description": "{errors}",
-        "data": {
-          "source": "Source",
-          "confirm": "Oui, la supprimer"
-        }
-      },
-      "scope": {
-        "title": "Où cela doit-il s'appliquer ?",
-        "menu_options": {
-          "scope_global": "Toutes les sources",
-          "scope_source": "Une seule source"
-        }
-      },
-      "scope_source": {
-        "title": "Choisir la source",
-        "data": {
-          "source": "Source"
-        }
-      },
-      "classes_pick": {
-        "title": "Sons à écouter",
-        "description": "{errors}\nLes sons marqués d'une étoile (★) sont ceux recommandés comme alertes. Les sons absents de la liste sont ignorés. S'applique à : {scope}",
-        "data": {
-          "classes": "Sons"
-        }
-      },
-      "class_pick": {
-        "title": "Choisir un son",
-        "description": "S'applique à : {scope}",
-        "data": {
-          "class": "Son"
-        }
-      },
-      "class_form": {
-        "title": "{class}",
-        "description": "{errors}\n{forbidden} {note}\nSeuil / durée / ré-armement suggérés : {suggested}. S'applique à : {scope}",
-        "data": {
-          "threshold": "Seuil",
-          "min_duration_s": "Durée minimale",
-          "cooldown_s": "Ré-armement",
-          "pre_roll_s": "Clip : secondes avant",
-          "post_roll_s": "Clip : secondes après",
-          "clip_retention_days": "Conserver les clips (jours, 0 = aucun)",
-          "min_volume_dbfs": "Volume minimum",
-          "always_on": "Toujours écouter ce son (ignorer les plannings)"
-        },
-        "data_description": {
-          "threshold": "Score de 0 à 1 au-dessus duquel le son compte.",
-          "min_duration_s": "Le son doit durer au moins ce temps.",
-          "cooldown_s": "Délai avant de signaler à nouveau le même son.",
-          "min_volume_dbfs": "Laissez vide pour utiliser la valeur de la source ou globale."
-        }
-      },
-      "defaults": {
-        "title": "Valeurs par défaut",
-        "description": "{errors}",
-        "data": {
-          "min_volume_dbfs": "Volume minimum",
-          "context_boost": "Relèvement du seuil quand télévision, radio ou musique sont détectées",
-          "clips_allowed": "Autoriser les clips audio",
-          "clips_max_days": "Conserver les clips au plus (jours)"
+          "host": "Hôte",
+          "port": "Port"
         }
       }
     },
     "error": {
-      "invalid_config": "Le service a refusé cette configuration : {errors}",
-      "no_sources": "Il n'y a pas encore de source. Ajoutez-en une d'abord.",
-      "confirm_required": "Ce conseil concerne un son de sécurité : cochez la confirmation pour le masquer.",
-      "no_classes": "Aucun son n'est encore activé ici.",
-      "not_confirmed": "Cochez la case pour confirmer."
-    },
-    "abort": {
-      "cannot_connect": "Impossible de joindre le service."
+      "cannot_connect": "Impossible de joindre le service à cette adresse.",
+      "invalid_auth": "Le service a refusé le jeton.",
+      "unknown": "Erreur inattendue.",
+      "already_configured": "Ce service est déjà configuré."
     }
   },
   "entity": {
@@ -293,41 +144,6 @@
       "options": {
         "remove": "Les supprimer",
         "keep": "Les conserver"
-      }
-    },
-    "advice_level": {
-      "options": {
-        "default": "Valeur du catalogue",
-        "info": "Information",
-        "warning": "Avertissement",
-        "danger": "Danger",
-        "ignore": "Ignorer (masquer)"
-      }
-    },
-    "source_type": {
-      "options": {
-        "rtsp": "Flux RTSP",
-        "go2rtc": "go2rtc / caméra",
-        "alsa_rpi": "Micro de Raspberry Pi",
-        "esphome": "ESPHome (pas encore disponible)",
-        "file": "Fichier audio (tests)"
-      }
-    },
-    "schedule_mode": {
-      "options": {
-        "continuous": "Continue (en permanence)",
-        "scheduled": "Planifiée (plage horaire)"
-      }
-    },
-    "weekday": {
-      "options": {
-        "mon": "Lundi",
-        "tue": "Mardi",
-        "wed": "Mercredi",
-        "thu": "Jeudi",
-        "fri": "Vendredi",
-        "sat": "Samedi",
-        "sun": "Dimanche"
       }
     }
   }

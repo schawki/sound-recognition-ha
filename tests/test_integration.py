@@ -117,102 +117,45 @@ async def test_unavailable_service_retries(hass):
 
 
 # ------------------------------------------------------------------------------------------------ options flow
-async def test_options_flow_add_source_pick_classes_and_advice(hass):
+async def test_options_flow_only_changes_the_address(hass):
     entry = await setup_entry(hass)
     r = await hass.config_entries.options.async_init(entry.entry_id)
-    assert r["type"] is FlowResultType.MENU
-    r = await hass.config_entries.options.async_configure(r["flow_id"], {"next_step_id": "sources"})
-    r = await hass.config_entries.options.async_configure(r["flow_id"], {"next_step_id": "add_source"})
-    assert r["step_id"] == "add_source"
-    r = await hass.config_entries.options.async_configure(r["flow_id"], {
-        "name": "Nursery", "type": "go2rtc", "url": "rtsp://x/n", "enabled": True, "schedule_mode": "continuous", "clips_allowed": False})
-    assert r["type"] is FlowResultType.FORM and r["step_id"] == "advice"                 # saved, advice shown
-    assert [s["id"] for s in fs.STATE.cfg["sources"]] == ["kitchen", "nursery"]
-    assert fs.STATE.cfg["sources"][1]["clips"] == {"allowed": False}
-    r = await hass.config_entries.options.async_configure(r["flow_id"], {})
-    assert r["type"] is FlowResultType.MENU
-    # which sounds, on the new source only: baby cry in addition to the global ones
-    baby = fs.CAT.get("Baby cry, infant cry")["mid"]
-    r = await hass.config_entries.options.async_configure(r["flow_id"], {"next_step_id": "classes"})
-    r = await hass.config_entries.options.async_configure(r["flow_id"], {"next_step_id": "scope_source"})
-    r = await hass.config_entries.options.async_configure(r["flow_id"], {"source": "nursery"})
-    assert r["step_id"] == "classes_pick"
-    r = await hass.config_entries.options.async_configure(r["flow_id"], {"classes": [BARK, SMOKE, baby]})
-    assert r["step_id"] == "advice"
-    assert fs.STATE.cfg["sources"][1]["classes"] == {baby: {"enabled": True}}
-    r = await hass.config_entries.options.async_configure(r["flow_id"], {})
-    r = await hass.config_entries.options.async_configure(r["flow_id"], {"next_step_id": "finish"})
-    assert r["type"] is FlowResultType.CREATE_ENTRY
-    await hass.async_block_till_done()
-    # entry reloaded: the new source has its device, connection sensor and a detected sensor for each of its 3 classes
-    entry = hass.config_entries.async_get_entry(entry.entry_id)
-    assert eid(hass, "binary_sensor", entry, "nursery_connection")
-    assert eid(hass, "binary_sensor", entry, f"nursery_{baby.strip('/').replace('/', '_')}")
-
-
-async def test_options_flow_refused_configuration_is_explained(hass):
-    entry = await setup_entry(hass)
-    r = await hass.config_entries.options.async_init(entry.entry_id)
-    r = await hass.config_entries.options.async_configure(r["flow_id"], {"next_step_id": "sources"})
-    r = await hass.config_entries.options.async_configure(r["flow_id"], {"next_step_id": "add_source"})
-    r = await hass.config_entries.options.async_configure(r["flow_id"], {
-        "name": "Bad", "type": "rtsp", "enabled": True, "schedule_mode": "scheduled",
-        "window_days": ["mon"], "window_from": "08:00:00", "window_to": "10:00:00", "clips_allowed": True, "url": ""})
-    assert r["type"] is FlowResultType.FORM and r["errors"]["base"] == "invalid_config"
-    assert r["description_placeholders"]["errors"]
-    assert len(fs.STATE.cfg["sources"]) == 1                                              # nothing saved
-
-
-async def test_options_flow_class_settings_and_defaults(hass):
-    entry = await setup_entry(hass)
-    r = await hass.config_entries.options.async_init(entry.entry_id)
-    r = await hass.config_entries.options.async_configure(r["flow_id"], {"next_step_id": "class_settings"})
-    r = await hass.config_entries.options.async_configure(r["flow_id"], {"next_step_id": "scope_global"})
-    assert r["step_id"] == "class_pick"
-    r = await hass.config_entries.options.async_configure(r["flow_id"], {"class": SMOKE})
-    assert r["step_id"] == "class_form"
-    sug = fs.CAT.get("Smoke detector, smoke alarm")["suggestions"]
-    r = await hass.config_entries.options.async_configure(r["flow_id"], {
-        "threshold": 0.35, "min_duration_s": sug["min_duration_s"], "cooldown_s": sug["cooldown_s"], "pre_roll_s": sug["pre_roll_s"],
-        "post_roll_s": sug["post_roll_s"], "clip_retention_days": sug["clip_retention_days"], "always_on": True})
-    assert r["step_id"] == "advice"
-    assert fs.STATE.cfg["classes"]["Smoke detector, smoke alarm"] == {"enabled": True, "threshold": 0.35, "schedule": {"mode": "continuous"}}
-    r = await hass.config_entries.options.async_configure(r["flow_id"], {})
-    r = await hass.config_entries.options.async_configure(r["flow_id"], {"next_step_id": "defaults"})
-    r = await hass.config_entries.options.async_configure(r["flow_id"], {"min_volume_dbfs": -50, "context_boost": 0.2, "clips_allowed": True, "clips_max_days": 10})
-    assert fs.STATE.cfg["defaults"]["min_volume_dbfs"] == -50 and fs.STATE.cfg["analysis"]["context_boost"] == 0.2
-    assert fs.STATE.cfg["defaults"]["clips"] == {"allowed": True, "max_retention_days": 10}
-
-
-async def test_options_flow_adjust_advice(hass):
-    fs.STATE.cfg["classes"]["Speech"] = {"enabled": True}
-    fs.STATE.cfg["sources"][0]["schedule"] = {"mode": "scheduled", "windows": [{"days": ["mon"], "from": "08:00", "to": "09:00"}]}
-    entry = await setup_entry(hass)
-    warnings = await fs.FakeClient(None, "h", 1, "tok").warnings("en")
-    safety = next(w for w in warnings if w["safety"])
-    assert any(w["rule"] == "speech_target" and w["level"] == "warning" for w in warnings)
-
-    async def adjust(data):
+    assert r["type"] is FlowResultType.FORM and r["step_id"] == "init"
+    assert set(r["data_schema"].schema) == {CONF_HOST, CONF_PORT}                         # nothing else is set here: the panel does it
+    with patch.object(hass.config_entries, "async_schedule_reload") as reload:
+        r = await hass.config_entries.options.async_configure(r["flow_id"], {CONF_HOST: "192.168.1.60", CONF_PORT: 8765})
+        assert r["type"] is FlowResultType.CREATE_ENTRY and not reload.called              # same address: nothing to reload
         r = await hass.config_entries.options.async_init(entry.entry_id)
-        r = await hass.config_entries.options.async_configure(r["flow_id"], {"next_step_id": "advice_rule"})
-        assert r["step_id"] == "advice_rule"
-        return r, await hass.config_entries.options.async_configure(r["flow_id"], data)
+        r = await hass.config_entries.options.async_configure(r["flow_id"], {CONF_HOST: "10.0.0.7", CONF_PORT: 9000})
+        assert r["type"] is FlowResultType.CREATE_ENTRY and reload.called
+    assert entry.data[CONF_HOST] == "10.0.0.7" and entry.data[CONF_PORT] == 9000 and entry.data[CONF_TOKEN] == "tok"
+    assert entry.unique_id == "10.0.0.7:9000" and "10.0.0.7" in entry.title
 
-    # global downgrade
-    _, r = await adjust({"rule": "speech_target", "level": "info", "confirm": False})
-    assert r["step_id"] == "advice" and fs.STATE.cfg["advice"] == {"speech_target": "info"}
-    # only for one source, back to catalog default => removes the entry; empty block is dropped
-    _, r = await adjust({"rule": "speech_target", "source": "kitchen", "level": "ignore", "confirm": False})
-    assert fs.STATE.cfg["sources"][0]["advice"] == {"speech_target": "ignore"}
-    _, r = await adjust({"rule": "speech_target", "source": "kitchen", "level": "default", "confirm": False})
-    assert "advice" not in fs.STATE.cfg["sources"][0]
-    # a safety advice cannot be hidden without confirmation
-    _, r = await adjust({"rule": safety["rule"], "level": "ignore", "confirm": False})
-    assert r["type"] is FlowResultType.FORM and r["errors"]["base"] == "confirm_required"
-    assert safety["rule"] not in fs.STATE.cfg.get("advice", {})
-    r = await hass.config_entries.options.async_configure(r["flow_id"], {"rule": safety["rule"], "level": "ignore", "confirm": True})
-    assert fs.STATE.cfg["advice"][safety["rule"]] == {"level": "ignore", "confirm": True}
-    assert not [w for w in await fs.FakeClient(None, "h", 1, "tok").warnings("en") if w["rule"] == safety["rule"] and w["source"] == safety["source"]]
+
+async def test_options_flow_new_address_must_answer(hass):
+    entry = await setup_entry(hass)
+    fs.STATE.down = True
+    r = await hass.config_entries.options.async_init(entry.entry_id)
+    r = await hass.config_entries.options.async_configure(r["flow_id"], {CONF_HOST: "10.0.0.7", CONF_PORT: 9000})
+    assert r["type"] is FlowResultType.FORM and r["errors"]["base"] == "cannot_connect"
+    assert entry.data[CONF_HOST] == "192.168.1.60"                                          # nothing changed
+
+
+async def test_options_flow_refuses_an_address_already_configured(hass):
+    entry = await setup_entry(hass)
+    MockConfigEntry(domain=DOMAIN, data=dict(DATA, host="10.0.0.7"), unique_id="10.0.0.7:8765").add_to_hass(hass)
+    r = await hass.config_entries.options.async_init(entry.entry_id)
+    r = await hass.config_entries.options.async_configure(r["flow_id"], {CONF_HOST: "10.0.0.7", CONF_PORT: 8765})
+    assert r["type"] is FlowResultType.FORM and r["errors"]["base"] == "already_configured"
+
+
+async def test_connection_command_never_gives_the_token(hass, hass_ws_client):
+    await setup_entry(hass)
+    ws = await hass_ws_client(hass)
+    await ws.send_json({"id": 1, "type": "sound_recognition/connection"})
+    r = await ws.receive_json()
+    assert r["success"] and r["result"]["host"] == "192.168.1.60" and r["result"]["port"] == 8765 and r["result"]["connected"] is True
+    assert "tok" not in str(r["result"]) and "token" not in r["result"]
 
 
 # ------------------------------------------------------------------------------------------------ panel (WebSocket commands)

@@ -68,7 +68,7 @@ export function buildItems(warnings: Advice[], recs: Recommendation[], cfg: Serv
 export const attention = (i: Items): Item[] => [...i.todo, ...i.info.filter((x) => x.level !== "info")];
 
 /** A request to open a tab of the panel, optionally on one advice (`focus` is the key of the item). */
-export interface OpenTab { tab: "advice"; focus?: string }
+export interface OpenTab { tab: "advice" | "settings"; focus?: string }
 export const openAdvice = (el: HTMLElement, focus?: string): void => {
   el.dispatchEvent(new CustomEvent<OpenTab>("open-tab", { detail: { tab: "advice", focus }, bubbles: true, composed: true }));
 };

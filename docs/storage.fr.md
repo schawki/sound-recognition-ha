@@ -5,7 +5,7 @@
 Sound Recognition conserve deux choses sur la machine du **service** (le conteneur ou l'ordinateur où vous l'avez installé, pas Home Assistant) :
 
 - l'**historique des détections** : une petite base de données, quelques mégaoctets au plus ;
-- les **clips** : les courts enregistrements audio des détections, dans le dossier indiqué par la carte *Stockage* de l'onglet *Clips* (par défaut `/var/lib/soundrec/clips` sur une installation Proxmox ou Debian, `/data/clips` avec Docker).
+- les **clips** : les courts enregistrements audio des détections, dans le dossier indiqué par la carte *Stockage* (onglets *Clips* et *Réglages*) (par défaut `/var/lib/soundrec/clips` sur une installation Proxmox ou Debian, `/data/clips` avec Docker).
 
 Seuls les clips prennent vraiment de la place. À titre indicatif, un clip dure quelques secondes et pèse environ 350 Ko ; sur une vraie maison, environ 70 clips occupaient 25 Mo en une semaine. Une maison plus bruyante, des clips plus longs ou une rétention plus longue en prennent davantage : mieux vaut savoir combien de place vous leur donnez.
 
@@ -13,7 +13,7 @@ Seuls les clips prennent vraiment de la place. À titre indicatif, un clip dure 
 
 Dans l'onglet *Clips*, la carte indique le dossier, ce que les clips occupent, l'espace libre du disque, leur croissance par jour et, à ce rythme, le temps avant que le disque soit plein et la place que prendrait votre rétention. Un conseil apparaît aussi dans l'onglet *Conseils* quand il reste moins de 2 Go, ou quand le disque serait plein dans moins de deux semaines.
 
-Deux limites facultatives, toutes deux **désactivées par défaut**. C'est vous qui décidez : rien n'est limité tant que vous ne l'activez pas.
+Les limites se règlent dans l'onglet *Réglages*, section *Stockage* (le bouton *Modifier les limites* de la carte y mène). Toutes deux sont **désactivées par défaut**. C'est vous qui décidez : rien n'est limité tant que vous ne l'activez pas.
 
 - **Ne plus garder de clips quand l'espace libre est inférieur à…** Les détections sont toujours enregistrées, sans clip (l'historique dit « le disque était presque plein »). Les clips reprennent d'eux-mêmes quand l'espace libre dépasse votre limite de 10 %.
 - **Supprimer automatiquement les plus anciens clips pour garder les clips sous…** Quand les clips occupent plus que la taille choisie, les plus anciens sont supprimés jusqu'à n'occuper que 90 % de cette taille. Les clips que vous avez jugés (détection fausse ou bonne) sont supprimés en dernier, car ils servent à régler les seuils. Les détections restent dans l'historique (« supprimé automatiquement pour rester sous la limite d'espace »), et la carte indique combien de clips ont été supprimés ainsi.
@@ -37,4 +37,4 @@ Un moyen guidé de déplacer les clips depuis le panneau est prévu dans une ver
 
 ## Changer le jeton
 
-La carte *Stockage* a aussi un bouton **Changer le jeton**. Le jeton est le secret que Home Assistant et le service partagent. Changez-le si vous pensez qu'il a fuité : le service en fabrique un nouveau, Home Assistant l'enregistre et se recharge tout seul. L'ancien fonctionne encore une minute pour que rien ne soit coupé. Le jeton n'est jamais affiché dans le panneau.
+L'onglet *Réglages*, section *Connexion*, a un bouton **Changer le jeton**. Le jeton est le secret que Home Assistant et le service partagent. Changez-le si vous pensez qu'il a fuité : le service en fabrique un nouveau, Home Assistant l'enregistre et se recharge tout seul. L'ancien fonctionne encore une minute pour que rien ne soit coupé. Le jeton n'est jamais affiché dans le panneau.

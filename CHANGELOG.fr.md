@@ -2,6 +2,13 @@
 
 Les versions sont étiquetées `vX.Y.Z` ; le service se met à jour depuis Home Assistant vers la dernière étiquette.
 
+## 0.15.0
+
+- **Un nouvel onglet *Réglages*** rassemble sur une seule page ce qui se règle une fois et change rarement : la **connexion** (adresse du service, sa version, bouton **Changer le jeton**), le **stockage** (les deux limites), les **valeurs par défaut** (son le plus faible pris en compte, clips gardés par défaut, durée maximale), le **lien avec Home Structure** (et pourquoi Reconnaissance de sons l'utilise) et les micros ESP32 mis de côté (avec *Ne plus ignorer*). Les sources, les sons et les conseils gardent leurs onglets.
+- La carte *Stockage* de l'onglet *Clips* n'affiche plus que les chiffres, avec un bouton *Modifier les limites* qui mène aux *Réglages*.
+- **Le formulaire *Configurer* de Home Assistant se réduit à l'adresse du service**, avec un texte qui dit où se règle le reste. Les sources, les sons, les conseils et les valeurs par défaut étaient déjà dans le panneau ; les valeurs par défaut (qui n'étaient que dans ce formulaire) sont maintenant dans les *Réglages*.
+- Aucun changement du service : seul le numéro de version bouge. Mettez à jour l'intégration par HACS et redémarrez Home Assistant.
+
 ## 0.14.0
 
 - **Une carte Stockage dans l'onglet Clips.** Elle indique où sont les clips, ce qu'ils occupent, l'espace libre, leur croissance, le temps avant que le disque soit plein et la place que prendrait votre rétention. Un conseil apparaît quand il reste moins de 2 Go ou que le disque serait plein sous deux semaines. Nouveau guide : [Stockage des clips](docs/storage.fr.md), avec la façon de garder les clips sur un autre disque ou un NAS.

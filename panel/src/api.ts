@@ -1,4 +1,4 @@
-import type { UpdateInfo, Advice, HaArea, HaDevice, HaOpening, StructureInfo, Catalog, EsphomeState, StorageInfo, Go2rtcStreams, Hass, HsPlace, LiveMessage, Overview, Recommendation, ServiceConfig, SoundEvent, ClipFilter, ClipsDeleted, ClipsPage, Stats, Validation } from "./types";
+import type { UpdateInfo, Advice, HaArea, HaDevice, HaOpening, StructureInfo, Catalog, EsphomeState, ConnectionInfo, StorageInfo, Go2rtcStreams, Hass, HsPlace, LiveMessage, Overview, Recommendation, ServiceConfig, SoundEvent, ClipFilter, ClipsDeleted, ClipsPage, Stats, Validation } from "./types";
 
 export class PanelApi {
   constructor(private hass: Hass, public language: string) {}
@@ -21,6 +21,9 @@ export class PanelApi {
   }
   clips(filter: ClipFilter, limit = 100, offset = 0): Promise<ClipsPage> {
     return this.hass.callWS({ type: "sound_recognition/clips", language: this.language, ...filter, limit, offset });
+  }
+  connection(): Promise<ConnectionInfo> {
+    return this.hass.callWS({ type: "sound_recognition/connection" });
   }
   storage(): Promise<StorageInfo> {
     return this.hass.callWS({ type: "sound_recognition/storage" });

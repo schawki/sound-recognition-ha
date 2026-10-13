@@ -63,7 +63,7 @@ journalctl -u soundrec -f                            # logs (options A and B)
 
 ## Keep the service private
 
-The service is meant for your local network only. Do not forward port 8765 on your router and do not publish it on the internet: Home Assistant is the only one that needs to reach it, and it relays what the panel shows. If you think the token (the secret shared by Home Assistant and the service) leaked, open the panel, *Clips* tab, *Storage* card, and press **Change the token**: a new one is made and stored automatically, there is nothing to copy.
+The service is meant for your local network only. Do not forward port 8765 on your router and do not publish it on the internet: Home Assistant is the only one that needs to reach it, and it relays what the panel shows. If you think the token (the secret shared by Home Assistant and the service) leaked, open the panel, *Settings* tab, *Connection* section, and press **Change the token**: a new one is made and stored automatically, there is nothing to copy.
 
 ## Adding an audio source
 

@@ -10,11 +10,12 @@ import "./sources-view";
 import "./sounds-view";
 import "./advice-view";
 import "./clips-view";
+import "./settings-view";
 import "./update-banner";
 
-type Tab = "live" | "insights" | "sources" | "sounds" | "advice" | "clips";
-const TABS: [Tab, "live" | "insightsTab" | "sourcesTab" | "soundsTab" | "adviceTab" | "clipsTab"][] = [
-  ["live", "live"], ["insights", "insightsTab"], ["sources", "sourcesTab"], ["sounds", "soundsTab"], ["advice", "adviceTab"], ["clips", "clipsTab"],
+type Tab = "live" | "insights" | "sources" | "sounds" | "advice" | "clips" | "settings";
+const TABS: [Tab, "live" | "insightsTab" | "sourcesTab" | "soundsTab" | "adviceTab" | "clipsTab" | "settingsTab"][] = [
+  ["live", "live"], ["insights", "insightsTab"], ["sources", "sourcesTab"], ["sounds", "soundsTab"], ["advice", "adviceTab"], ["clips", "clipsTab"], ["settings", "settingsTab"],
 ];
 
 class SoundRecognitionPanel extends LitElement {
@@ -82,7 +83,8 @@ class SoundRecognitionPanel extends LitElement {
       case "sources": return html`<sound-recognition-sources .api=${common.api} .t=${t} .language=${common.language} .wantEsp=${this.wantEsp} @esp-opened=${() => { this.wantEsp = false; }} @esp-pending=${(e: CustomEvent<number>) => { this.espPending = e.detail; }}></sound-recognition-sources>`;
       case "sounds": return html`<sound-recognition-sounds .api=${common.api} .t=${t} .language=${common.language}></sound-recognition-sounds>`;
       case "advice": return html`<sound-recognition-advice .api=${common.api} .t=${t} .language=${common.language} .focusKey=${this.focusKey}></sound-recognition-advice>`;
-      case "clips": return html`<sound-recognition-clips .api=${common.api} .t=${t} .language=${common.language}></sound-recognition-clips>`;
+      case "clips": return html`<sound-recognition-clips .api=${common.api} .t=${t} .language=${common.language} @open-tab=${this.openTab}></sound-recognition-clips>`;
+      case "settings": return html`<sound-recognition-settings .api=${common.api} .t=${t} .language=${common.language}></sound-recognition-settings>`;
       default: return html`<sound-recognition-live .api=${common.api} .t=${t} .language=${common.language} @open-tab=${this.openTab}></sound-recognition-live>`;
     }
   }
