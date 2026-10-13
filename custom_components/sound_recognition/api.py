@@ -75,7 +75,12 @@ class SoundRecClient:
 
     async def get_config_effective(self) -> dict:
         """The configuration with the presets folded in (what the service actually runs on)."""
-        return await self._request("GET", "/config/effective")
+        try:
+            return await self._request("GET", "/config/effective")
+        except SoundRecError as err:
+            if "HTTP 404" not in str(err):
+                raise
+            return await self.get_config()      # a service older than API level 10: the integration must still load, so it can offer the update
 
     async def put_config(self, cfg: dict, lang: str) -> dict:
         return await self._request("PUT", "/config", json=cfg, params={"lang": lang})

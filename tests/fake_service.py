@@ -7,7 +7,7 @@ from soundrec import advisor, catalog as cm, config as cfgmod, recommend, settin
 from custom_components.sound_recognition.api import CannotConnect, InvalidAuth, InvalidConfig, SoundRecError
 
 CAT = st.Catalog(cm.load_raw())
-STATE = SimpleNamespace(update=None, health_extra={}, cfg=None, down=False, token="tok", handler=None, stop=None, status={}, events=[], feedback={}, pushed={}, clip_calls=[], places={}, storage=None)
+STATE = SimpleNamespace(update=None, health_extra={}, cfg=None, down=False, token="tok", handler=None, stop=None, status={}, events=[], feedback={}, pushed={}, clip_calls=[], places={}, storage=None, legacy=False)
 
 
 def reset(cfg=None):
@@ -15,7 +15,7 @@ def reset(cfg=None):
     STATE.cfg = cfgmod._merge(cfgmod.DEFAULTS, cfg or {})
     STATE.cfg["api"]["token"] = STATE.token
     STATE.down, STATE.handler, STATE.stop, STATE.status, STATE.events, STATE.feedback, STATE.pushed, STATE.clip_calls, STATE.places = False, None, asyncio.Event(), {}, [], {}, {}, [], {}
-    STATE.update, STATE.health_extra = {"state": "idle", "capable": True}, {}
+    STATE.update, STATE.health_extra, STATE.legacy = {"state": "idle", "capable": True}, {}, False
     STATE.storage = {"path": "/var/lib/soundrec/clips", "clips": 69, "bytes": 25_000_000, "free_bytes": 6_000_000_000, "total_bytes": 20_000_000_000, "per_day_bytes": 3_000_000, "days_left": 2000.0,
                      "max_gb": None, "min_free_gb": None, "paused": False, "auto_deleted": 0, "skipped": 0}
 
@@ -75,6 +75,8 @@ class FakeClient:
 
     async def get_config_effective(self):
         self._check()
+        if STATE.legacy:                       # a service older than API level 10 has no such route
+            return await self.get_config()
         c = st.fold(copy.deepcopy(STATE.cfg), CAT)
         c["api"]["token"] = "***"
         return c

@@ -5,3 +5,7 @@
 3. The **Release** workflow creates the GitHub release with generated notes. HACS then shows `vX.Y.Z`.
 
 The workflow fails if the tag and the manifest version differ; fix the manifest, delete the tag and tag again.
+
+## Compatibility
+
+The integration is often updated before the service (HACS first, then the service update from Home Assistant). Whatever it asks the service at startup must therefore tolerate an older service: fall back when a route is missing, so the integration still loads, shows the panel and offers the update. Only raise the minimum API level (`MIN_API_LEVEL`) for things that can wait until the service is updated.

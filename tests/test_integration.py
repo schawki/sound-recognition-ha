@@ -453,6 +453,16 @@ async def test_outdated_service_raises_repair(hass):
     assert ir.async_get(hass).async_get_issue(DOMAIN, iid) is None
 
 
+async def test_a_service_older_than_the_integration_still_loads_and_offers_the_update(hass):
+    """The integration must not wait for the service: it loads, shows the panel and the repair that leads to the update."""
+    fs.STATE.health_extra = {"api_level": 9}
+    fs.STATE.legacy = True
+    entry = await setup_entry(hass)
+    assert entry.state.name == "LOADED"
+    assert ir.async_get(hass).async_get_issue(DOMAIN, f"service_outdated_{entry.entry_id}")
+    assert entry.runtime_data.coordinator.service_config["sources"]
+
+
 async def test_install_follows_update_and_notifies(hass):
     entry = await setup_entry(hass)
     coord = entry.runtime_data.coordinator
@@ -569,3 +579,23 @@ async def test_a_sound_enabled_by_a_preset_gets_its_entity(hass):
     fs.STATE.cfg["sources"][0]["presets"] = ["situation_pets"]
     entry = await setup_entry(hass)
     assert eid(hass, "binary_sensor", entry, f"kitchen_{BARK.strip('/').replace('/', '_')}") is not None
+
+
+async def test_the_real_client_falls_back_when_the_service_has_no_effective_route():
+    from custom_components.sound_recognition.api import SoundRecClient, SoundRecError
+    client = SoundRecClient(None, "h", 1, "t")
+    calls = []
+
+    async def request(method, path, **kw):
+        calls.append(path)
+        if path == "/config/effective":
+            raise SoundRecError("HTTP 404 on /config/effective")
+        return {"sources": []}
+    client._request = request
+    assert await client.get_config_effective() == {"sources": []} and calls == ["/config/effective", "/config"]
+
+    async def broken(method, path, **kw):
+        raise SoundRecError("HTTP 500 on /config/effective")
+    client._request = broken
+    with pytest.raises(SoundRecError):
+        await client.get_config_effective()                     # only a missing route is tolerated

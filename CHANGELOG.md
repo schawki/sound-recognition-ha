@@ -2,6 +2,10 @@
 
 Releases are tagged `vX.Y.Z`; the service updates itself from Home Assistant to the latest tag.
 
+## 0.16.1
+
+- **Fix: the panel could disappear after updating the integration before the service.** Version 0.16.0 asked the service for something only the new service knows, so with the old service it did not start: no sidebar shortcut, no *Update* button. It now starts with the old service and shows the "service outdated" banner, so the service can be updated from Home Assistant as usual. If you are in that situation, update the integration to 0.16.1 through HACS, restart Home Assistant, then use *Update now*.
+
 ## 0.16.0
 
 - **Presets.** Ready-made settings by kind of room (living room, kitchen, bedroom, baby's room, office, bathroom, laundry, gym, storage, entrance, outdoors, garage) and by situation (TV nearby, outside noise, baby, pets, empty home). Pick several for a source: they add up, the one lower in the list wins on a shared value, and what you set yourself always wins. Create your own in *Settings → Presets*, with any detectable sound, or duplicate one. See [Presets](docs/presets.en.md).

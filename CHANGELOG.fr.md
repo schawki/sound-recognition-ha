@@ -2,6 +2,10 @@
 
 Les versions sont étiquetées `vX.Y.Z` ; le service se met à jour depuis Home Assistant vers la dernière étiquette.
 
+## 0.16.1
+
+- **Correction : le panneau pouvait disparaître quand on mettait à jour l'intégration avant le service.** La 0.16.0 demandait au service une information que seul le nouveau service connaît ; avec l'ancien service elle ne démarrait pas : plus de raccourci dans la barre latérale, plus de bouton *Mettre à jour*. Elle démarre maintenant avec l'ancien service et affiche le bandeau « service obsolète », ce qui permet de mettre le service à jour depuis Home Assistant comme d'habitude. Si vous êtes dans ce cas : mettez l'intégration à jour en 0.16.1 par HACS, redémarrez Home Assistant, puis utilisez *Mettre à jour*.
+
 ## 0.16.0
 
 - **Préréglages.** Des réglages prêts à l'emploi par type de pièce (salon, cuisine, chambre, chambre de bébé, bureau, salle de bains, buanderie, salle de sport, rangement, entrée, extérieur, garage) et par situation (TV à proximité, bruit extérieur, bébé, animaux, maison vide). Choisissez-en plusieurs pour une source : ils s'additionnent, celui qui est plus bas dans la liste l'emporte sur une valeur commune, et ce que vous réglez vous-même l'emporte toujours. Créez les vôtres dans *Réglages → Préréglages*, avec n'importe quel son détectable, ou dupliquez-en un. Voir [Préréglages](docs/presets.fr.md).
