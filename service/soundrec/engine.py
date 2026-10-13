@@ -6,7 +6,7 @@ import os
 import secrets
 import time
 
-from . import advisor, catalog as cm, config as cfgmod, recommend, settings as st
+from . import advisor, catalog as cm, conditions, config as cfgmod, recommend, settings as st
 from .audio import read_source
 from .classifier import YamnetClassifier
 from .clips import ClipStore
@@ -42,7 +42,8 @@ class Engine:
         os.makedirs(os.path.dirname(os.path.abspath(s["db_path"])), exist_ok=True)
         self.store = EventStore(s["db_path"])
         self.clips = ClipStore(s["clips_dir"])
-        self.mover = Mover.from_env()        # moving the clips to another folder: clips are neither written nor purged meanwhile
+        self.mover = Mover.from_env()
+        self.facts = conditions.Facts()        # states of Home Assistant entities used by the conditions (pushed by the integration)        # moving the clips to another folder: clips are neither written nor purged meanwhile
         self.pipes, self.tasks, self._src_cfg = {}, {}, {}
         self.subs = set()
         self._maint = None
@@ -103,6 +104,7 @@ class Engine:
 
     def _start_source(self, s):
         pipe = SourcePipeline(s, self.eff, self.catalog, self.clf, tz=self.cfg.get("timezone"))
+        pipe.facts = self.facts
         self.pipes[s["id"]] = pipe
         self._src_cfg[s["id"]] = s
 
@@ -115,7 +117,8 @@ class Engine:
             if active != last["active"]:  # push changes immediately so clients need not wait for the periodic status
                 last["active"] = active
                 self._publish({"type": "active", "source": pipe.sid, "active_classes": active})
-            ctx = (tuple(pipe.state["active_contexts"]), round(pipe.state["adaptive_offset"], 2), round(pipe.state["external_offset"], 2))
+            ctx = (tuple(pipe.state["active_contexts"]), round(pipe.state["adaptive_offset"], 2), round(pipe.state["external_offset"], 2),
+                   tuple(pipe.state["held_by_condition"]))
             if ctx != last["context"]:
                 last["context"] = ctx
                 self._publish({"type": "context", "source": pipe.sid, **self._context(pipe)})
@@ -235,7 +238,8 @@ class Engine:
         s = pipe.state
         return {"active_contexts": s["active_contexts"], "ambient_dbfs": s["ambient_dbfs"], "baseline_dbfs": s["baseline_dbfs"],
                 "adaptive_enabled": s["adaptive_enabled"], "adaptive_offset": s["adaptive_offset"],
-                "external_offset": s["external_offset"], "external_reasons": s["external_reasons"], "external_detail": s["external_detail"]}
+                "external_offset": s["external_offset"], "external_reasons": s["external_reasons"], "external_detail": s["external_detail"],
+                "held_by_condition": s["held_by_condition"], "condition_unknown": s["condition_unknown"]}
 
     def status(self):
         out = []
@@ -251,7 +255,7 @@ class Engine:
                              "below_gate": False, "active_classes": [], "last_window": None, "windows": 0, "inferences": 0,
                              "active_contexts": [], "ambient_dbfs": None, "baseline_dbfs": None, "adaptive_enabled": False,
                              "adaptive_offset": 0.0, "external_offset": 0.0, "external_reasons": [],
-                             "external_detail": []})
+                             "external_detail": [], "held_by_condition": [], "condition_unknown": False})
             out.append(base)
         return out
 
@@ -265,6 +269,10 @@ class Engine:
             return False
         pipe.set_external(offset, reasons, detail, ttl_s, _now())
         return True
+
+    def set_conditions(self, states, ttl_s):
+        """States of the entities the conditions read, pushed by the integration; forgotten after ttl_s seconds."""
+        self.facts.set(states, ttl_s, _now().timestamp())
 
     def set_place(self, sid, environment, ttl_s):
         """Kind of place of a source as deduced by the integration (from Home Structure); used when the configuration names none.

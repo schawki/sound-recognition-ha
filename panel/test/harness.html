@@ -209,6 +209,8 @@
   };
   window.hass = {
     language: q.get("lang") || "en",
+    states: { "person.saad": { state: "home", attributes: {} }, "person.sara": { state: "not_home", attributes: {} }, "input_boolean.guests": { state: "off", attributes: {} },
+              "alarm_control_panel.home": { state: "disarmed", attributes: {} }, "input_select.mode": { state: "day", attributes: { options: ["day", "night", "away"] } } },
     async callWS(msg) {
       if (state.fail === "unreachable") throw { code: "service_error" };
       if (state.fail === "not_loaded") throw { code: "not_loaded" };

@@ -6,6 +6,7 @@ import uuid
 import zoneinfo
 import numpy as np
 
+from . import conditions
 from . import settings as st
 from .ambient import AmbientTracker
 from .audio import RingBuffer
@@ -25,7 +26,9 @@ class SourcePipeline:
         self.state = {"connected": False, "error": None, "level_dbfs": None, "below_gate": False,
                       "active_classes": [], "last_window": None, "windows": 0, "inferences": 0,
                       "active_contexts": [], "ambient_dbfs": None, "baseline_dbfs": None, "adaptive_offset": 0.0,
-                      "adaptive_enabled": False, "external_offset": 0.0, "external_reasons": [], "external_detail": []}
+                      "adaptive_enabled": False, "external_offset": 0.0, "external_reasons": [], "external_detail": [],
+                      "held_by_condition": [], "condition_unknown": False}
+        self.facts = conditions.Facts()   # replaced by the engine's: the states pushed by Home Assistant
         self.external = {"offset": 0.0, "reasons": [], "detail": [], "expires": 0.0}
         self.ambient = AmbientTracker()
         self._runs = {}      # mid -> run state
@@ -101,7 +104,17 @@ class SourcePipeline:
         st_["external_reasons"] = self.external["reasons"] if live else []
         st_["external_detail"] = self.external["detail"] if live else []
         local = self._local_naive(t_end)
-        active = {m: r for m, r in self.resolved.items() if st.is_active(r["schedule"], local)}
+        scheduled = {m: r for m, r in self.resolved.items() if st.is_active(r["schedule"], local)}
+        states, held, unknown = self.facts.get(t_end.timestamp()), [], False
+        active = {}
+        for m, r in scheduled.items():
+            ok, unk = conditions.holds(r.get("condition"), states)
+            unknown = unknown or unk
+            if ok:
+                active[m] = r
+            else:
+                held.append(m)
+        st_["held_by_condition"], st_["condition_unknown"] = sorted(held), unknown
         passing = {m: r for m, r in active.items() if r["min_volume_dbfs"] is None or level >= r["min_volume_dbfs"]}
         st_["below_gate"] = bool(active) and not passing
         # classes that cannot be heard in this window end their run

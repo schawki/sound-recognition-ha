@@ -7,10 +7,11 @@ import { cellsToWindows, hoursPerWeek, windowsToCells } from "./schedule";
 import { groupAdvice, type NoticeItem } from "./advice-group";
 import type { Advice, EsphomeDevice, EsphomeState, HsPlace, SeparationType, StructureInfo, Catalog, Environment, Go2rtcStreams, HaArea, HaDevice, HaOpening, ServiceConfig, SourceCfg } from "./types";
 import "./schedule-grid";
+import "./condition-editor";
 import "./structure-plan";
 import { ESPHOME_YAML } from "./esphome-yaml";
 import { RETENTION_CATEGORIES, RET_KEYS, retBlock, retForm } from "./retention";
-import type { RetentionCategory } from "./types";
+import type { Condition, RetentionCategory } from "./types";
 import { allPresets, findPreset, presetLines, soundName } from "./presets";
 
 const TYPES: [string, "typeRtsp" | "typeGo2rtc" | "typeAlsa" | "typeEsphome" | "typeFile"][] = [
@@ -28,7 +29,7 @@ interface Row { key: number; name: string; url: string }
 interface Form {
   id: string; isNew: boolean; name: string; type: string; url: string; enabled: boolean;
   rows: Row[]; picked: Record<string, string>;
-  offset: string; minVolume: string; scheduled: boolean; cells: boolean[];
+  offset: string; minVolume: string; scheduled: boolean; cells: boolean[]; condition: Condition | null;
   clipsAllowed: boolean; clipsMaxDays: string; ret: Record<RetentionCategory, string>;
   environment: string; adaptive: boolean; adaptiveMax: string; presets: string[];
   password: string;
@@ -182,7 +183,7 @@ export class SourcesView extends LitElement {
       id: s.id, isNew: false, name: s.name ?? s.id, type: s.type, url: s.url, enabled: s.enabled !== false, rows: [], picked: {},
       offset: s.threshold_offset == null ? "" : String(s.threshold_offset),
       minVolume: s.min_volume_dbfs == null ? "" : String(s.min_volume_dbfs),
-      scheduled: sched?.mode === "scheduled", cells: windowsToCells(sched?.windows ?? []),
+      scheduled: sched?.mode === "scheduled", cells: windowsToCells(sched?.windows ?? []), condition: s.condition ?? null,
       clipsAllowed: s.clips?.allowed !== false, clipsMaxDays: s.clips?.max_retention_days == null ? "" : String(s.clips.max_retention_days),
       ret: retForm(s.clips?.retention_by_category),
       environment: s.environment ?? "", adaptive: s.adaptive?.enabled === true, adaptiveMax: s.adaptive?.max_offset == null ? "" : String(s.adaptive.max_offset),
@@ -193,7 +194,7 @@ export class SourcesView extends LitElement {
   }
 
   private blankForm(): Form {
-    return { id: "", isNew: true, name: "", type: lastType, url: "", enabled: true, rows: [newRow()], picked: {}, offset: "", minVolume: "", scheduled: false, cells: new Array(336).fill(false), clipsAllowed: true, clipsMaxDays: "", ret: retForm(undefined), environment: "", adaptive: false, adaptiveMax: "", password: "", area: "", devEnabled: false, devMax: "", devExclude: [], devInclude: "", presets: [] };
+    return { id: "", isNew: true, name: "", type: lastType, url: "", enabled: true, rows: [newRow()], picked: {}, offset: "", minVolume: "", scheduled: false, cells: new Array(336).fill(false), condition: null, clipsAllowed: true, clipsMaxDays: "", ret: retForm(undefined), environment: "", adaptive: false, adaptiveMax: "", password: "", area: "", devEnabled: false, devMax: "", devExclude: [], devInclude: "", presets: [] };
   }
 
   /** Applies the form on a copy of the stored source, so fields the form does not know (class settings, advice) are kept. */
@@ -212,6 +213,7 @@ export class SourcesView extends LitElement {
     } else {
       s.schedule = { mode: "continuous" };
     }
+    if (f.condition && f.condition.rules.length) s.condition = f.condition; else delete s.condition;
     if (f.environment) s.environment = f.environment; else delete s.environment;
     const max = parseFloat(f.adaptiveMax);
     if (f.adaptive || (existing?.adaptive && Object.keys(existing.adaptive).length)) {
@@ -372,7 +374,7 @@ export class SourcesView extends LitElement {
     const t = this.t;
     const sched = s.schedule?.mode === "scheduled" ? t("scheduleSummaryWeek", { h: hoursPerWeek(windowsToCells(s.schedule.windows ?? [])) }) : t("scheduleSummaryContinuous");
     const clips = s.clips?.allowed === false ? t("clipsOff") : s.clips?.max_retention_days != null ? t("clipsOn", { d: s.clips.max_retention_days }) : t("clipsDefault");
-    return `${sched} · ${clips}`;
+    return `${sched} · ${clips}${s.condition ? ` · ${t("condSummary")}` : ""}`;
   }
 
   render() {
@@ -649,6 +651,10 @@ export class SourcesView extends LitElement {
             </div>
             ${f.cells.some(Boolean) ? nothing : html`<p class="note error">${t("pickSomething")}</p>`}` : nothing}
         </fieldset>
+        <fieldset data-condition>
+          <legend>${t("condTitle")}</legend>
+          <sr-condition-editor .api=${this.api} .t=${t} .value=${f.condition} scope="source" @condition-changed=${(e: CustomEvent<Condition | null>) => this.set("condition", e.detail)}></sr-condition-editor>
+        </fieldset>
         <fieldset>
           <legend>${t("clipsAllowed")}</legend>
           <label class="inline"><input type="checkbox" name="clipsAllowed" .checked=${f.clipsAllowed} @change=${(e: Event) => this.set("clipsAllowed", (e.target as HTMLInputElement).checked)} />${t("clipsAllowed")}</label>
@@ -674,6 +680,10 @@ export class SourcesView extends LitElement {
               <button type="button" @click=${() => this.set("cells", new Array(336).fill(false))}>${t("none")}</button>
             </div>
             ${f.cells.some(Boolean) ? nothing : html`<p class="note error">${t("pickSomething")}</p>`}` : nothing}
+        </fieldset>
+        <fieldset data-condition>
+          <legend>${t("condTitle")}</legend>
+          <sr-condition-editor .api=${this.api} .t=${t} .value=${f.condition} scope="source" @condition-changed=${(e: CustomEvent<Condition | null>) => this.set("condition", e.detail)}></sr-condition-editor>
         </fieldset>
         <fieldset>
           <legend>${t("clipsAllowed")}</legend>

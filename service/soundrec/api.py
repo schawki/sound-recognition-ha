@@ -195,6 +195,20 @@ async def set_external(req):
     return web.json_response({"ok": True})
 
 
+async def set_conditions(req):
+    """The integration pushes the states of the entities the conditions read: {states: {entity_id: state}, ttl_s}."""
+    try:
+        body = await req.json()
+        states, ttl = body["states"], float(body.get("ttl_s", 120))
+        if not isinstance(states, dict) or len(states) > 500 or not 10 <= ttl <= 900:
+            raise ValueError
+        states = {str(k)[:120]: str(v)[:255] for k, v in states.items()}
+    except Exception:
+        return web.json_response({"error": "body must be {states: {entity_id: state}, ttl_s?: 10..900}"}, status=400)
+    req.app["engine"].set_conditions(states, ttl)
+    return web.json_response({"ok": True})
+
+
 async def set_place(req):
     """The integration tells what kind of place a source is in, from the type of its room in Home Structure: {environment: id|null, ttl_s}."""
     try:
@@ -399,7 +413,7 @@ def make_app(engine, updater=None):
         web.get(f"{p}/health", health), web.get(f"{p}/update", update_status), web.post(f"{p}/update", update_start), web.get(f"{p}/languages", languages), web.post(f"{p}/token/rotate", rotate_token), web.get(f"{p}/storage", storage), web.post(f"{p}/storage/move", storage_move), web.post(f"{p}/storage/old/delete", storage_old_delete), web.get(f"{p}/catalog", catalog),
         web.get(f"{p}/config", get_config), web.get(f"{p}/config/effective", get_config_effective), web.put(f"{p}/config", put_config), web.post(f"{p}/config/validate", validate_config),
         web.get(f"{p}/warnings", warnings), web.get(f"{p}/sources", sources), web.get(f"{p}/resolved", resolved),
-        web.get(f"{p}/events", events), web.get(f"{p}/recommendations", recommendations), web.put(f"{p}/sources/{{sid}}/external", set_external), web.put(f"{p}/sources/{{sid}}/place", set_place), web.get(f"{p}/stats", stats),
+        web.get(f"{p}/events", events), web.get(f"{p}/recommendations", recommendations), web.put(f"{p}/sources/{{sid}}/external", set_external), web.put(f"{p}/conditions", set_conditions), web.put(f"{p}/sources/{{sid}}/place", set_place), web.get(f"{p}/stats", stats),
         web.post(f"{p}/events/{{id}}/feedback", feedback), web.get(f"{p}/clips", clips_list), web.post(f"{p}/clips/delete", clips_delete), web.post(f"{p}/events/delete_clipless", events_delete_clipless), web.get(f"{p}/clips/{{rel:.+}}", clip), web.get(f"{p}/ws", ws),
     ])
     return app

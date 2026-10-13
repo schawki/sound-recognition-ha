@@ -7,14 +7,14 @@ from soundrec import API_LEVEL, advisor, catalog as cm, config as cfgmod, recomm
 from custom_components.sound_recognition.api import CannotConnect, InvalidAuth, InvalidConfig, SoundRecClient, SoundRecError
 
 CAT = st.Catalog(cm.load_raw())
-STATE = SimpleNamespace(update=None, health_extra={}, cfg=None, down=False, token="tok", handler=None, stop=None, status={}, events=[], feedback={}, pushed={}, clip_calls=[], places={}, storage=None, api_level=None, moved=None, deleted_old=None)
+STATE = SimpleNamespace(update=None, health_extra={}, cfg=None, down=False, token="tok", handler=None, stop=None, status={}, events=[], feedback={}, pushed={}, clip_calls=[], places={}, storage=None, api_level=None, moved=None, deleted_old=None, conditions=None)
 
 
 def reset(cfg=None):
     STATE.token = "tok"
     STATE.cfg = cfgmod._merge(cfgmod.DEFAULTS, cfg or {})
     STATE.cfg["api"]["token"] = STATE.token
-    STATE.down, STATE.handler, STATE.stop, STATE.status, STATE.events, STATE.feedback, STATE.pushed, STATE.clip_calls, STATE.places = False, None, asyncio.Event(), {}, [], {}, {}, [], {}
+    STATE.down, STATE.handler, STATE.stop, STATE.status, STATE.events, STATE.feedback, STATE.pushed, STATE.clip_calls, STATE.places, STATE.conditions = False, None, asyncio.Event(), {}, [], {}, {}, [], {}, None
     STATE.update, STATE.health_extra, STATE.api_level = {"state": "idle", "capable": True}, {}, API_LEVEL
     STATE.storage = {"path": "/var/lib/soundrec/clips", "clips": 69, "bytes": 25_000_000, "free_bytes": 6_000_000_000, "total_bytes": 20_000_000_000, "per_day_bytes": 3_000_000, "days_left": 2000.0,
                      "max_gb": None, "min_free_gb": None, "paused": False, "auto_deleted": 0, "skipped": 0, "moved_skipped": 0,
@@ -114,6 +114,11 @@ class FakeClient:
     async def set_external(self, sid, offset, reasons, detail, ttl_s=60):
         self._check()
         STATE.pushed[sid] = {"offset": offset, "reasons": reasons, "detail": detail, "ttl_s": ttl_s}
+        return {"ok": True}
+
+    async def set_conditions(self, states, ttl_s=120):
+        self._check()
+        STATE.conditions = {"states": dict(states), "ttl_s": ttl_s}
         return {"ok": True}
 
     async def set_place(self, sid, environment, ttl_s=60):

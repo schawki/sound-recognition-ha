@@ -1,5 +1,6 @@
 export interface Hass {
   language: string;
+  states?: Record<string, { state: string; attributes?: { options?: string[]; friendly_name?: string } }>;
   callWS<T>(msg: Record<string, unknown>): Promise<T>;
   connection: { subscribeMessage<T>(cb: (m: T) => void, msg: Record<string, unknown>): Promise<() => void> };
 }
@@ -10,6 +11,7 @@ export interface SourceStatus {
   active_classes: string[]; last_window?: unknown; windows: number; inferences: number;
   active_contexts?: string[]; ambient_dbfs?: number | null; baseline_dbfs?: number | null; adaptive_enabled?: boolean; adaptive_offset?: number;
   external_offset?: number; external_reasons?: string[]; external_detail?: { label: string; value: number }[];
+  held_by_condition?: string[]; condition_unknown?: boolean;
 }
 
 /** A way out of an advice between close sounds: keep this one, switch the others off. */
@@ -74,12 +76,12 @@ export interface Stats { hours: number; since: number; detections: StatBlock; ma
 
 export interface ClassBlock {
   enabled?: boolean; threshold?: number; min_duration_s?: number; cooldown_s?: number; pre_roll_s?: number; post_roll_s?: number;
-  clip_retention_days?: number; min_volume_dbfs?: number | null; schedule?: Schedule;
+  clip_retention_days?: number; min_volume_dbfs?: number | null; schedule?: Schedule; condition?: Condition | null;
 }
 export type ClassBlocks = Record<string, ClassBlock>;
 export interface Resolved {
   enabled: boolean; threshold: number; min_duration_s: number; cooldown_s: number; pre_roll_s: number; post_roll_s: number;
-  min_volume_dbfs: number | null; schedule: Schedule; clip_retention_days: number; provenance: Record<string, string>;
+  min_volume_dbfs: number | null; schedule: Schedule; condition: Condition | null; clip_retention_days: number; provenance: Record<string, string>;
 }
 
 export type LiveMessage =
@@ -91,6 +93,9 @@ export type LiveMessage =
   | { type: "context"; source: string; active_contexts: string[]; ambient_dbfs: number | null; baseline_dbfs: number | null; adaptive_enabled: boolean; adaptive_offset: number; external_offset?: number; external_reasons?: string[]; external_detail?: { label: string; value: number }[] }
   | { type: "clip_ready"; id: string; source: string; mid: string; clip: string; clip_url: string; expires_at: string };
 
+/** A condition on Home Assistant states, next to the schedule: the sound is heard when the schedule allows it and the condition holds. */
+export type ConditionRule = { entity: string; op: "is" | "is_not"; value: string } | { people: "nobody_home" | "someone_home" };
+export interface Condition { match?: "all" | "any"; if_unknown?: "listen" | "pause"; rules: ConditionRule[] }
 export interface ScheduleWindow { days?: string[]; from: string; to: string }
 export interface Schedule { mode: "continuous" | "scheduled"; windows?: ScheduleWindow[] }
 /** A preset: ready-made settings for a source. The catalog's ones come with a `kind` ("place" has a `place`, the kind of room it fits) and texts in the user's language; the user's own are stored in the configuration. */
@@ -101,7 +106,7 @@ export interface PresetDef {
 export interface SourceCfg {
   presets?: string[];
   id: string; name?: string; type: string; url: string; enabled?: boolean; threshold_offset?: number;
-  min_volume_dbfs?: number | null; schedule?: Schedule; clips?: ClipsCfg;
+  min_volume_dbfs?: number | null; schedule?: Schedule; condition?: Condition | null; clips?: ClipsCfg;
   environment?: string; adaptive?: { enabled?: boolean; max_offset?: number };
   area?: string; devices?: { enabled?: boolean; max_offset?: number; exclude?: string[]; include?: string[] };
   advice?: Record<string, AdviceSetting>; applied_advice?: AppliedAdvice[];

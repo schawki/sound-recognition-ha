@@ -13,7 +13,8 @@ FIELDS = {"threshold": lambda: round(rnd.uniform(0.05, 0.95), 2), "min_duration_
           "cooldown_s": lambda: rnd.choice([0, 5, 60]), "pre_roll_s": lambda: rnd.choice([0, 3]), "post_roll_s": lambda: rnd.choice([0, 8]),
           "clip_retention_days": lambda: rnd.choice([0, 1, 7, 90]), "min_volume_dbfs": lambda: rnd.choice([None, -80, -60, -45, -30]),
           "enabled": lambda: rnd.random() < 0.5,
-          "schedule": lambda: rnd.choice([{"mode": "continuous"}, {"mode": "scheduled", "windows": [{"days": ["mon"], "from": "08:00", "to": "09:00"}]}])}
+          "schedule": lambda: rnd.choice([{"mode": "continuous"}, {"mode": "scheduled", "windows": [{"days": ["mon"], "from": "08:00", "to": "09:00"}]}]),
+          "condition": lambda: rnd.choice([None, {"rules": [{"people": "nobody_home"}]}, {"rules": [{"entity": "input_boolean.x", "op": "is", "value": "on"}], "if_unknown": "pause"}])}
 
 
 def rcat():
@@ -33,13 +34,14 @@ for _ in range(600):
     picks = rnd.sample(classes, 4)
     cfg = {"classes": {key(c): block(0.3) for c in picks if rnd.random() < 0.7}, "sources": []}
     if rnd.random() < 0.5:
-        cfg["defaults"] = {k: v for k, v in {"min_volume_dbfs": rnd.choice([-60, -40]), "schedule": rnd.choice([None, {"mode": "continuous"}]),
+        cfg["defaults"] = {k: v for k, v in {"min_volume_dbfs": rnd.choice([-60, -40]), "schedule": rnd.choice([None, {"mode": "continuous"}]), "condition": rnd.choice([None, None, {"rules": [{"people": "nobody_home"}]}]),
                                               "clips": rnd.choice([None, {"allowed": True, "max_retention_days": 14}, {"allowed": False}, {"retention_by_category": rcat()}, {"max_retention_days": 20, "retention_by_category": rcat()}])}.items() if v is not None}
     src = {"id": "s", "type": "rtsp", "url": "x", "classes": {key(c): block(0.3) for c in picks if rnd.random() < 0.7}}
     if rnd.random() < 0.4: src["threshold_offset"] = rnd.choice([-0.2, 0.1, 0.5])
     if rnd.random() < 0.4: src["min_volume_dbfs"] = rnd.choice([-70, -35])
     if rnd.random() < 0.3: src["enabled"] = False
     if rnd.random() < 0.3: src["clips"] = rnd.choice([{"allowed": False}, {"max_retention_days": 3}, {"allowed": True}, {"retention_by_category": rcat()}])
+    if rnd.random() < 0.3: src["condition"] = {"rules": [{"people": "someone_home"}], "match": "any"}
     if rnd.random() < 0.3: src["schedule"] = {"mode": "scheduled", "windows": [{"days": ["tue"], "from": "01:00", "to": "02:00"}]}
     cfg["sources"] = [src]
     if rnd.random() < 0.6:                                        # presets: some of the catalog, some of the user, in a random order

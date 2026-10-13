@@ -5,8 +5,9 @@ import { clone, getBlock, putBlock } from "./classes";
 import type { Key, T } from "./i18n";
 import { presetCtxFor, resolveClass, type ByKey } from "./resolve";
 import { cellsToWindows, hoursPerWeek, windowsToCells } from "./schedule";
-import type { Advice, Catalog, CatalogClass, ClassBlock, Resolved, ServiceConfig, SourceCfg } from "./types";
+import type { Advice, Catalog, CatalogClass, ClassBlock, Condition, Resolved, ServiceConfig, SourceCfg } from "./types";
 import "./schedule-grid";
+import "./condition-editor";
 
 type NumField = "threshold" | "min_duration_s" | "cooldown_s" | "pre_roll_s" | "post_roll_s" | "clip_retention_days" | "min_volume_dbfs";
 const FIELDS: { key: NumField; min: number; max: number; step: number; unit: string }[] = [
@@ -41,6 +42,8 @@ export class ClassDetail extends LitElement {
   @state() private enabled: EnabledChoice = "inherit";
   @state() private sched: SchedChoice = "inherit";
   @state() private cells: boolean[] = new Array(336).fill(false);
+  @state() private condition: Condition | null = null;
+  @state() private condChoice: "inherit" | "none" | "own" = "inherit";
   @state() private warnings: Advice[] = [];
   private timer?: number;
   private seq = 0;
@@ -57,6 +60,8 @@ export class ClassDetail extends LitElement {
     this.enabled = b.enabled === undefined ? "inherit" : b.enabled ? "on" : "off";
     this.sched = !b.schedule ? "inherit" : b.schedule.mode === "continuous" ? "always" : "times";
     this.cells = windowsToCells(b.schedule?.windows ?? []);
+    this.condition = b.condition ?? null;
+    this.condChoice = b.condition === undefined ? "inherit" : b.condition === null ? "none" : "own";
     this.queueWarnings();
   }
 
@@ -77,6 +82,9 @@ export class ClassDetail extends LitElement {
       const w = cellsToWindows(this.cells);
       if (w && w.length) b.schedule = { mode: "scheduled", windows: w }; else if (w === null) b.schedule = { mode: "continuous" }; else delete b.schedule;
     }
+    if (this.condChoice === "none") b.condition = null;
+    else if (this.condChoice === "own" && this.condition && this.condition.rules.length) b.condition = this.condition;
+    else delete b.condition;
     return b;
   }
 
@@ -84,6 +92,10 @@ export class ClassDetail extends LitElement {
     const c = clone(this.cfg);
     putBlock(c, this.scope, this.cls, this.byKey, this.block(skip));
     return c;
+  }
+
+  private get isSafety(): boolean {
+    return this.cls.interest === "monitor" && ["fire", "security", "baby"].includes(this.cls.usages[0] ?? "");
   }
 
   private get sources(): SourceCfg[] {
@@ -184,6 +196,14 @@ export class ClassDetail extends LitElement {
         ${this.sched === "times" ? html`
           <sr-schedule-grid .cells=${this.cells} .language=${this.language} @cells-changed=${(e: CustomEvent<boolean[]>) => { this.cells = e.detail; this.queueWarnings(); }}></sr-schedule-grid>
           <span class="dim">${t("hoursPerWeek", { h: hoursPerWeek(this.cells) })}</span>` : nothing}
+      </fieldset>
+
+      <fieldset data-condition>
+        <legend>${t("condTitle")}</legend>
+        ${(["inherit", "none", "own"] as const).map((k) => html`<label class="inline"><input type="radio" name="cond" value=${k} .checked=${this.condChoice === k}
+          @change=${() => { this.condChoice = k; if (k === "own" && !this.condition) this.condition = { rules: [{ people: "nobody_home" }] }; this.queueWarnings(); }} />${t(k === "inherit" ? "condInherit" : k === "none" ? "condNone" : "condOwn")}</label>`)}
+        ${this.condChoice === "own" ? html`<sr-condition-editor bare .api=${this.api} .t=${t} .value=${this.condition} .scope=${this.isSafety ? "safety" : "sound"}
+          @condition-changed=${(e: CustomEvent<Condition | null>) => { this.condition = e.detail; this.queueWarnings(); }}></sr-condition-editor>` : nothing}
       </fieldset>
 
       ${!scopedSource && this.sources.length ? html`

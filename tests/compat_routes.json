@@ -111,6 +111,11 @@
    "client": "storage_old_delete",
    "since": 11,
    "tolerance": "on_demand"
+  },
+  "PUT /conditions": {
+   "client": "set_conditions",
+   "since": 12,
+   "tolerance": "on_demand"
   }
  }
 }

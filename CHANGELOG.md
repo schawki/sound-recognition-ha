@@ -2,6 +2,12 @@
 
 Releases are tagged `vX.Y.Z`; the service updates itself from Home Assistant to the latest tag.
 
+## 0.18.0
+
+- **Conditions on Home Assistant states.** A source or a sound can be told to listen **only when a condition holds**, for example "only when nobody is home" or "only while the alarm is disarmed". The condition adds to the schedule: a sound is heard when the schedule allows it *and* the condition holds. It is set in the source form and in the settings of a sound (all sources, or one source), with the usual order: source × sound, sound, source, defaults. Rules: the state of any entity ("is" / "is not" a state), or the shortcuts *nobody is home* / *someone is home* (the `person` entities); "every rule" or "at least one rule". See [Conditions](docs/conditions.en.md).
+- **When a state is not known** (Home Assistant restarting, an entity removed, the link cut), listening goes on by default, because a missed alarm is worse than an extra detection; each condition can choose to stay paused instead. The *Live* tab shows when a sound is paused by its condition or when a state is unknown. Safety sounds (fire, security, baby) can be given a condition, with a warning in the panel.
+- Service API level 12 (`PUT /conditions`): update the service from Home Assistant after updating the integration. With an older service the integration keeps working and simply ignores the conditions.
+
 ## 0.17.0
 
 - **Move the clips from Home Assistant.** In *Settings → Storage*, type the new folder (another disk, a NAS share) and press *Move the clips…*: after your confirmation a small helper on the service machine copies the clips, checks the copy, points the service at the new folder and restarts it, with the progress shown in the card. **The move deletes nothing**: the old folder stays, and the card then offers a **Delete the old clips…** button (with a confirmation) as long as it exists. When the folder cannot be removed completely (mounted disk or share, other files in it, no right to delete), the card says what to do by hand. During the copy detections go on without keeping new clips. Details and limits (Docker excluded): [Storage of the clips](docs/storage.en.md#moving-the-clips).

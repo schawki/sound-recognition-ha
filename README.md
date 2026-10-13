@@ -72,6 +72,7 @@ Version 0.12, used on a real installation and tested (service, integration and p
 - [Storage of the clips and the token](docs/storage.en.md)
 - [The Advice tab](docs/advice.en.md)
 - [Presets by kind of room and situation](docs/presets.en.md)
+- [Conditions on Home Assistant states](docs/conditions.en.md)
 - [Per-source settings](docs/source-settings.en.md) · [Contexts, rooms and adaptive sensitivity](docs/context-and-adaptive.en.md)
 - [Service API and development](docs/api.md) · [Example configuration](examples/config.example.yaml)
 - [Changelog](CHANGELOG.md) · [Releasing](RELEASING.md)

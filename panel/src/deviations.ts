@@ -8,6 +8,7 @@ export function deviations(s: SourceCfg, t: T, envs: Environment[]): string[] {
   if (s.threshold_offset) out.push(t("devSensitivity", { v: `${s.threshold_offset > 0 ? "+" : ""}${s.threshold_offset}` }));
   if (s.min_volume_dbfs != null) out.push(t("devVolume", { v: s.min_volume_dbfs }));
   if (s.schedule?.mode === "scheduled") out.push(t("devSchedule"));
+  if (s.condition) out.push(t("devCondition"));
   if (s.clips?.allowed === false) out.push(t("devClipsOff"));
   else if (s.clips?.max_retention_days != null) out.push(t("devClipsDays", { n: s.clips.max_retention_days }));
   if (s.clips?.retention_by_category && Object.keys(s.clips.retention_by_category).length) out.push(t("devRetention"));

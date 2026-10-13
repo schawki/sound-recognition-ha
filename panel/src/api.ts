@@ -3,6 +3,14 @@ import type { UpdateInfo, Advice, HaArea, HaDevice, HaOpening, StructureInfo, Ca
 export class PanelApi {
   constructor(private hass: Hass, public language: string) {}
 
+  /** Entities of Home Assistant (for the conditions), sorted; empty when the page cannot list them. */
+  entityIds(): string[] {
+    return Object.keys(this.hass.states ?? {}).sort();
+  }
+  /** States an entity can have, when Home Assistant lists them (selects, input_select). */
+  entityOptions(entity: string): string[] {
+    return this.hass.states?.[entity]?.attributes?.options ?? [];
+  }
   overview(): Promise<Overview> {
     return this.hass.callWS({ type: "sound_recognition/overview", language: this.language });
   }

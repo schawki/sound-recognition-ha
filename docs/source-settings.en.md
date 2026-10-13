@@ -42,7 +42,7 @@ schedule:
 
 - Times use the Home Assistant time zone. Several windows are combined (union). `days` omitted means every day.
 - A class can have its own schedule. This is how a smoke alarm stays **24/7 on a source that is otherwise scheduled**.
-- Reserved for later: conditions on Home Assistant states (for example "only when the house is empty").
+- A **condition on Home Assistant states** (for example "only when the house is empty") can be added at the same levels and is combined with the schedule: see [Conditions](conditions.en.md).
 
 ## 5. Clips per source
 

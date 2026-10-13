@@ -1,5 +1,5 @@
 // Port of service/soundrec/settings.py `resolve`; test/crosscheck_resolve.py compares both on random configurations.
-import type { CatalogClass, ClassBlock, ClassBlocks, PresetDef, Resolved, RetentionCategory, Schedule, ServiceConfig, SourceCfg } from "./types";
+import type { CatalogClass, ClassBlock, Condition, ClassBlocks, PresetDef, Resolved, RetentionCategory, Schedule, ServiceConfig, SourceCfg } from "./types";
 
 export type ByKey = Map<string, string>; // mid or AudioSet name -> mid
 
@@ -139,6 +139,11 @@ export function resolveClass(cfg: ServiceConfig, srcIn: SourceCfg, c: CatalogCla
   out.schedule = CONTINUOUS; why.schedule = "builtin";
   for (const [lvl, d] of [["source_class", sc], ["class", g], ["source", src], ["defaults", dflt]] as const) {
     if ((d as { schedule?: Schedule }).schedule) { out.schedule = (d as { schedule?: Schedule }).schedule; why.schedule = lvl; break; }
+  }
+
+  out.condition = null; why.condition = "builtin";
+  for (const [lvl, d] of [["source_class", sc], ["class", g], ["source", src], ["defaults", dflt]] as const) {
+    if ("condition" in d) { out.condition = (d as { condition?: Condition | null }).condition || null; why.condition = lvl; break; }
   }
 
   let r: number, rw: string;

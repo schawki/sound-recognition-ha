@@ -131,6 +131,8 @@ export class LiveView extends LitElement {
         <div class="meta">
           <span>${s.level_dbfs == null ? "—" : `${s.level_dbfs.toFixed(0)} dBFS`}</span>
           ${s.below_gate ? html`<span class="dim">${t("belowGate")}</span>` : nothing}
+          ${s.held_by_condition?.length ? html`<span class="dim" data-held>${t("condHeld", { n: s.held_by_condition.length })}</span>` : nothing}
+          ${s.condition_unknown ? html`<span class="dim" data-condition-unknown>${t("condUnknownNow")}</span>` : nothing}
         </div>
         <div class="active">
           ${s.active_classes.length

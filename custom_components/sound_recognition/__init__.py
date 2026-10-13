@@ -22,6 +22,7 @@ from .api import CannotConnect, InvalidAuth, SoundRecClient
 from . import websocket_api as panel_ws
 from .const import CLIP_SIGN_HOURS, CLIP_URL_TEMPLATE, CLIP_VIEW_URL, DOMAIN, PANEL_STATIC_URL, PANEL_URL_PATH, PLATFORMS
 from .coordinator import SoundRecCoordinator
+from .conditions import ConditionManager
 from .dynamic import DynamicManager
 from .entity import register_source_devices
 from .repairs import clear_esp_issues, clear_stale_issue, sync_esp_issues, sync_stale_issue
@@ -34,6 +35,7 @@ class SoundRecData:
     client: SoundRecClient
     coordinator: SoundRecCoordinator
     dynamic: DynamicManager | None = None
+    conditions: ConditionManager | None = None
 
 
 type SoundRecConfigEntry = ConfigEntry[SoundRecData]
@@ -113,6 +115,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: SoundRecConfigEntry) -> 
     coordinator.start_listener()
     entry.runtime_data.dynamic = DynamicManager(hass, coordinator)
     entry.runtime_data.dynamic.start()
+    entry.runtime_data.conditions = ConditionManager(hass, coordinator)
+    entry.runtime_data.conditions.start()
     return True
 
 
@@ -120,6 +124,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: SoundRecConfigEntry) ->
     """The panel stays registered: removing it on every reload (each saved change reloads the entry) sends the browser to the home page."""
     if entry.runtime_data.dynamic:
         entry.runtime_data.dynamic.stop()
+    if entry.runtime_data.conditions:
+        entry.runtime_data.conditions.stop()
     ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if ok:
         entry.runtime_data.coordinator.clear_issues()

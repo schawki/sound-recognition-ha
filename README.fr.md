@@ -71,6 +71,7 @@ Version 0.12, utilisée sur une installation réelle et testée (les tests du se
 - [Stockage des clips et jeton](docs/storage.fr.md)
 - [L'onglet Conseils](docs/advice.fr.md)
 - [Préréglages par type de pièce et situation](docs/presets.fr.md)
+- [Conditions sur des états de Home Assistant](docs/conditions.fr.md)
 - [Réglages par source](docs/source-settings.fr.md) · [Contextes, pièces et sensibilité adaptative](docs/context-and-adaptive.fr.md)
 - [API du service et développement](docs/api.md) (en anglais) · [Exemple de configuration](examples/config.example.yaml)
 - [Journal des modifications](CHANGELOG.fr.md) · [Publier une version](RELEASING.md)

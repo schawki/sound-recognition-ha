@@ -42,7 +42,7 @@ schedule:
 
 - Les heures suivent le fuseau horaire de Home Assistant. Plusieurs plages s'additionnent (union). `days` omis = tous les jours.
 - Une classe peut avoir son propre planning. C'est ainsi qu'un détecteur de fumée reste **actif 24 h/24 sur une source par ailleurs planifiée**.
-- Réservé pour plus tard : conditions sur des états de Home Assistant (par exemple « seulement quand la maison est vide »).
+- Une **condition sur des états de Home Assistant** (par exemple « seulement quand la maison est vide ») peut s'ajouter aux mêmes niveaux et se combine avec l'horaire : voir [Conditions](conditions.fr.md).
 
 ## 5. Clips par source
 

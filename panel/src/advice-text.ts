@@ -14,6 +14,7 @@ function field(t: T, k: string, v: unknown): string {
     case "clip_retention_days": return t("chRetention", { v: String(v) });
     case "min_volume_dbfs": return t("chVolume", { v: String(v) });
     case "schedule": return isObj(v) && v.mode === "continuous" ? t("chScheduleContinuous") : t("chScheduleOwn");
+    case "condition": return t("chConditionOwn");
     default: return t("chSetting", { k });
   }
 }

@@ -7,7 +7,7 @@ import tempfile
 import zoneinfo
 import yaml
 
-from . import espstream
+from . import conditions, espstream
 from .settings import DAYS, PRESET_MAX_VOLUME, PRESET_SOUND_FIELDS, PRESET_SOURCE_FIELDS, Catalog
 
 SOURCE_TYPES = ("rtsp", "go2rtc", "alsa_rpi", "esphome", "file")
@@ -160,6 +160,8 @@ def _check_class_block(b, where, errs):
     for k, v in b.items():
         if k == "schedule":
             _check_schedule(v, f"{where}.schedule", errs)
+        elif k == "condition":
+            conditions.validate(v, f"{where}.condition", errs)
         elif k not in rules:
             errs.append(f"{where}: unknown field '{k}'")
         elif not rules[k](v):
@@ -255,6 +257,8 @@ def validate(cfg, catalog: Catalog):
     if d.get("min_volume_dbfs") is not None and not _num(d["min_volume_dbfs"], -90, 0):
         errs.append("defaults.min_volume_dbfs must be between -90 and 0 (or null)")
     _check_schedule(d.get("schedule", {"mode": "continuous"}), "defaults.schedule", errs)
+    if "condition" in d:
+        conditions.validate(d["condition"], "defaults.condition", errs)
     _check_clips(d.get("clips") or {}, "defaults.clips", errs)
     for k, blk in (cfg.get("classes") or {}).items():
         try:
@@ -303,6 +307,8 @@ def validate(cfg, catalog: Catalog):
             errs.append(f"{w}.min_volume_dbfs must be between -90 and 0")
         if "schedule" in s:
             _check_schedule(s["schedule"], f"{w}.schedule", errs)
+        if "condition" in s:
+            conditions.validate(s["condition"], f"{w}.condition", errs)
         if s.get("environment") is not None and s["environment"] not in {e["id"] for e in catalog.raw.get("environments", [])}:
             errs.append(f"{w}.environment: unknown environment '{s['environment']}'")
         if "adaptive" in s:

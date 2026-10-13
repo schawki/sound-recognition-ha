@@ -222,6 +222,14 @@ def resolve(cfg, catalog, source_id, cls_key):
     else:
         out['schedule'], why['schedule'] = CONTINUOUS, 'builtin'
 
+    # ---- condition on Home Assistant states: same levels as the schedule; none by default
+    for lvl, d in (('source_class', scls), ('class', gcls), ('source', src), ('defaults', dflt)):
+        if 'condition' in d:
+            out['condition'], why['condition'] = d['condition'] or None, lvl
+            break
+    else:
+        out['condition'], why['condition'] = None, 'builtin'
+
     # ---- clips: source x class > class > category on the source > category (global) > catalog; then capped by the source and global
     # maxima and forced to 0 when the source disallows clips. The catalog's clip_forbidden (conversations) is only the 0-day default.
     clips = src.get('clips') or {}

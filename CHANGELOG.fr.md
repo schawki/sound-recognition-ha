@@ -2,6 +2,12 @@
 
 Les versions sont étiquetées `vX.Y.Z` ; le service se met à jour depuis Home Assistant vers la dernière étiquette.
 
+## 0.18.0
+
+- **Conditions sur des états de Home Assistant.** On peut demander à une source ou à un son de **n'écouter que si une condition est vraie**, par exemple « seulement quand personne n'est à la maison » ou « seulement quand l'alarme est désarmée ». La condition s'ajoute à l'horaire : un son est entendu quand l'horaire l'autorise *et* que la condition est vraie. Elle se règle dans le formulaire de la source et dans les réglages d'un son (toutes les sources, ou une seule), avec l'ordre habituel : source × son, son, source, défauts. Règles : l'état d'une entité quelconque (« est » / « n'est pas » un état), ou les raccourcis *personne n'est à la maison* / *quelqu'un est à la maison* (les entités `person`) ; « toutes les règles » ou « au moins une règle ». Voir [Conditions](docs/conditions.fr.md).
+- **Quand un état n'est pas connu** (Home Assistant qui redémarre, entité supprimée, liaison coupée), l'écoute continue par défaut, car une alarme manquée est pire qu'une détection de trop ; chaque condition peut choisir de rester en pause à la place. L'onglet *En direct* indique quand un son est en pause à cause de sa condition ou quand un état est inconnu. On peut donner une condition aux sons de sécurité (incendie, sécurité, bébé), avec un avertissement dans le panneau.
+- API du service niveau 12 (`PUT /conditions`) : mettez le service à jour depuis Home Assistant après avoir mis à jour l'intégration. Avec un service plus ancien, l'intégration continue de fonctionner et ignore simplement les conditions.
+
 ## 0.17.0
 
 - **Déplacer les clips depuis Home Assistant.** Dans *Réglages → Stockage*, saisissez le nouveau dossier (autre disque, partage NAS) et appuyez sur *Déplacer les clips…* : après votre confirmation, un petit assistant sur la machine du service copie les clips, vérifie la copie, fait pointer le service sur le nouveau dossier et le redémarre, l'avancement s'affichant dans la carte. **Le déplacement ne supprime rien** : l'ancien dossier reste, et la carte propose alors un bouton **Supprimer les anciens clips…** (avec confirmation) tant qu'il existe. Quand le dossier ne peut pas être retiré complètement (disque ou partage monté, autres fichiers dedans, pas le droit de supprimer), la carte dit quoi faire à la main. Pendant la copie les détections continuent sans garder de nouveaux clips. Détails et limites (Docker exclu) : [Stockage des clips](docs/storage.fr.md#moving-the-clips).
