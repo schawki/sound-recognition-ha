@@ -3,6 +3,8 @@ import asyncio
 import datetime as dt
 import logging
 import os
+import secrets
+import time
 
 from . import advisor, catalog as cm, config as cfgmod, recommend, settings as st
 from .audio import read_source
@@ -41,6 +43,9 @@ class Engine:
         self.pipes, self.tasks, self._src_cfg = {}, {}, {}
         self.subs = set()
         self._maint = None
+        self._clip_bytes = None            # running estimate of what the clips take, rebuilt by the maintenance
+        self._paused = False               # clips are not kept while the free space is under the limit chosen by the administrator
+        self._prev_token = None            # (old token, valid until): a token change must not cut the caller off
 
     # ---------------------------------------------------------------- lifecycle
     async def start(self):
@@ -129,10 +134,77 @@ class Engine:
             log.info("masked %s on %s (score %.2f < %.2f, %s)", ev["class"], sid, ev["score"], ev["threshold"], "+".join(ev["reasons"]))
             self._publish(ev)
         elif ev["type"] == "clip":
+            if self._check_free_space():
+                self.store.set_reason(ev["id"], "disk_low")
+                return
             rel, expires = self.clips.write(ev["id"], ev["pcm"], ev["meta"], ev["retention_days"], _now())
             self.store.set_clip(ev["id"], rel, expires.isoformat())
+            if self._clip_bytes is not None:
+                self._clip_bytes += self.clips.size(rel)
+            self._enforce_quota()
             self._publish({"type": "clip_ready", "id": ev["id"], "source": sid, "mid": ev["mid"], "clip": rel,
                            "expires_at": expires.isoformat()})
+
+    # ---------------------------------------------------------------- disk space chosen by the administrator
+    def _check_free_space(self):
+        """True while clips must not be kept: the free space fell under `storage.clips_min_free_gb` (and has not come back 10 % above it)."""
+        limit = (self.cfg["storage"].get("clips_min_free_gb") or 0) * 1e9
+        free = self.clips.free_bytes()
+        if not limit or free is None:
+            self._paused = False
+        elif self._paused:
+            self._paused = free < limit * 1.1
+        else:
+            self._paused = free < limit
+        return self._paused
+
+    def _enforce_quota(self):
+        """Over `storage.clips_max_gb`: the oldest clips go first (the ones you judged last) until the clips are back to 90 % of the limit."""
+        limit = (self.cfg["storage"].get("clips_max_gb") or 0) * 1e9
+        if not limit or self._clip_bytes is None or self._clip_bytes <= limit:
+            return 0
+        rows = self.store.clips()                                              # newest first
+        order = sorted(rows, key=lambda r: (r["feedback"] is not None, r["ts"]))    # not judged first, oldest first
+        removed, target = [], limit * 0.9
+        for r in order:
+            if self._clip_bytes <= target:
+                break
+            self._clip_bytes -= self.clips.delete(r["clip"]) or 0
+            removed.append(r["id"])
+        if removed:
+            self.store.forget_clips(removed, "quota")
+            log.info("clips over the limit of %.2f GB: %d oldest clips deleted", limit / 1e9, len(removed))
+        return len(removed)
+
+    def storage_info(self):
+        """What the clips take, what is left, how fast they grow and what the two limits do. Walks the clips folder: call it off the event loop."""
+        u = self.clips.usage()
+        now = _now().timestamp()
+        rows = [r for r in self.store.clips() if r["ts"] >= now - 7 * 86400]
+        per_day = None
+        if rows:
+            span = min(7.0, max(1.0, (now - min(r["ts"] for r in rows)) / 86400))
+            per_day = sum(self.clips.size(r["clip"]) for r in rows) / span
+        free = u["free_bytes"]
+        s = self.cfg["storage"]
+        return {**u, "per_day_bytes": per_day, "days_left": (free / per_day) if (free is not None and per_day) else None,
+                "max_gb": s.get("clips_max_gb"), "min_free_gb": s.get("clips_min_free_gb"), "paused": self._check_free_space(),
+                "auto_deleted": self.store.count_reason("quota"), "skipped": self.store.count_reason("disk_low")}
+
+    # ---------------------------------------------------------------- token
+    def rotate_token(self):
+        """New API token; the old one still works for a minute so the caller can store the new one."""
+        self._prev_token = (self.cfg["api"]["token"], time.time() + 60)
+        self.cfg["api"]["token"] = secrets.token_urlsafe(24)
+        cfgmod.save(self.config_path, self.cfg)
+        return self.cfg["api"]["token"]
+
+    def token_ok(self, given):
+        import hmac
+        if hmac.compare_digest(given, self.cfg["api"]["token"]):
+            return True
+        old = self._prev_token
+        return bool(old and time.time() < old[1] and hmac.compare_digest(given, old[0]))
 
     def _publish(self, msg):
         for q in list(self.subs):
@@ -216,6 +288,9 @@ class Engine:
             try:
                 now = _now()
                 removed = self.clips.purge(now)
+                self._clip_bytes = self.clips.usage()["bytes"]
+                self._check_free_space()
+                self._enforce_quota()
                 days = self.cfg["storage"]["events_retention_days"]
                 self.store.purge((now - dt.timedelta(days=days)).timestamp(), now.isoformat())
                 if removed:

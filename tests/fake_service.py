@@ -7,14 +7,17 @@ from soundrec import advisor, catalog as cm, config as cfgmod, recommend, settin
 from custom_components.sound_recognition.api import CannotConnect, InvalidAuth, InvalidConfig, SoundRecError
 
 CAT = st.Catalog(cm.load_raw())
-STATE = SimpleNamespace(update=None, health_extra={}, cfg=None, down=False, token="tok", handler=None, stop=None, status={}, events=[], feedback={}, pushed={}, clip_calls=[], places={})
+STATE = SimpleNamespace(update=None, health_extra={}, cfg=None, down=False, token="tok", handler=None, stop=None, status={}, events=[], feedback={}, pushed={}, clip_calls=[], places={}, storage=None)
 
 
 def reset(cfg=None):
+    STATE.token = "tok"
     STATE.cfg = cfgmod._merge(cfgmod.DEFAULTS, cfg or {})
     STATE.cfg["api"]["token"] = STATE.token
     STATE.down, STATE.handler, STATE.stop, STATE.status, STATE.events, STATE.feedback, STATE.pushed, STATE.clip_calls, STATE.places = False, None, asyncio.Event(), {}, [], {}, {}, [], {}
     STATE.update, STATE.health_extra = {"state": "idle", "capable": True}, {}
+    STATE.storage = {"path": "/var/lib/soundrec/clips", "clips": 69, "bytes": 25_000_000, "free_bytes": 6_000_000_000, "total_bytes": 20_000_000_000, "per_day_bytes": 3_000_000, "days_left": 2000.0,
+                     "max_gb": None, "min_free_gb": None, "paused": False, "auto_deleted": 0, "skipped": 0}
 
 
 class FakeClient:
@@ -30,7 +33,7 @@ class FakeClient:
     async def health(self):
         if STATE.down:
             raise CannotConnect("down")
-        return {"status": "ok", "version": "0.2.0", "api_level": 8, "commit": "abc1234", "release": "v0.2.0", "update": {"capable": STATE.update["capable"]}, **STATE.health_extra}
+        return {"status": "ok", "version": "0.2.0", "api_level": 9, "commit": "abc1234", "release": "v0.2.0", "update": {"capable": STATE.update["capable"]}, **STATE.health_extra}
 
     async def update_status(self):
         self._check()
@@ -135,6 +138,16 @@ class FakeClient:
         self._check()
         STATE.clip_calls.append(("delete", {"ids": ids, "filter": flt, "dry_run": dry_run}))
         return {"count": 1, "bytes": 32044, "dry_run": dry_run}
+
+    async def storage(self):
+        self._check()
+        return STATE.storage
+
+    async def rotate_token(self):
+        self._check()
+        STATE.token = "new-" + STATE.token
+        STATE.cfg["api"]["token"] = STATE.token
+        return STATE.token
 
     async def clip(self, rel):
         return b"RIFFfake"

@@ -68,6 +68,7 @@ Version 0.12, utilisée sur une installation réelle et testée (les tests du se
 
 - [Installer le service](docs/install-service.fr.md) · [Détails Proxmox et mises à jour](deploy/DEPLOY.fr.md)
 - [Micro ESP32 (ESPHome)](docs/esphome-microphone.fr.md)
+- [Stockage des clips et jeton](docs/storage.fr.md)
 - [L'onglet Conseils](docs/advice.fr.md)
 - [Réglages par source](docs/source-settings.fr.md) · [Contextes, pièces et sensibilité adaptative](docs/context-and-adaptive.fr.md)
 - [API du service et développement](docs/api.md) (en anglais) · [Exemple de configuration](examples/config.example.yaml)

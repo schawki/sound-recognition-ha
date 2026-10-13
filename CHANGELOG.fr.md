@@ -2,6 +2,14 @@
 
 Les versions sont étiquetées `vX.Y.Z` ; le service se met à jour depuis Home Assistant vers la dernière étiquette.
 
+## 0.14.0
+
+- **Une carte Stockage dans l'onglet Clips.** Elle indique où sont les clips, ce qu'ils occupent, l'espace libre, leur croissance, le temps avant que le disque soit plein et la place que prendrait votre rétention. Un conseil apparaît quand il reste moins de 2 Go ou que le disque serait plein sous deux semaines. Nouveau guide : [Stockage des clips](docs/storage.fr.md), avec la façon de garder les clips sur un autre disque ou un NAS.
+- **Deux limites facultatives, désactivées par défaut :** ne plus garder de clips quand l'espace libre passe sous une taille que vous choisissez, et supprimer automatiquement les plus anciens clips pour les garder sous une taille que vous choisissez (ceux que vous avez jugés partent en dernier). L'historique dit pourquoi une détection n'a pas de clip.
+- **Un bouton « Changer le jeton »** sur la même carte : le service fabrique un nouveau jeton, Home Assistant l'enregistre et se recharge, rien à copier. L'ancien jeton fonctionne encore une minute.
+- La section « Protéger le service » du guide d'installation devient « Garder le service privé » : aucun réglage de pare-feu ne vous est demandé.
+- Service au niveau d'API 9 : mettez à jour le service depuis Home Assistant après avoir mis à jour l'intégration (le panneau le dit tant que ce n'est pas fait).
+
 ## 0.13.0
 
 - **Les clips sont réservés aux administrateurs.** Un utilisateur de Home Assistant qui n'est pas administrateur ne peut plus récupérer un clip par son adresse, car un clip peut contenir de la parole privée. Les liens donnés par le panneau et par les notifications (liens signés) continuent de fonctionner.

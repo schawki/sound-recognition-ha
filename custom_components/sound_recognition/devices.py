@@ -261,6 +261,8 @@ TEXTS = {
         "describe_home_structure": "Home Structure is set up but describes nothing yet. Describe which rooms are next to each other and what separates them there: Sound Recognition will use it.",
         "add_esp_microphone": "{devices} runs the Sound Recognition microphone and is not a source yet. Add it in Sources, Add, ESP32 microphone, or ignore it there.",
         "add_esp_microphones": "{devices} run the Sound Recognition microphone and are not sources yet. Add them in Sources, Add, ESP32 microphone, or ignore them there.",
+        "clips_disk_low": "The disk of the clips is filling up: {free} left{days}. In Clips, Storage, you can move them elsewhere, limit the space they take or delete the oldest automatically.",
+        "clips_paused": "Clips are not being kept: only {free} is left, under the {limit} you chose. Free some space or lower the limit in Clips, Storage; they resume by themselves.",
     },
     "fr": {
         "set_area": "Attribuez une pièce Home Assistant à « {source} » pour prendre en compte les appareils qui l'entourent (TV, enceintes...).",
@@ -270,15 +272,27 @@ TEXTS = {
         "describe_home_structure": "Home Structure est configurée mais ne décrit encore rien. Décrivez-y quelles pièces sont voisines et ce qui les sépare : Sound Recognition s'en servira.",
         "add_esp_microphone": "{devices} exécute le micro de Sound Recognition et n'est pas encore une source. Ajoutez-le dans Sources, Ajouter, Micro ESP32, ou ignorez-le à cet endroit.",
         "add_esp_microphones": "{devices} exécutent le micro de Sound Recognition et ne sont pas encore des sources. Ajoutez-les dans Sources, Ajouter, Micro ESP32, ou ignorez-les à cet endroit.",
+        "clips_disk_low": "Le disque des clips se remplit : il reste {free}{days}. Dans Clips, Stockage, vous pouvez les déplacer ailleurs, limiter la place qu'ils prennent ou supprimer automatiquement les plus anciens.",
+        "clips_paused": "Les clips ne sont plus conservés : il ne reste que {free}, sous les {limit} que vous avez choisis. Libérez de la place ou baissez la limite dans Clips, Stockage ; ils reprennent d'eux-mêmes.",
     },
 }
 
 
-def recommendations(hass: HomeAssistant, cfg: dict, lang: str, hs_status: str = "ready", hs_described: bool = True, esp_pending: list[dict] | None = None) -> list[dict]:
+def recommendations(hass: HomeAssistant, cfg: dict, lang: str, hs_status: str = "ready", hs_described: bool = True, esp_pending: list[dict] | None = None, storage: dict | None = None) -> list[dict]:
     """What only Home Assistant can see: sources without a room, and rooms with devices that could be used."""
     txt = {**TEXTS["en"], **TEXTS.get(lang, {})}
     area_names = {a["area_id"]: a["name"] for a in areas(hass)}
     out = []
+    if storage:
+        free, days = storage.get("free_bytes"), storage.get("days_left")
+        gb = lambda n: f"{n / 1e9:.1f} GB" if lang != "fr" else f"{n / 1e9:.1f} Go".replace(".", ",")      # noqa: E731
+        if storage.get("paused") and free is not None:
+            out.append({"rule": "clips_paused", "level": "warning", "source": "", "classes": [], "apply": None, "applied": False,
+                        "message": txt["clips_paused"].format(free=gb(free), limit=gb((storage.get("min_free_gb") or 0) * 1e9))})
+        elif free is not None and (free < 2e9 or (not storage.get("max_gb") and days is not None and days < 14)):
+            when = (f", about {round(days)} days at the current rate" if lang != "fr" else f", environ {round(days)} jours au rythme actuel") if days is not None and days < 365 else ""
+            out.append({"rule": "clips_disk_low", "level": "warning", "source": "", "classes": [], "apply": None, "applied": False,
+                        "message": txt["clips_disk_low"].format(free=gb(free), days=when)})
     if esp_pending:                                                   # ESP32 microphones seen by Home Assistant and not added yet: one advice for all of them
         label = ", ".join(d["name"] + (f" ({area_names.get(d['area_id']) or ''})" if area_names.get(d["area_id"]) else "") for d in esp_pending)
         rule = "add_esp_microphone" if len(esp_pending) == 1 else "add_esp_microphones"

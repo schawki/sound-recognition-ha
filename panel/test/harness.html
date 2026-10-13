@@ -131,6 +131,8 @@
     "sound_recognition/recommendations": () => ({ recommendations: (state.recs || []).map(withApplied) }),
     "sound_recognition/event_feedback": (m) => { state.feedback = (state.feedback || []).concat([("good" in m) ? [m.event_id, "good", m.good] : [m.event_id, m.false]]); return { ok: true }; },
     "sound_recognition/events_delete_clipless": (m) => { state.cliplessCalls = (state.cliplessCalls || []).concat([[JSON.stringify(m.filter), m.dry_run]]); const n = state.clipless ?? 3; if (!m.dry_run) state.clipless = 0; return { count: n, dry_run: m.dry_run }; },
+    "sound_recognition/storage": () => { const c = (state.config.storage || {}); return { path: "/var/lib/soundrec/clips", clips: 69, bytes: 25000000, free_bytes: 6000000000, total_bytes: 20000000000, per_day_bytes: 3000000, days_left: 2000, max_gb: c.clips_max_gb ?? null, min_free_gb: c.clips_min_free_gb ?? null, paused: !!q.get("paused"), auto_deleted: q.get("paused") ? 4 : 0, skipped: 0 }; },
+    "sound_recognition/token_rotate": () => { state.tokenChanges = (state.tokenChanges || 0) + 1; return { ok: true }; },
     "sound_recognition/config": () => JSON.parse(JSON.stringify(state.config)),
     "sound_recognition/config_validate": (m) => validate(m.config),
     "sound_recognition/config_save": (m) => { const v = validate(m.config); if (v.errors.length) throw { code: "invalid_config", message: v.errors.join("; ") }; state.config = m.config; state.saves.push(m.config); return { ok: true }; },

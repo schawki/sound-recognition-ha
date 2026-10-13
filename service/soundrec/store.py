@@ -142,15 +142,24 @@ class EventStore:
             out += [{"id": r[0], "clip": r[1]} for r in rows]
         return out
 
-    def forget_clips(self, ids=None):
-        """Drops the clip reference of these events (all of them when ids is None); the detections themselves stay."""
+    def forget_clips(self, ids=None, reason="deleted"):
+        """Drops the clip reference of these events (all of them when ids is None); the detections themselves stay. `reason` says why in the history."""
         with self.lock:
             if ids is None:
-                self.db.execute("UPDATE events SET clip=NULL, clip_expires=NULL, clip_reason='deleted' WHERE clip IS NOT NULL")
+                self.db.execute("UPDATE events SET clip=NULL, clip_expires=NULL, clip_reason=? WHERE clip IS NOT NULL", (reason,))
             for i in range(0, len(ids or []), 500):
                 chunk = ids[i:i + 500]
-                self.db.execute(f"UPDATE events SET clip=NULL, clip_expires=NULL, clip_reason='deleted' WHERE id IN ({','.join('?' * len(chunk))})", chunk)
+                self.db.execute(f"UPDATE events SET clip=NULL, clip_expires=NULL, clip_reason=? WHERE id IN ({','.join('?' * len(chunk))})", [reason, *chunk])
             self.db.commit()
+
+    def set_reason(self, event_id, reason):
+        with self.lock:
+            self.db.execute("UPDATE events SET clip_reason=? WHERE id=?", (reason, event_id))
+            self.db.commit()
+
+    def count_reason(self, reason):
+        with self.lock:
+            return self.db.execute("SELECT COUNT(*) FROM events WHERE clip_reason=?", (reason,)).fetchone()[0]
 
     def purge(self, before_ts, now_iso):
         """Deletes old events; drops clip references that have expired."""

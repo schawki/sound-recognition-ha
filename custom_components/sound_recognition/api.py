@@ -83,6 +83,14 @@ class SoundRecClient:
         params = {"lang": lang, **{k: v for k, v in query.items() if v is not None}}
         return (await self._request("GET", "/events", params=params))["events"]
 
+    async def storage(self) -> dict:
+        """What the clips take, the free space, the growth and the two limits of the administrator."""
+        return await self._request("GET", "/storage")
+
+    async def rotate_token(self) -> str:
+        """Asks the service for a new token (the old one still works for a minute) and returns it."""
+        return (await self._request("POST", "/token/rotate"))["token"]
+
     async def clips(self, lang: str, **query: Any) -> dict:
         """Clips kept with their size, filtered (source, mid, usage, since, until) and paged; with totals and disk usage."""
         params = {"lang": lang, **{k: v for k, v in query.items() if v is not None}}

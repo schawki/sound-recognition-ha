@@ -5,6 +5,7 @@ import type { T } from "./i18n";
 import type { Catalog, ClipFilter, ClipRow, ClipsPage, Overview, RetentionCategory } from "./types";
 import { RETENTION_CATEGORIES, RET_KEYS, retBlock, retForm } from "./retention";
 import "./feedback-control";
+import "./storage-card";
 import { formatBytes, relativeTime } from "./util";
 
 const PAGE = 100;
@@ -228,6 +229,7 @@ export class ClipsView extends LitElement {
     const pg = this.page, date = new Intl.DateTimeFormat(this.language, { dateStyle: "medium", timeStyle: "short" });
     const allShown = this.rows.length > 0 && this.rows.every((r) => this.picked.has(r.id));
     return html`
+      <sound-recognition-storage .api=${this.api} .t=${t} .language=${this.language}></sound-recognition-storage>
       ${this.retentionCard()}
       <div class="filters">
         <select name="source" aria-label=${t("allSources")} @change=${(e: Event) => this.change(() => (this.source = (e.target as HTMLSelectElement).value))}>
@@ -243,7 +245,6 @@ export class ClipsView extends LitElement {
         <button data-action="refresh" @click=${() => { this.pending = null; void this.load(false); }}>${t("refresh")}</button>
       </div>
       <p class="dim" data-summary>${t("clipsSummary", { n: pg.total, size: this.size(pg.total_bytes) })}</p>
-      <p class="dim" data-disk>${t("clipsDisk", { size: this.size(pg.disk.bytes), free: pg.disk.free_bytes == null ? "?" : this.size(pg.disk.free_bytes) })}</p>
       ${this.result ? html`<p class="ok" role="status" data-result>${this.result}</p>` : nothing}
       ${pg.disk.clips > 0 || pg.total > 0 ? html`<div class="bulk">
         <label class="check"><input type="checkbox" name="selectPage" .checked=${allShown} @change=${(e: Event) => { this.picked = (e.target as HTMLInputElement).checked ? new Set(this.rows.map((r) => r.id)) : new Set(); }}> ${t("selectPage")}</label>

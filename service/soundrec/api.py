@@ -1,6 +1,5 @@
 """Local HTTP + WebSocket API (aiohttp). Every route except /health needs 'Authorization: Bearer <token>'."""
 import asyncio
-import hmac
 import json
 
 from aiohttp import web, WSMsgType
@@ -20,10 +19,9 @@ def _lang(req):
 async def auth(req, handler):
     if req.path == f"{VERSION_PREFIX}/health":
         return await handler(req)
-    token = req.app["engine"].cfg["api"]["token"]
     header = req.headers.get("Authorization", "")
     given = header[7:] if header.startswith("Bearer ") else ""      # never in the URL: addresses end up in logs
-    if not given or not hmac.compare_digest(given, token):
+    if not given or not req.app["engine"].token_ok(given):
         return web.json_response({"error": "unauthorized"}, status=401)
     return await handler(req)
 
@@ -56,6 +54,16 @@ async def update_start(req):
     if result == "busy":
         return web.json_response({"error": "an update is already requested or running", **req.app["updater"].status()}, status=409)
     return web.json_response(req.app["updater"].status(), status=202)
+
+
+async def rotate_token(req):
+    """Replaces the API token; the answer carries the new one, and the old one still works for a minute."""
+    return web.json_response({"token": req.app["engine"].rotate_token()})
+
+
+async def storage(req):
+    """What the clips take on disk and how fast, with the limits chosen by the administrator."""
+    return web.json_response(await asyncio.get_running_loop().run_in_executor(None, req.app["engine"].storage_info))
 
 
 async def languages(req):
@@ -346,7 +354,7 @@ def make_app(engine, updater=None):
     app["updater"] = updater or Updater.from_env()
     p = VERSION_PREFIX
     app.add_routes([
-        web.get(f"{p}/health", health), web.get(f"{p}/update", update_status), web.post(f"{p}/update", update_start), web.get(f"{p}/languages", languages), web.get(f"{p}/catalog", catalog),
+        web.get(f"{p}/health", health), web.get(f"{p}/update", update_status), web.post(f"{p}/update", update_start), web.get(f"{p}/languages", languages), web.post(f"{p}/token/rotate", rotate_token), web.get(f"{p}/storage", storage), web.get(f"{p}/catalog", catalog),
         web.get(f"{p}/config", get_config), web.put(f"{p}/config", put_config), web.post(f"{p}/config/validate", validate_config),
         web.get(f"{p}/warnings", warnings), web.get(f"{p}/sources", sources), web.get(f"{p}/resolved", resolved),
         web.get(f"{p}/events", events), web.get(f"{p}/recommendations", recommendations), web.put(f"{p}/sources/{{sid}}/external", set_external), web.put(f"{p}/sources/{{sid}}/place", set_place), web.get(f"{p}/stats", stats),

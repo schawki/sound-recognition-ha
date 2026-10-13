@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Any
 
 import voluptuous as vol
+from homeassistant.const import CONF_TOKEN
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -202,6 +203,27 @@ async def ws_clips_delete(hass, connection, msg, entry):
     connection.send_result(msg["id"], res)
 
 
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/storage", **ENTRY})
+@websocket_api.require_admin
+@websocket_api.async_response
+@_with_entry
+async def ws_storage(hass, connection, msg, entry):
+    """Size of the clips, free space and growth, with the two limits chosen by the administrator."""
+    connection.send_result(msg["id"], await entry.runtime_data.client.storage())
+
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/token_rotate", **ENTRY})
+@websocket_api.require_admin
+@websocket_api.async_response
+@_with_entry
+async def ws_token_rotate(hass, connection, msg, entry):
+    """Changes the token between Home Assistant and the service: the service makes a new one, it is stored here and the entry reloads. The token is never sent to the panel."""
+    token = await entry.runtime_data.client.rotate_token()
+    hass.config_entries.async_update_entry(entry, data={**entry.data, CONF_TOKEN: token})
+    hass.config_entries.async_schedule_reload(entry.entry_id)
+    connection.send_result(msg["id"], {"ok": True})
+
+
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/recommendations", **ENTRY, vol.Optional("language"): str})
 @websocket_api.require_admin
 @websocket_api.async_response
@@ -213,7 +235,11 @@ async def ws_recommendations(hass, connection, msg, entry):
     hs = await structure_link.status(hass)
     _, origin = await structure_link.effective_links(hass, cfg)
     _, to_add = await _esp_state(hass, entry)
-    mine = dev.recommendations(hass, cfg, lang, hs, origin == "home_structure", to_add)
+    try:
+        storage = await entry.runtime_data.client.storage()
+    except SoundRecError:
+        storage = None
+    mine = dev.recommendations(hass, cfg, lang, hs, origin == "home_structure", to_add, storage)
     if origin == "home_structure":
         cat = await entry.runtime_data.client.catalog(lang)
         rules = await hass.async_add_executor_job(home_rules.load_rules)
@@ -406,7 +432,7 @@ async def ws_go2rtc_streams(hass, connection, msg, entry):
     connection.send_result(msg["id"], {"configured": True, "url": base, "streams": streams})
 
 
-COMMANDS = (ws_esphome_devices, ws_esphome_ignore, ws_go2rtc_streams, ws_overview, ws_update, ws_update_install, ws_catalog, ws_warnings, ws_config, ws_config_validate, ws_config_save, ws_resolved, ws_events, ws_clips, ws_clips_delete, ws_events_delete_clipless, ws_recommendations, ws_areas, ws_openings, ws_devices, ws_place, ws_structure, ws_stats, ws_event_feedback, ws_subscribe)
+COMMANDS = (ws_storage, ws_token_rotate, ws_esphome_devices, ws_esphome_ignore, ws_go2rtc_streams, ws_overview, ws_update, ws_update_install, ws_catalog, ws_warnings, ws_config, ws_config_validate, ws_config_save, ws_resolved, ws_events, ws_clips, ws_clips_delete, ws_events_delete_clipless, ws_recommendations, ws_areas, ws_openings, ws_devices, ws_place, ws_structure, ws_stats, ws_event_feedback, ws_subscribe)
 
 
 def async_register(hass: HomeAssistant) -> None:

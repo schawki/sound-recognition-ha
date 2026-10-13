@@ -2,6 +2,14 @@
 
 Releases are tagged `vX.Y.Z`; the service updates itself from Home Assistant to the latest tag.
 
+## 0.14.0
+
+- **A Storage card in the Clips tab.** It shows where the clips are, what they take, the free space, how fast they grow, how long before the disk is full and how much your retention would take. An advice appears when less than 2 GB is left or the disk would be full within two weeks. New guide: [Storage of the clips](docs/storage.en.md), including how to keep the clips on another disk or a NAS.
+- **Two optional limits, off by default:** stop keeping clips when the free space is under a size you choose, and delete the oldest clips automatically to keep the clips under a size you choose (the ones you judged go last). The history says why a detection has no clip.
+- **A "Change the token" button** on the same card: the service makes a new token, Home Assistant stores it and reloads, nothing to copy. The old token works for one more minute.
+- The "Protect the service" section of the installation guide became "Keep the service private": no firewall settings are asked of you.
+- Service API level 9: update the service from Home Assistant after updating the integration (the panel says so until you do).
+
 ## 0.13.0
 
 - **Clips are for administrators.** A Home Assistant user who is not an administrator can no longer fetch a clip by its address, since clips can hold private speech. The links given by the panel and by the notifications (signed links) keep working.

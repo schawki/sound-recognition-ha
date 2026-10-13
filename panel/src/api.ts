@@ -1,4 +1,4 @@
-import type { UpdateInfo, Advice, HaArea, HaDevice, HaOpening, StructureInfo, Catalog, EsphomeState, Go2rtcStreams, Hass, HsPlace, LiveMessage, Overview, Recommendation, ServiceConfig, SoundEvent, ClipFilter, ClipsDeleted, ClipsPage, Stats, Validation } from "./types";
+import type { UpdateInfo, Advice, HaArea, HaDevice, HaOpening, StructureInfo, Catalog, EsphomeState, StorageInfo, Go2rtcStreams, Hass, HsPlace, LiveMessage, Overview, Recommendation, ServiceConfig, SoundEvent, ClipFilter, ClipsDeleted, ClipsPage, Stats, Validation } from "./types";
 
 export class PanelApi {
   constructor(private hass: Hass, public language: string) {}
@@ -21,6 +21,13 @@ export class PanelApi {
   }
   clips(filter: ClipFilter, limit = 100, offset = 0): Promise<ClipsPage> {
     return this.hass.callWS({ type: "sound_recognition/clips", language: this.language, ...filter, limit, offset });
+  }
+  storage(): Promise<StorageInfo> {
+    return this.hass.callWS({ type: "sound_recognition/storage" });
+  }
+  /** Changes the token between Home Assistant and the service; the new one is stored by the integration and never reaches the panel. */
+  rotateToken(): Promise<unknown> {
+    return this.hass.callWS({ type: "sound_recognition/token_rotate" });
   }
   /** Deletes clips by event ids or by filter (an empty filter = all of them); `dryRun` only counts, for the confirmation. */
   deleteClips(what: { ids: string[] } | { filter: ClipFilter }, dryRun = false): Promise<ClipsDeleted> {

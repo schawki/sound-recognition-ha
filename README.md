@@ -69,6 +69,7 @@ Version 0.12, used on a real installation and tested (service, integration and p
 - [Installing the service](docs/install-service.en.md) · [Proxmox details and updates](deploy/DEPLOY.md)
 - [ESP32 microphone (ESPHome)](docs/esphome-microphone.en.md)
 - [Why and how Home Structure is used](docs/home-structure.en.md)
+- [Storage of the clips and the token](docs/storage.en.md)
 - [The Advice tab](docs/advice.en.md)
 - [Per-source settings](docs/source-settings.en.md) · [Contexts, rooms and adaptive sensitivity](docs/context-and-adaptive.en.md)
 - [Service API and development](docs/api.md) · [Example configuration](examples/config.example.yaml)

@@ -61,15 +61,9 @@ journalctl -u soundrec -f                               # journaux (options A et
 2. *Paramètres → Appareils et services → Ajouter une intégration → Sound Recognition*. Saisissez l'adresse du service, le port 8765 et le jeton.
 3. Une entrée **Sound Recognition** apparaît dans la barre latérale (administrateurs uniquement).
 
-## Protéger le service (recommandé)
+## Garder le service privé
 
-Le service écoute sur le port 8765 en HTTP simple, et le jeton est son seul verrou. Rien d'autre que Home Assistant n'a besoin de l'atteindre : fermez-le au reste de votre réseau.
-
-1. **Seul Home Assistant peut joindre le port 8765.** Sur Proxmox : le conteneur → *Pare-feu* → *Ajouter* : direction `in`, action `ACCEPT`, protocole `tcp`, port de destination `8765`, source = l'adresse de votre machine Home Assistant ; puis *Pare-feu → Options* : activez le pare-feu et mettez la *politique d'entrée* sur `DROP`. Gardez une règle qui vous laisse joindre le conteneur pour l'administration (SSH, port 22) depuis votre ordinateur, sinon vous vous enfermerez dehors. Sans Proxmox, la même chose avec `ufw` : `ufw allow from <adresse de HA> to any port 8765 proto tcp`, `ufw allow from <votre ordinateur> to any port 22 proto tcp`, puis `ufw enable`.
-2. **Ne redirigez jamais le port 8765 sur votre box** et ne le publiez pas par un reverse proxy : passez par Home Assistant, qui relaie ce dont le panneau a besoin.
-3. **Gardez le jeton secret**, et changez-le (`token:` dans `/etc/soundrec/config.yaml`, puis redémarrez le service et saisissez le nouveau dans l'intégration) s'il a fuité. Le service ne l'accepte que dans l'en-tête `Authorization`, jamais dans une adresse.
-4. **Facultatif : limiter ce que le service peut joindre.** Il n'a besoin que de vos caméras ou de go2rtc, de vos micros ESP32 et de GitHub (pour les mises à jour). Une règle `out` sur le conteneur qui n'autorise que cela et bloque le reste l'empêche de servir à sonder le reste de votre réseau.
-5. **Protégez le compte GitHub du dépôt dont le service se met à jour** (double authentification) : une mise à jour installe la dernière version avec les droits d'administrateur sur le conteneur.
+Le service est fait pour votre réseau local uniquement. Ne redirigez pas le port 8765 sur votre box et ne le publiez pas sur internet : seul Home Assistant a besoin de le joindre, et il relaie ce que le panneau affiche. Si vous pensez que le jeton (le secret partagé entre Home Assistant et le service) a fuité, ouvrez le panneau, onglet *Clips*, carte *Stockage*, et appuyez sur **Changer le jeton** : un nouveau est créé et enregistré automatiquement, il n'y a rien à copier.
 
 ## Ajouter une source audio
 

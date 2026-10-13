@@ -28,6 +28,9 @@ export interface SoundEvent {
 export interface ClipRow { id: string; ts: number; source: string; mid: string; name: string; class?: string; score: number; clip: string; clip_url: string; clip_expires: string | null; size: number; threshold?: number; feedback?: string | null }
 export interface ClipFilter { source?: string; mid?: string; usage?: string; since?: number; until?: number; feedback?: "false" | "good" | "unjudged" }
 export interface ClipsPage { clips: ClipRow[]; total: number; total_bytes: number; sounds: { mid: string; name: string; count: number }[]; disk: { clips: number; bytes: number; free_bytes: number | null } }
+export interface StorageInfo {
+  path: string; clips: number; bytes: number; free_bytes: number | null; total_bytes: number | null; per_day_bytes: number | null; days_left: number | null;
+  max_gb: number | null; min_free_gb: number | null; paused: boolean; auto_deleted: number; skipped: number }
 export interface ClipsDeleted { count: number; bytes: number; dry_run: boolean }
 
 export interface Overview {

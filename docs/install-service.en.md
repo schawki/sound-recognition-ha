@@ -61,15 +61,9 @@ journalctl -u soundrec -f                            # logs (options A and B)
 2. *Settings → Devices & services → Add integration → Sound Recognition*. Enter the service address, port 8765 and the token.
 3. A **Sound Recognition** entry appears in the sidebar (administrators only).
 
-## Protect the service (recommended)
+## Keep the service private
 
-The service listens on port 8765 in plain HTTP, and the token is the only lock. It does not need to be reachable by anything but Home Assistant, so close it to the rest of your network:
-
-1. **Only Home Assistant may reach port 8765.** On Proxmox: the container → *Firewall* → *Add*: direction `in`, action `ACCEPT`, protocol `tcp`, destination port `8765`, source = the address of your Home Assistant machine; then *Firewall → Options*: enable the firewall and set *Input policy* to `DROP`. Keep a rule that lets you reach the container for administration (SSH, port 22) from your own computer, or you will lock yourself out. Without Proxmox, the same with `ufw`: `ufw allow from <HA address> to any port 8765 proto tcp`, `ufw allow from <your computer> to any port 22 proto tcp`, then `ufw enable`.
-2. **Never forward port 8765 on your router** or publish it with a reverse proxy: use Home Assistant, which relays what the panel needs.
-3. **Keep the token secret**, and change it (`token:` in `/etc/soundrec/config.yaml`, then restart the service and enter the new one in the integration) if it ever leaked. The service accepts it only in the `Authorization` header, never in an address.
-4. **Optional: limit what the service can reach.** It only needs your cameras or go2rtc, your ESP32 microphones and GitHub (for updates). A rule `out` on the container that allows only those, and drops the rest, stops it from being used to probe the rest of your network.
-5. **Protect the GitHub account of the repository the service updates from** (two-factor authentication): an update installs the latest release with administrator rights on the container.
+The service is meant for your local network only. Do not forward port 8765 on your router and do not publish it on the internet: Home Assistant is the only one that needs to reach it, and it relays what the panel shows. If you think the token (the secret shared by Home Assistant and the service) leaked, open the panel, *Clips* tab, *Storage* card, and press **Change the token**: a new one is made and stored automatically, there is nothing to copy.
 
 ## Adding an audio source
 

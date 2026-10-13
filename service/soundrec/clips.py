@@ -64,10 +64,17 @@ class ClipStore:
                     count += 1
                 total += os.path.getsize(os.path.join(dirpath, f))
         try:
-            free = shutil.disk_usage(self.root if os.path.isdir(self.root) else os.path.dirname(os.path.abspath(self.root))).free
+            disk = shutil.disk_usage(self.root if os.path.isdir(self.root) else os.path.dirname(os.path.abspath(self.root)))
+            free, size = disk.free, disk.total
         except OSError:
-            free = None
-        return {"clips": count, "bytes": total, "free_bytes": free}
+            free = size = None
+        return {"clips": count, "bytes": total, "free_bytes": free, "total_bytes": size, "path": os.path.abspath(self.root)}
+
+    def free_bytes(self):
+        try:
+            return shutil.disk_usage(self.root if os.path.isdir(self.root) else os.path.dirname(os.path.abspath(self.root))).free
+        except OSError:
+            return None
 
     def delete_all(self):
         """Removes every file in the clips folder; returns (clips removed, bytes freed)."""
