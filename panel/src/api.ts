@@ -1,4 +1,4 @@
-import type { UpdateInfo, Advice, HaArea, HaDevice, HaOpening, StructureInfo, Catalog, EsphomeState, ConnectionInfo, MoveInfo, StorageInfo, Go2rtcStreams, Hass, HsPlace, LiveMessage, Overview, Recommendation, ServiceConfig, SoundEvent, ClipFilter, ClipsDeleted, ClipsPage, Stats, Validation } from "./types";
+import type { UpdateInfo, Advice, HaArea, HaDevice, HaOpening, StructureInfo, Catalog, EsphomeState, ConnectionInfo, MoveInfo, StorageInfo, Go2rtcStreams, Hass, HsPlace, NoiseInfo, LiveMessage, Overview, Recommendation, ServiceConfig, SoundEvent, ClipFilter, ClipsDeleted, ClipsPage, Stats, Validation } from "./types";
 
 export class PanelApi {
   constructor(private hass: Hass, public language: string) {}
@@ -43,6 +43,14 @@ export class PanelApi {
   /** Asks the service to have the clips left in an old folder (kept after a move) deleted. */
   storageOldDelete(path: string): Promise<MoveInfo> {
     return this.hass.callWS({ type: "sound_recognition/storage_old_delete", path });
+  }
+  /** Noise measured on each source and the minimum volume suggested from it (service API level 13). */
+  noise(): Promise<NoiseInfo> {
+    return this.hass.callWS({ type: "sound_recognition/noise" });
+  }
+  /** Forgets the noise measurements of one source, or of all of them. */
+  noiseDelete(source?: string): Promise<{ deleted: number }> {
+    return this.hass.callWS({ type: "sound_recognition/noise_delete", ...(source ? { source } : {}) });
   }
   /** Changes the token between Home Assistant and the service; the new one is stored by the integration and never reaches the panel. */
   rotateToken(): Promise<unknown> {

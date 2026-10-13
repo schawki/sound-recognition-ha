@@ -8,6 +8,7 @@ import { groupAdvice, type NoticeItem } from "./advice-group";
 import type { Advice, EsphomeDevice, EsphomeState, HsPlace, SeparationType, StructureInfo, Catalog, Environment, Go2rtcStreams, HaArea, HaDevice, HaOpening, ServiceConfig, SourceCfg } from "./types";
 import "./schedule-grid";
 import "./condition-editor";
+import "./noise-assistant";
 import "./structure-plan";
 import { ESPHOME_YAML } from "./esphome-yaml";
 import { RETENTION_CATEGORIES, RET_KEYS, retBlock, retForm } from "./retention";
@@ -636,6 +637,7 @@ export class SourcesView extends LitElement {
         <div class="two">
           <label>${t("thresholdOffset")}<input name="offset" type="number" step="0.01" min="-1" max="1" .value=${f.offset} @input=${(e: Event) => this.set("offset", (e.target as HTMLInputElement).value)} /><small>${t("thresholdOffsetHelp")}</small></label>
           <label>${t("minVolume")}<input name="minVolume" type="number" step="1" min="-90" max="0" .value=${f.minVolume} @input=${(e: Event) => this.set("minVolume", (e.target as HTMLInputElement).value)} /><small>${t("minVolumeHelp")}</small></label>
+          <sr-noise-assistant style="grid-column: 1 / -1" .api=${this.api} .t=${t} .sourceId=${f.isNew ? "" : f.id} .value=${f.minVolume} @gate-chosen=${(e: CustomEvent<number>) => this.set("minVolume", String(e.detail))}></sr-noise-assistant>
         </div>
         <fieldset>
           <legend>${t("listenMode")}</legend>
@@ -666,6 +668,7 @@ export class SourcesView extends LitElement {
         <div class="two">
           <label>${t("thresholdOffset")}<input name="offset" type="number" step="0.01" min="-1" max="1" .value=${f.offset} @input=${(e: Event) => this.set("offset", (e.target as HTMLInputElement).value)} /><small>${t("thresholdOffsetHelp")}</small></label>
           <label>${t("minVolume")}<input name="minVolume" type="number" step="1" min="-90" max="0" .value=${f.minVolume} @input=${(e: Event) => this.set("minVolume", (e.target as HTMLInputElement).value)} /><small>${t("minVolumeHelp")}</small></label>
+          <sr-noise-assistant style="grid-column: 1 / -1" .api=${this.api} .t=${t} .sourceId=${f.isNew ? "" : f.id} .value=${f.minVolume} @gate-chosen=${(e: CustomEvent<number>) => this.set("minVolume", String(e.detail))}></sr-noise-assistant>
         </div>
         <fieldset>
           <legend>${t("listenMode")}</legend>

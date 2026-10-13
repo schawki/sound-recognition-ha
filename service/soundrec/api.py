@@ -195,6 +195,23 @@ async def set_external(req):
     return web.json_response({"ok": True})
 
 
+async def noise(req):
+    """Noise measured on each source and the minimum volume suggested from it."""
+    return web.json_response(req.app["engine"].noise())
+
+
+async def noise_delete(req):
+    """POST {source?}: forgets the noise measurements of a source, or of all of them."""
+    try:
+        body = await req.json() if req.can_read_body else {}
+        source = body.get("source")
+        if source is not None and (not isinstance(source, str) or source not in {s["id"] for s in req.app["engine"].cfg.get("sources", [])}):
+            raise ValueError
+    except Exception:
+        return web.json_response({"error": "body must be {source?: id of a source}"}, status=400)
+    return web.json_response({"deleted": req.app["engine"].delete_noise(source)})
+
+
 async def set_conditions(req):
     """The integration pushes the states of the entities the conditions read: {states: {entity_id: state}, ttl_s}."""
     try:
@@ -413,7 +430,7 @@ def make_app(engine, updater=None):
         web.get(f"{p}/health", health), web.get(f"{p}/update", update_status), web.post(f"{p}/update", update_start), web.get(f"{p}/languages", languages), web.post(f"{p}/token/rotate", rotate_token), web.get(f"{p}/storage", storage), web.post(f"{p}/storage/move", storage_move), web.post(f"{p}/storage/old/delete", storage_old_delete), web.get(f"{p}/catalog", catalog),
         web.get(f"{p}/config", get_config), web.get(f"{p}/config/effective", get_config_effective), web.put(f"{p}/config", put_config), web.post(f"{p}/config/validate", validate_config),
         web.get(f"{p}/warnings", warnings), web.get(f"{p}/sources", sources), web.get(f"{p}/resolved", resolved),
-        web.get(f"{p}/events", events), web.get(f"{p}/recommendations", recommendations), web.put(f"{p}/sources/{{sid}}/external", set_external), web.put(f"{p}/conditions", set_conditions), web.put(f"{p}/sources/{{sid}}/place", set_place), web.get(f"{p}/stats", stats),
+        web.get(f"{p}/events", events), web.get(f"{p}/recommendations", recommendations), web.put(f"{p}/sources/{{sid}}/external", set_external), web.put(f"{p}/conditions", set_conditions), web.get(f"{p}/noise", noise), web.post(f"{p}/noise/delete", noise_delete), web.put(f"{p}/sources/{{sid}}/place", set_place), web.get(f"{p}/stats", stats),
         web.post(f"{p}/events/{{id}}/feedback", feedback), web.get(f"{p}/clips", clips_list), web.post(f"{p}/clips/delete", clips_delete), web.post(f"{p}/events/delete_clipless", events_delete_clipless), web.get(f"{p}/clips/{{rel:.+}}", clip), web.get(f"{p}/ws", ws),
     ])
     return app

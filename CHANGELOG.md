@@ -2,6 +2,12 @@
 
 Releases are tagged `vX.Y.Z`; the service updates itself from Home Assistant to the latest tag.
 
+## 0.19.0
+
+- **Noise assistant.** Under *Minimum volume* in the form of a source, the service now measures the ambient level of the room (one number per minute, never audio) and, after 6 hours of calm, **suggests a minimum volume**: the level of the room at rest plus 6 dB, never above -50 dBFS so that a distant alarm is still heard. A chart shows the quiet level by hour of the day. *Use this value* only fills the field; **you can always type your own value**, which wins, and nothing is kept until you save the source. See [Noise assistant](docs/noise-assistant.en.md).
+- **Measures you control.** *Settings → Noise measurements* shows how many measures each source has, since when and how much room they take, with buttons to delete them (one source or all, with a confirmation) and the number of days to keep them (7 by default; 0 measures nothing).
+- Service API level 13: update the service from Home Assistant after updating the integration. With an older service the assistant simply does not appear.
+
 ## 0.18.0
 
 - **Conditions on Home Assistant states.** A source or a sound can be told to listen **only when a condition holds**, for example "only when nobody is home" or "only while the alarm is disarmed". The condition adds to the schedule: a sound is heard when the schedule allows it *and* the condition holds. It is set in the source form and in the settings of a sound (all sources, or one source), with the usual order: source × sound, sound, source, defaults. Rules: the state of any entity ("is" / "is not" a state), or the shortcuts *nobody is home* / *someone is home* (the `person` entities); "every rule" or "at least one rule". See [Conditions](docs/conditions.en.md).

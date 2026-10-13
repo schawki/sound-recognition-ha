@@ -2,6 +2,12 @@
 
 Les versions sont étiquetées `vX.Y.Z` ; le service se met à jour depuis Home Assistant vers la dernière étiquette.
 
+## 0.19.0
+
+- **Assistant de bruit.** Sous *Volume minimum* dans le formulaire d'une source, le service mesure désormais le niveau ambiant de la pièce (un chiffre par minute, jamais d'audio) et, après 6 heures de calme, **suggère un volume minimum** : le niveau de la pièce au repos plus 6 dB, jamais au-dessus de -50 dBFS pour qu'une alarme lointaine soit encore entendue. Un graphique montre le niveau calme selon l'heure de la journée. *Utiliser cette valeur* remplit seulement le champ ; **vous pouvez toujours taper votre propre valeur**, qui l'emporte, et rien n'est gardé tant que vous n'enregistrez pas la source. Voir [Assistant de bruit](docs/noise-assistant.fr.md).
+- **Des mesures que vous contrôlez.** *Réglages → Mesures de bruit* montre combien de mesures chaque source a, depuis quand et la place qu'elles prennent, avec des boutons pour les effacer (une source ou toutes, avec confirmation) et le nombre de jours de conservation (7 par défaut ; 0 ne mesure rien).
+- API du service niveau 13 : mettez le service à jour depuis Home Assistant après avoir mis à jour l'intégration. Avec un service plus ancien, l'assistant n'apparaît simplement pas.
+
 ## 0.18.0
 
 - **Conditions sur des états de Home Assistant.** On peut demander à une source ou à un son de **n'écouter que si une condition est vraie**, par exemple « seulement quand personne n'est à la maison » ou « seulement quand l'alarme est désarmée ». La condition s'ajoute à l'horaire : un son est entendu quand l'horaire l'autorise *et* que la condition est vraie. Elle se règle dans le formulaire de la source et dans les réglages d'un son (toutes les sources, ou une seule), avec l'ordre habituel : source × son, son, source, défauts. Règles : l'état d'une entité quelconque (« est » / « n'est pas » un état), ou les raccourcis *personne n'est à la maison* / *quelqu'un est à la maison* (les entités `person`) ; « toutes les règles » ou « au moins une règle ». Voir [Conditions](docs/conditions.fr.md).

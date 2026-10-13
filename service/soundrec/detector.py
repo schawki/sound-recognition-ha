@@ -37,6 +37,7 @@ class SourcePipeline:
         self._cool = {}      # mid -> abs sample index until which re-emission is blocked
         self._pending = []   # clips waiting for their post-roll
         self._next_end = WINDOW
+        self._minute_event = False   # a detection happened in the minute being measured
         self.reload(cfg)
 
     # ---------------------------------------------------------------- config
@@ -60,6 +61,15 @@ class SourcePipeline:
             for mid in list(table):
                 if mid not in self.resolved:
                     del table[mid]
+
+    def take_noise(self):
+        """Minutes completed since the last call, as (epoch minute, ambient level in dBFS, a detection happened in it)."""
+        out = []
+        for ts, level in self.ambient.closed:
+            out.append((int(ts // 60), round(level, 1), self._minute_event))
+            self._minute_event = False
+        self.ambient.closed = []
+        return out
 
     def set_external(self, offset, reasons, detail, ttl_s, now):
         """Threshold increase decided outside (devices playing sound, neighbouring rooms); it lapses after ttl_s seconds."""
@@ -165,6 +175,8 @@ class SourcePipeline:
                 else:
                     self._shadow.pop(m, None)
         st_["active_classes"] = self._active_now(end)
+        if any(e["type"] == "detection" for e in events):
+            self._minute_event = True
         return events
 
     # ---------------------------------------------------------------- run state machine

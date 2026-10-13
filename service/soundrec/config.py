@@ -19,7 +19,7 @@ DEFAULTS = {
     "timezone": None,
     "api": {"host": "0.0.0.0", "port": 8765, "token": None},
     "analysis": {"hop_s": 0.48, "context_boost": 0.15, "hold_s": 2.0, "safety_boost_cap": 0.05, "total_boost_cap": 0.30},
-    "storage": {"clips_dir": "/data/clips", "db_path": "/data/events.sqlite", "ring_seconds": 30, "events_retention_days": 30,
+    "storage": {"clips_dir": "/data/clips", "db_path": "/data/events.sqlite", "ring_seconds": 30, "events_retention_days": 30, "noise_retention_days": 7,
                 "clips_max_gb": None, "clips_min_free_gb": None},     # both off by default: the administrator decides
     "defaults": {"min_volume_dbfs": -60, "schedule": {"mode": "continuous"}, "clips": {"allowed": True, "max_retention_days": 30}},
     "classes": {},
@@ -249,6 +249,9 @@ def validate(cfg, catalog: Catalog):
         errs.append("analysis.safety_boost_cap must be between 0 and 1")
     if not _num(cfg["analysis"].get("total_boost_cap"), 0, 1):
         errs.append("analysis.total_boost_cap must be between 0 and 1")
+    nd = (cfg.get("storage") or {}).get("noise_retention_days", 7)
+    if not _num(nd, 0, 90):
+        errs.append("storage.noise_retention_days must be between 0 (measure nothing) and 90 days")
     for key in ("clips_max_gb", "clips_min_free_gb"):
         v = (cfg.get("storage") or {}).get(key)
         if v is not None and not _num(v, 0.01, 100000):

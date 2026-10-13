@@ -27,7 +27,7 @@ Du plus fort au plus faible : **source × classe** > **classe (utilisateur)** > 
 - Mesuré comme le niveau RMS de la fenêtre d'analyse (0,96 s) en dBFS, avant le classifieur. Plage de −90 à 0 ; `null` désactive le seuil.
 - Si la fenêtre est sous le seuil de **toutes** les classes activées sur la source, l'inférence est sautée (économie de CPU) et la source signale `below_gate`. Si au moins une classe activée a un seuil plus bas, l'inférence tourne et chaque classe est ensuite filtrée par son propre seuil.
 - Le niveau dépend du gain du micro : le réglage au niveau de la source est donc l'endroit naturel pour calibrer. Un seuil de classe se combine avec lui selon « le plus strict gagne », sauf si vous fixez une valeur explicite source × classe.
-- Aide prévue : mesurer le niveau ambiant d'une source pendant quelques heures et suggérer un seuil (par exemple le 90e centile des périodes calmes plus une marge).
+- L'[assistant de bruit](noise-assistant.fr.md) mesure le niveau ambiant d'une source pendant quelques heures et suggère un seuil (le niveau des périodes calmes plus une marge) ; c'est vous qui décidez de l'utiliser.
 
 ## 4. Plages horaires et surveillance continue
 

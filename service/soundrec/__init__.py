@@ -1,5 +1,5 @@
 """Sound recognition service: classifies audio streams with YAMNet and serves detections over a local API."""
-__version__ = "0.18.0"
+__version__ = "0.19.0"
 
 # Raised when the API gains something the Home Assistant integration depends on; the integration says the service is outdated below its own minimum.
 # 1: before the thresholds pushed by Home Assistant. 2: thresholds pushed by Home Assistant (devices, neighbouring rooms), updates from Home Assistant.
@@ -13,4 +13,5 @@ __version__ = "0.18.0"
 # 11: `POST /storage/move` (move the clips to another folder), `POST /storage/old/delete` (delete the clips left in the old folder), `GET /storage` carries `move` (state of the helper, old folders kept) and `moved_skipped`, clip reason `moving`.
 # 12: conditions on Home Assistant states (`condition` next to `schedule`, at the same levels), `PUT /conditions` (the states they read),
 #     `held_by_condition` and `condition_unknown` in the status of each source.
-API_LEVEL = 12
+# 13: noise measurements (`GET /noise`: one level per source and minute, the minimum volume they suggest; `POST /noise/delete`), `storage.noise_retention_days`.
+API_LEVEL = 13

@@ -116,6 +116,16 @@
    "client": "set_conditions",
    "since": 12,
    "tolerance": "on_demand"
+  },
+  "GET /noise": {
+   "client": "noise",
+   "since": 13,
+   "tolerance": "on_demand"
+  },
+  "POST /noise/delete": {
+   "client": "delete_noise",
+   "since": 13,
+   "tolerance": "on_demand"
   }
  }
 }

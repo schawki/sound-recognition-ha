@@ -141,3 +141,14 @@ export interface UpdateInfo {
   installed: string | null; latest: string | null; available: boolean; outdated: boolean; capable: boolean; installing: boolean;
   status: UpdateStatus | Record<string, never>; release_url: string; manual_command: string; api_level: number; min_api_level: number;
 }
+
+/** Noise measured on a source (one level per minute, never audio) and the minimum volume suggested from it. Absent from a service older than API level 13. */
+export interface NoiseSuggestion {
+  status: "ready" | "not_enough"; gate?: number; quiet_dbfs?: number; typical_dbfs?: number; loud_dbfs?: number; margin_db?: number; capped?: boolean;
+  minutes: number; needed?: number;
+}
+export interface NoiseSource {
+  id: string; name: string; minutes: number; calm_minutes: number; bytes: number; since: number | null; until: number | null;
+  level_dbfs: number | null; current_gate: number | null; hourly: (number | null)[]; suggestion: NoiseSuggestion;
+}
+export interface NoiseInfo { retention_days: number; recording: boolean; sources: NoiseSource[] }

@@ -612,3 +612,16 @@ async def test_panel_asks_the_service_to_delete_an_old_folder(hass, hass_ws_clie
     await ws.send_json({"id": 2, "type": "sound_recognition/storage_old_delete", "path": "/var/lib/soundrec/clips"})
     r = await ws.receive_json()
     assert r["success"] and fs.STATE.deleted_old == "/var/lib/soundrec/clips"
+
+
+async def test_panel_reads_the_noise_and_forgets_it(hass, hass_ws_client):
+    await setup_entry(hass)
+    ws = await hass_ws_client(hass)
+    await ws.send_json({"id": 1, "type": "sound_recognition/noise"})
+    r = await ws.receive_json()
+    assert r["success"] and r["result"]["sources"][0]["suggestion"]["gate"] == -54
+    await ws.send_json({"id": 2, "type": "sound_recognition/noise_delete", "source": "kitchen"})
+    r = await ws.receive_json()
+    assert r["success"] and r["result"] == {"deleted": 420} and fs.STATE.noise_deleted == ("kitchen", 420)
+    await ws.send_json({"id": 3, "type": "sound_recognition/noise_delete"})
+    assert (await ws.receive_json())["success"] and fs.STATE.noise_deleted == (None, 0)

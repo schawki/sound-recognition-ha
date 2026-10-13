@@ -73,6 +73,7 @@ Version 0.12, used on a real installation and tested (service, integration and p
 - [The Advice tab](docs/advice.en.md)
 - [Presets by kind of room and situation](docs/presets.en.md)
 - [Conditions on Home Assistant states](docs/conditions.en.md)
+- [Noise assistant (minimum volume)](docs/noise-assistant.en.md)
 - [Per-source settings](docs/source-settings.en.md) · [Contexts, rooms and adaptive sensitivity](docs/context-and-adaptive.en.md)
 - [Service API and development](docs/api.md) · [Example configuration](examples/config.example.yaml)
 - [Changelog](CHANGELOG.md) · [Releasing](RELEASING.md)
