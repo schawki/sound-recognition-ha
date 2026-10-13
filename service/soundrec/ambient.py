@@ -17,6 +17,7 @@ class AmbientTracker:
         self._minutes = collections.deque(maxlen=BASELINE_MINUTES)
         self._minute_start = None
         self.ambient = None
+        self.closed = []                                 # (start of the minute, ambient level) of the minutes just completed, for the noise measurements
 
     def add(self, ts, level):
         self._recent.append((ts, level))
@@ -27,6 +28,7 @@ class AmbientTracker:
             self._minute_start = ts
         elif ts - self._minute_start >= 60.0:
             self._minutes.append(self.ambient)
+            self.closed.append((self._minute_start, self.ambient))
             self._minute_start = ts
 
     @property

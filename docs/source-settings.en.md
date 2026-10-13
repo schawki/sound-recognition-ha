@@ -27,7 +27,7 @@ Strongest first: **source × class** > **class (user)** > **source** > **default
 - Measured as the RMS level of the analysis window (0.96 s) in dBFS, before the classifier runs. Range −90 to 0; `null` disables the gate.
 - If the window is below the gate of **every** class enabled on that source, inference is skipped (saves CPU) and the source reports `below_gate`. If at least one enabled class has a lower gate, inference still runs and each class is then filtered by its own gate.
 - The level depends on the microphone gain, so the source-level value is the natural place to calibrate. A class-level gate is therefore combined with it using "stricter wins", unless you set an explicit source × class value.
-- Planned helper: measure the ambient level of a source over a few hours and suggest a gate (for example the 90th percentile of the quiet periods plus a margin).
+- The [noise assistant](noise-assistant.en.md) measures the ambient level of a source over a few hours and suggests a gate (the level of the quiet periods plus a margin); you decide whether to use it.
 
 ## 4. Schedules and continuous monitoring
 

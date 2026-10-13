@@ -24,6 +24,7 @@ class EventStore:
             id TEXT PRIMARY KEY, ts REAL, source TEXT, mid TEXT, class TEXT, score REAL, base_threshold REAL, threshold REAL,
             reasons TEXT)""")
         self.db.execute("CREATE INDEX IF NOT EXISTS ix_masked_ts ON masked(ts)")
+        self.db.execute("""CREATE TABLE IF NOT EXISTS noise(source TEXT, minute INTEGER, level REAL, event INTEGER, PRIMARY KEY(source, minute))""")
         self.db.commit()
 
     def add(self, ev):
@@ -33,6 +34,35 @@ class EventStore:
                             "VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
                             (ev["id"], ts, ev["source"], ev["mid"], ev["class"], ev["score"], ev["threshold"], ev["duration_s"],
                              ev["level_dbfs"], ev["started_at"], ev["detected_at"], ev.get("clip_reason")))
+            self.db.commit()
+
+    # ---- noise measurements: one number per source and minute, never audio
+    def add_noise(self, source, rows):
+        """rows: [(epoch minute, level dBFS, event)]."""
+        if not rows:
+            return
+        with self.lock:
+            self.db.executemany("INSERT OR REPLACE INTO noise VALUES(?,?,?,?)", [(source, m, lv, int(bool(ev))) for m, lv, ev in rows])
+            self.db.commit()
+
+    def noise_rows(self, source, since_minute=0):
+        with self.lock:
+            return self.db.execute("SELECT minute, level, event FROM noise WHERE source=? AND minute>=? ORDER BY minute", (source, since_minute)).fetchall()
+
+    def noise_counts(self):
+        with self.lock:
+            return {r[0]: r[1] for r in self.db.execute("SELECT source, COUNT(*) FROM noise GROUP BY source")}
+
+    def delete_noise(self, source=None):
+        """Forgets the measurements of a source (all of them when source is None); returns how many were deleted."""
+        with self.lock:
+            cur = self.db.execute("DELETE FROM noise WHERE source=?", (source,)) if source else self.db.execute("DELETE FROM noise")
+            self.db.commit()
+            return cur.rowcount
+
+    def purge_noise(self, before_minute):
+        with self.lock:
+            self.db.execute("DELETE FROM noise WHERE minute < ?", (before_minute,))
             self.db.commit()
 
     def set_clip(self, event_id, rel, expires):

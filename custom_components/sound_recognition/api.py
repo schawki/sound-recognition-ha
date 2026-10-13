@@ -104,6 +104,14 @@ class SoundRecClient:
         """Asks the service to have the clips left in a folder kept after a move deleted (API level 11; 404 when the folder is not one of those)."""
         return await self._request("POST", "/storage/old/delete", json={"path": path})
 
+    async def noise(self) -> dict:
+        """The noise measured on each source and the minimum volume it suggests (API level 13)."""
+        return await self._request("GET", "/noise")
+
+    async def delete_noise(self, source: str | None = None) -> dict:
+        """Forgets the noise measurements of a source, or of all of them (API level 13)."""
+        return await self._request("POST", "/noise/delete", json={} if source is None else {"source": source})
+
     async def rotate_token(self) -> str:
         """Asks the service for a new token (the old one still works for a minute) and returns it."""
         return (await self._request("POST", "/token/rotate"))["token"]

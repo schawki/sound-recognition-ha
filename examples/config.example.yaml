@@ -6,7 +6,7 @@ language: en                      # fallback only; the HA user's language decide
 timezone: null                    # IANA name (e.g. Africa/Casablanca) used for schedules; null = system time zone
 api: {host: 0.0.0.0, port: 8765}  # a token is generated on first start and written here
 analysis: {hop_s: 0.48, context_boost: 0.15, hold_s: 2.0}   # window step; threshold raise when a context class is active; "active" hold time
-storage: {clips_dir: /data/clips, db_path: /data/events.sqlite, ring_seconds: 30, events_retention_days: 30}
+storage: {clips_dir: /data/clips, db_path: /data/events.sqlite, ring_seconds: 30, events_retention_days: 30, noise_retention_days: 7}   # noise_retention_days: days of noise measures kept for the noise assistant (0 = measure nothing)
 
 defaults:
   min_volume_dbfs: -60            # gate on the loudness of the 0.96 s window; null disables the gate

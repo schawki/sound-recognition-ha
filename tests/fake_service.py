@@ -7,7 +7,7 @@ from soundrec import API_LEVEL, advisor, catalog as cm, config as cfgmod, recomm
 from custom_components.sound_recognition.api import CannotConnect, InvalidAuth, InvalidConfig, SoundRecClient, SoundRecError
 
 CAT = st.Catalog(cm.load_raw())
-STATE = SimpleNamespace(update=None, health_extra={}, cfg=None, down=False, token="tok", handler=None, stop=None, status={}, events=[], feedback={}, pushed={}, clip_calls=[], places={}, storage=None, api_level=None, moved=None, deleted_old=None, conditions=None)
+STATE = SimpleNamespace(update=None, health_extra={}, cfg=None, down=False, token="tok", handler=None, stop=None, status={}, events=[], feedback={}, pushed={}, clip_calls=[], places={}, storage=None, api_level=None, moved=None, deleted_old=None, conditions=None, noise=None, noise_deleted=None)
 
 
 def reset(cfg=None):
@@ -15,6 +15,9 @@ def reset(cfg=None):
     STATE.cfg = cfgmod._merge(cfgmod.DEFAULTS, cfg or {})
     STATE.cfg["api"]["token"] = STATE.token
     STATE.down, STATE.handler, STATE.stop, STATE.status, STATE.events, STATE.feedback, STATE.pushed, STATE.clip_calls, STATE.places, STATE.conditions = False, None, asyncio.Event(), {}, [], {}, {}, [], {}, None
+    STATE.noise = {"retention_days": 7, "recording": True, "sources": [{"id": "kitchen", "name": "Kitchen", "minutes": 420, "calm_minutes": 400, "bytes": 16800, "since": 1_700_000_000, "until": 1_700_025_200, "level_dbfs": -52.0, "current_gate": -60, "hourly": [-60.0] * 24,
+                                                                  "suggestion": {"status": "ready", "gate": -54, "quiet_dbfs": -60.0, "typical_dbfs": -58.0, "loud_dbfs": -40.0, "margin_db": 6.0, "capped": False, "minutes": 400}}]}
+    STATE.noise_deleted = None
     STATE.update, STATE.health_extra, STATE.api_level = {"state": "idle", "capable": True}, {}, API_LEVEL
     STATE.storage = {"path": "/var/lib/soundrec/clips", "clips": 69, "bytes": 25_000_000, "free_bytes": 6_000_000_000, "total_bytes": 20_000_000_000, "per_day_bytes": 3_000_000, "days_left": 2000.0,
                      "max_gb": None, "min_free_gb": None, "paused": False, "auto_deleted": 0, "skipped": 0, "moved_skipped": 0,
@@ -115,6 +118,19 @@ class FakeClient:
         self._check()
         STATE.pushed[sid] = {"offset": offset, "reasons": reasons, "detail": detail, "ttl_s": ttl_s}
         return {"ok": True}
+
+    async def noise(self):
+        self._check()
+        return STATE.noise
+
+    async def delete_noise(self, source=None):
+        self._check()
+        n = sum(x["minutes"] for x in STATE.noise["sources"] if source in (None, x["id"]))
+        for x in STATE.noise["sources"]:
+            if source in (None, x["id"]):
+                x["minutes"] = 0
+        STATE.noise_deleted = (source, n)
+        return {"deleted": n}
 
     async def set_conditions(self, states, ttl_s=120):
         self._check()

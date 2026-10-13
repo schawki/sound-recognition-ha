@@ -6,7 +6,7 @@ import os
 import secrets
 import time
 
-from . import advisor, catalog as cm, conditions, config as cfgmod, recommend, settings as st
+from . import advisor, catalog as cm, conditions, config as cfgmod, noise as noisemod, recommend, settings as st
 from .audio import read_source
 from .classifier import YamnetClassifier
 from .clips import ClipStore
@@ -113,6 +113,9 @@ class Engine:
         def on_pcm(pcm, pipe=pipe, last=last):
             for ev in pipe.feed(pcm, _now()):
                 self._handle(pipe.sid, ev)
+            rows = pipe.take_noise()
+            if rows and self.cfg["storage"].get("noise_retention_days", 7) > 0:
+                self.store.add_noise(pipe.sid, rows)
             active = sorted(pipe.state["active_classes"])
             if active != last["active"]:  # push changes immediately so clients need not wait for the periodic status
                 last["active"] = active
@@ -270,6 +273,22 @@ class Engine:
         pipe.set_external(offset, reasons, detail, ttl_s, _now())
         return True
 
+    def noise(self):
+        """What was measured for each source and the minimum volume it suggests (never applied by the service)."""
+        days = self.cfg["storage"].get("noise_retention_days", 7)
+        tz = self.cfg.get("timezone")
+        out = []
+        for s in self.cfg.get("sources", []):
+            info = noisemod.summarize([tuple(r) for r in self.store.noise_rows(s["id"])], tz)
+            p = self.pipes.get(s["id"])
+            info.update({"id": s["id"], "name": s.get("name") or s["id"], "level_dbfs": None if p is None else p.state["level_dbfs"],
+                         "current_gate": s["min_volume_dbfs"] if "min_volume_dbfs" in s else (self.cfg.get("defaults") or {}).get("min_volume_dbfs")})
+            out.append(info)
+        return {"retention_days": days, "recording": days > 0, "sources": out}
+
+    def delete_noise(self, source=None):
+        return self.store.delete_noise(source)
+
     def set_conditions(self, states, ttl_s):
         """States of the entities the conditions read, pushed by the integration; forgotten after ttl_s seconds."""
         self.facts.set(states, ttl_s, _now().timestamp())
@@ -309,6 +328,7 @@ class Engine:
                 self._enforce_quota()
                 days = self.cfg["storage"]["events_retention_days"]
                 self.store.purge((now - dt.timedelta(days=days)).timestamp(), now.isoformat())
+                self.store.purge_noise(int((now - dt.timedelta(days=self.cfg["storage"].get("noise_retention_days", 7))).timestamp() // 60))
                 if removed:
                     log.info("purged %d expired clips", len(removed))
             except Exception:  # noqa: BLE001
