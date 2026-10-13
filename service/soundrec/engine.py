@@ -30,6 +30,7 @@ class Engine:
             cfgmod.save(config_path, self.cfg)
             log.warning("generated an API token and saved it in %s", config_path)
         self.catalog = st.Catalog(cm.load_raw(catalog_root))
+        self.eff = st.fold(self.cfg, self.catalog)      # the configuration in effect: the presets of each source folded in
         self.places = {}                      # source id -> (environment, expires at), pushed by the integration
         errs = cfgmod.validate(self.cfg, self.catalog)
         if errs:
@@ -76,11 +77,12 @@ class Engine:
             return errs
         cfgmod.save(self.config_path, new_cfg)
         self.cfg = new_cfg
+        self.eff = st.fold(new_cfg, self.catalog)
         self._sync_sources()
         return []
 
     def _sync_sources(self):
-        wanted = {s["id"]: s for s in self.cfg["sources"] if s.get("enabled", True)}
+        wanted = {s["id"]: s for s in self.eff["sources"] if s.get("enabled", True)}
         for sid in list(self.tasks):
             if sid not in wanted or self._conn_key(wanted[sid]) != self._conn_key(self._src_cfg[sid]):
                 self.tasks.pop(sid).cancel()
@@ -89,7 +91,7 @@ class Engine:
         for sid, s in wanted.items():
             if sid in self.pipes:
                 self.pipes[sid].source = s
-                self.pipes[sid].reload(self.cfg)
+                self.pipes[sid].reload(self.eff)
             else:
                 self._start_source(s)
 
@@ -98,7 +100,7 @@ class Engine:
         return (s["type"], s["url"], s.get("password"))
 
     def _start_source(self, s):
-        pipe = SourcePipeline(s, self.cfg, self.catalog, self.clf, tz=self.cfg.get("timezone"))
+        pipe = SourcePipeline(s, self.eff, self.catalog, self.clf, tz=self.cfg.get("timezone"))
         self.pipes[s["id"]] = pipe
         self._src_cfg[s["id"]] = s
 
@@ -248,7 +250,7 @@ class Engine:
         return out
 
     def warnings(self, lang="en", overrides=True):
-        return advisor.compute(self.cfg, lang, self.catalog_root, overrides)
+        return advisor.compute(self.eff, lang, self.catalog_root, overrides)
 
     def set_external(self, sid, offset, reasons, detail, ttl_s):
         """Offset pushed by the integration for one source. Returns False when the source is not running."""
@@ -278,7 +280,7 @@ class Engine:
 
     def recommendations(self, lang="en"):
         since = _now().timestamp() - recommend.FALSE_DAYS * 86400
-        return recommend.compute(self.cfg, lang, self.catalog_root, self.store.false_detections(since), self.active_places())
+        return recommend.compute(self.eff, lang, self.catalog_root, self.store.false_detections(since), self.active_places())
 
     def stats(self, hours=24):
         return self.store.stats(_now().timestamp(), hours)

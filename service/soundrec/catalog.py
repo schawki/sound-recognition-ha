@@ -23,6 +23,8 @@ def load_raw(root=None):
             raw = _y(os.path.join(root, "catalog.yaml"))
             env = os.path.join(root, "environments.yaml")
             raw["environments"] = _y(env)["environments"] if os.path.exists(env) else []
+            pre = os.path.join(root, "presets.yaml")
+            raw["presets"] = _y(pre)["presets"] if os.path.exists(pre) else []
             _cache[("raw", root)] = raw
         return _cache[("raw", root)]
 
@@ -78,6 +80,8 @@ def load_lang(lang, root=None):
     out["classes"] = classes
     out["environments"] = [{"id": e["id"], "contexts": e["contexts"], "adaptive": e["adaptive"],
                             **{k: (e.get(lang) or e["en"])[k] for k in ("name", "why", "tips")}} for e in cat["environments"]]
+    out["presets"] = [{"id": q["id"], "kind": q["kind"], "place": q.get("place"), "sounds": q.get("sounds") or {}, "source": q.get("source") or {},
+                       **{k: (q.get(lang) or q["en"])[k] for k in ("name", "why")}} for q in cat.get("presets", [])]
     with _lock:
         _cache[key] = out
     return out

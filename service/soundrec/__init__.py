@@ -1,5 +1,5 @@
 """Sound recognition service: classifies audio streams with YAMNet and serves detections over a local API."""
-__version__ = "0.15.1"
+__version__ = "0.16.0"
 
 # Raised when the API gains something the Home Assistant integration depends on; the integration says the service is outdated below its own minimum.
 # 1: before the thresholds pushed by Home Assistant. 2: thresholds pushed by Home Assistant (devices, neighbouring rooms), updates from Home Assistant.
@@ -9,4 +9,5 @@ __version__ = "0.15.1"
 # 7: sources of type `esphome` (ESP32 microphones) with a `password`, never returned by the API (shown as "***").
 # 8: retention of clips by category (`clips.retention_by_category`), verdict `good` on detections, `POST /events/delete_clipless`, `feedback` clip filter.
 # 9: `GET /storage` (size, growth, limits of the clips), `POST /token/rotate`, `storage.clips_max_gb` / `clips_min_free_gb`, clip reasons `quota` and `disk_low`.
-API_LEVEL = 9
+# 10: presets (`catalog.presets`, `presets` in the configuration and on each source), `GET /config/effective` (the configuration with the presets folded in), provenance `preset`.
+API_LEVEL = 10

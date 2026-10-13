@@ -48,19 +48,19 @@ export interface CatalogClass {
 export interface Environment { id: string; contexts: string[]; adaptive: boolean; name: string; why: string; tips: string[] }
 export interface Catalog {
   classes: CatalogClass[]; categories: Record<string, string>; usages: Record<string, string>; setting_help: Record<string, string>;
-  environments: Environment[];
+  environments: Environment[]; presets?: PresetDef[];
 }
 
 /** What a recommendation changes once the administrator applies it (merged into the stored configuration). */
 export interface Patch {
-  source: string; source_patch?: Record<string, unknown>; class_patch?: Record<string, ClassBlock>;
+  source: string; source_patch?: Record<string, unknown>; class_patch?: Record<string, ClassBlock>; add_presets?: string[];
   /** Set when the patch answers an advice: what is kept on the source so the advice can be undone (see AppliedAdvice). */
   rule?: string; message?: string; level?: "info" | "warning" | "danger"; classes?: string[];
 }
 /** A trace kept on the source of an advice applied with its button: what changed, and when. Undoing removes those settings. */
 export interface AppliedAdvice {
   rule: string; classes: string[]; at: string; level: "info" | "warning" | "danger"; message: string;
-  patch: { source_patch?: Record<string, unknown>; class_patch?: Record<string, ClassBlock> };
+  patch: { source_patch?: Record<string, unknown>; class_patch?: Record<string, ClassBlock>; add_presets?: string[] };
 }
 export interface Recommendation { rule: string; level: "info" | "warning" | "danger"; source: string; classes: string[]; message: string; apply: Patch | null; applied?: boolean }
 export interface StatBlock { total: number; by_source: Record<string, number>; by_class: { source: string; mid: string; class: string; count: number }[]; hourly: number[] }
@@ -87,7 +87,13 @@ export type LiveMessage =
 
 export interface ScheduleWindow { days?: string[]; from: string; to: string }
 export interface Schedule { mode: "continuous" | "scheduled"; windows?: ScheduleWindow[] }
+/** A preset: ready-made settings for a source. The catalog's ones come with a `kind` ("place" has a `place`, the kind of room it fits) and texts in the user's language; the user's own are stored in the configuration. */
+export interface PresetDef {
+  id: string; name: string; why?: string; kind?: "place" | "situation"; place?: string | null;
+  sounds: Record<string, ClassBlock>; source: { min_volume_dbfs?: number; clips_allowed?: boolean; adaptive?: boolean };
+}
 export interface SourceCfg {
+  presets?: string[];
   id: string; name?: string; type: string; url: string; enabled?: boolean; threshold_offset?: number;
   min_volume_dbfs?: number | null; schedule?: Schedule; clips?: ClipsCfg;
   environment?: string; adaptive?: { enabled?: boolean; max_offset?: number };
@@ -111,7 +117,7 @@ export interface HaOpening { entity_id: string; name: string; area_id: string | 
 export interface HaDevice { entity_id: string; name: string; domain: string; state: string; available: boolean; has_volume: boolean; duplicate_of: string | null; area_id: string; area: string; weight: number }
 export interface HsPlace { described: boolean; environment: string | null; room_type: string; room: string | null }
 export interface ServiceConfig {
-  advice?: Record<string, AdviceSetting>; sources?: SourceCfg[]; classes?: ClassBlocks; defaults?: { min_volume_dbfs?: number | null; schedule?: Schedule; clips?: ClipsCfg }; [extra: string]: unknown }
+  advice?: Record<string, AdviceSetting>; presets?: PresetDef[]; sources?: SourceCfg[]; classes?: ClassBlocks; defaults?: { min_volume_dbfs?: number | null; schedule?: Schedule; clips?: ClipsCfg }; [extra: string]: unknown }
 export interface Validation { errors: string[]; warnings: Advice[] }
 
 export interface EsphomeDevice { id?: string; device_id: string; name: string; host: string; port: number; url: string; area_id: string; added?: boolean; ignored?: boolean }

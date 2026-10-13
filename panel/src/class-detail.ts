@@ -3,7 +3,7 @@ import { property, state } from "lit/decorators.js";
 import type { PanelApi } from "./api";
 import { clone, getBlock, putBlock } from "./classes";
 import type { Key, T } from "./i18n";
-import { resolveClass, type ByKey } from "./resolve";
+import { presetCtxFor, resolveClass, type ByKey } from "./resolve";
 import { cellsToWindows, hoursPerWeek, windowsToCells } from "./schedule";
 import type { Advice, Catalog, CatalogClass, ClassBlock, Resolved, ServiceConfig, SourceCfg } from "./types";
 import "./schedule-grid";
@@ -91,7 +91,7 @@ export class ClassDetail extends LitElement {
   }
 
   private resolveFor(cfg: ServiceConfig, src: SourceCfg): Resolved {
-    return resolveClass(cfg, (cfg.sources ?? []).find((s) => s.id === src.id) ?? src, this.cls, this.byKey);
+    return resolveClass(cfg, (cfg.sources ?? []).find((s) => s.id === src.id) ?? src, this.cls, this.byKey, presetCtxFor(this.catalog, cfg));
   }
 
   /** Value that would apply if this field were left empty (shown as placeholder). */

@@ -2,6 +2,7 @@
 """Reference implementation of the layered settings resolution (spec: docs/source-settings.en.md).
 Layers, strongest first:  source x class  >  class (user)  >  source (+offset / gate / schedule / clips)  >  global defaults  >  catalog suggestion
 Each resolved field also reports its provenance, so the UI can show "why" a value applies."""
+import copy
 import datetime as dt
 
 DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
@@ -84,6 +85,90 @@ def is_active(schedule, now):
     return False
 
 
+# ---------------------------------------------------------------------------------------------------------------- presets
+PRESET_SOUND_FIELDS = ('enabled', 'threshold', 'min_duration_s', 'cooldown_s', 'pre_roll_s', 'post_roll_s', 'clip_retention_days')
+PRESET_SOURCE_FIELDS = ('min_volume_dbfs', 'clips_allowed', 'adaptive')
+PRESET_MAX_VOLUME = -50       # a preset never sets a gate above this, so that safety sounds are still heard
+
+
+def preset_index(cfg, catalog):
+    """Presets by id: the ones of the catalog, then the ones of the user (their ids cannot collide, the configuration is validated)."""
+    out = {p['id']: p for p in catalog.raw.get('presets', [])}
+    for p in cfg.get('presets') or []:
+        out.setdefault(p['id'], p)
+    return out
+
+
+def _eases(field, value, base_block, c):
+    """For a safety sound a preset may only make detection easier (or equal): never a higher threshold, a longer minimum duration or a longer
+    cooldown, never switching it off."""
+    if field == 'enabled':
+        return value is True
+    base = base_block.get(field, c['suggestions'].get(field))
+    if field in ('threshold', 'min_duration_s', 'cooldown_s'):
+        return base is None or value <= base
+    return True
+
+
+def fold_source(cfg, catalog, src, index=None):
+    """The source as it is in effect: the presets listed on it (in order, the last one wins) fill in what the source does not set itself.
+    A copy is returned, with `_origin` saying which preset gave which value; the stored configuration is never changed."""
+    index = index if index is not None else preset_index(cfg, catalog)
+    ids = [i for i in src.get('presets') or [] if i in index]
+    if not ids:
+        return src
+    gcls = _index(cfg.get('classes'), catalog)
+    explicit = _index(src.get('classes'), catalog)
+    from_presets, sounds_origin, fields_origin = {}, {}, {}
+    for pid in ids:
+        p = index[pid]
+        for key, blk in (p.get('sounds') or {}).items():
+            try:
+                c = catalog.get(key)
+            except KeyError:
+                continue
+            for f, v in (blk or {}).items():
+                if f not in PRESET_SOUND_FIELDS or (is_safety(c) and not _eases(f, v, gcls.get(c['mid'], {}), c)):
+                    continue
+                from_presets.setdefault(c['mid'], {})[f] = v
+                sounds_origin.setdefault(c['mid'], {})[f] = pid
+        for f, v in (p.get('source') or {}).items():
+            if f in PRESET_SOURCE_FIELDS:
+                fields_origin[f] = (v, pid)
+    e = copy.deepcopy(src)
+    classes = {k: v for k, v in (src.get('classes') or {}).items() if catalog.get(k)['mid'] not in from_presets}
+    for mid, blk in from_presets.items():
+        merged = dict(blk)
+        merged.update(explicit.get(mid, {}))                       # what the source sets itself wins
+        classes[mid] = merged
+        for f in explicit.get(mid, {}):
+            sounds_origin[mid].pop(f, None)
+    if classes:
+        e['classes'] = classes
+    origin = {'sounds': {m: o for m, o in sounds_origin.items() if o}, 'fields': {}, 'ids': ids}
+    if 'min_volume_dbfs' in fields_origin and 'min_volume_dbfs' not in src:
+        e['min_volume_dbfs'] = min(fields_origin['min_volume_dbfs'][0], PRESET_MAX_VOLUME)
+        origin['fields']['min_volume_dbfs'] = fields_origin['min_volume_dbfs'][1]
+    if 'clips_allowed' in fields_origin and 'allowed' not in (src.get('clips') or {}):
+        e['clips'] = {**(src.get('clips') or {}), 'allowed': fields_origin['clips_allowed'][0]}
+        origin['fields']['clips_allowed'] = fields_origin['clips_allowed'][1]
+    if 'adaptive' in fields_origin and 'enabled' not in (src.get('adaptive') or {}):
+        e['adaptive'] = {**(src.get('adaptive') or {}), 'enabled': bool(fields_origin['adaptive'][0])}
+        origin['fields']['adaptive'] = fields_origin['adaptive'][1]
+    e['_origin'] = origin
+    return e
+
+
+def fold(cfg, catalog):
+    """The configuration as it is in effect, presets included (what the detection and the integration use)."""
+    if not any(s.get('presets') for s in cfg.get('sources') or []):
+        return cfg
+    index = preset_index(cfg, catalog)
+    out = dict(cfg)
+    out['sources'] = [fold_source(cfg, catalog, s, index) for s in cfg.get('sources') or []]
+    return out
+
+
 def resolve(cfg, catalog, source_id, cls_key):
     c = catalog.get(cls_key)
     mid = c['mid']
@@ -153,6 +238,13 @@ def resolve(cfg, catalog, source_id, cls_key):
     if not clips.get('allowed', (dflt.get('clips') or {}).get('allowed', True)):
         r, w = 0, 'source_clips_disallowed'
     out['clip_retention_days'], why['clip_retention_days'] = r, w
+    origin = src.get('_origin')
+    if origin:                                                   # a value that came from a preset says so
+        for f, pid in (origin['sounds'].get(mid) or {}).items():
+            if f in why and why[f] == 'source_class':
+                why[f] = 'preset'
+        if 'min_volume_dbfs' in origin['fields'] and why.get('min_volume_dbfs') == 'source':
+            why['min_volume_dbfs'] = 'preset'
     out['provenance'] = why
     return out
 

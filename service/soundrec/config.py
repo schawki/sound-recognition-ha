@@ -8,7 +8,7 @@ import zoneinfo
 import yaml
 
 from . import espstream
-from .settings import DAYS, Catalog
+from .settings import DAYS, PRESET_MAX_VOLUME, PRESET_SOUND_FIELDS, PRESET_SOURCE_FIELDS, Catalog
 
 SOURCE_TYPES = ("rtsp", "go2rtc", "alsa_rpi", "esphome", "file")
 SLUG = re.compile(r"^[a-z0-9][a-z0-9_-]{0,62}$")
@@ -24,6 +24,7 @@ DEFAULTS = {
     "defaults": {"min_volume_dbfs": -60, "schedule": {"mode": "continuous"}, "clips": {"allowed": True, "max_retention_days": 30}},
     "classes": {},
     "advice": {},
+    "presets": [],
     "sources": [],
 }
 
@@ -189,6 +190,46 @@ def _check_clips(clips, where, errs):
             errs.append(f"{where}: unknown field '{k}'")
 
 
+def _check_preset(p, where, builtin_ids, catalog, errs):
+    """A preset of the user: {id, name, why?, sounds: {class: block}, source: {min_volume_dbfs, clips_allowed, adaptive}}."""
+    if not isinstance(p, dict):
+        errs.append(f"{where}: must be a mapping")
+        return
+    if set(p) - {"id", "name", "why", "sounds", "source"}:
+        errs.append(f"{where}: only 'id', 'name', 'why', 'sounds' and 'source' are allowed")
+    if not SLUG.match(str(p.get("id", ""))):
+        errs.append(f"{where}: id must be lowercase letters, digits, '_' or '-'")
+    elif p["id"] in builtin_ids:
+        errs.append(f"{where}: id '{p['id']}' is already used by a preset of the catalog")
+    if not isinstance(p.get("name"), str) or not p["name"].strip():
+        errs.append(f"{where}: a name is required")
+    if "why" in p and not isinstance(p["why"], str):
+        errs.append(f"{where}.why must be text")
+    sounds = p.get("sounds") or {}
+    if not isinstance(sounds, dict):
+        errs.append(f"{where}.sounds must be a mapping")
+        sounds = {}
+    for k, blk in sounds.items():
+        try:
+            catalog.get(k)
+        except KeyError:
+            errs.append(f"{where}.sounds: unknown class '{k}'")
+            continue
+        if isinstance(blk, dict) and set(blk) - set(PRESET_SOUND_FIELDS):
+            errs.append(f"{where}.sounds.{k}: only {', '.join(PRESET_SOUND_FIELDS)} are allowed in a preset")
+        else:
+            _check_class_block(blk, f"{where}.sounds.{k}", errs)
+    src = p.get("source") or {}
+    if not isinstance(src, dict) or set(src) - set(PRESET_SOURCE_FIELDS):
+        errs.append(f"{where}.source: only {', '.join(PRESET_SOURCE_FIELDS)} are allowed")
+        return
+    if "min_volume_dbfs" in src and not _num(src["min_volume_dbfs"], -90, PRESET_MAX_VOLUME):
+        errs.append(f"{where}.source.min_volume_dbfs must be between -90 and {PRESET_MAX_VOLUME} (so that safety sounds are still heard)")
+    for k in ("clips_allowed", "adaptive"):
+        if k in src and not isinstance(src[k], bool):
+            errs.append(f"{where}.source.{k} must be true or false")
+
+
 def validate(cfg, catalog: Catalog):
     """Returns a list of human-readable errors (empty = valid)."""
     errs = []
@@ -224,6 +265,16 @@ def validate(cfg, catalog: Catalog):
         _check_class_block(blk, f"classes.{k}", errs)
     rule_ids = advice_rule_ids(catalog)
     _check_advice(cfg.get("advice") or {}, "advice", rule_ids, errs)
+    builtin_ids = {q["id"] for q in catalog.raw.get("presets", [])}
+    preset_ids = set(builtin_ids)
+    if not isinstance(cfg.get("presets") or [], list):
+        errs.append("presets: must be a list")
+    for i, p in enumerate(cfg.get("presets") or [] if isinstance(cfg.get("presets") or [], list) else []):
+        _check_preset(p, f"presets[{i}]", builtin_ids, catalog, errs)
+        if isinstance(p, dict) and p.get("id") in preset_ids and p["id"] not in builtin_ids:
+            errs.append(f"presets[{i}]: duplicate id '{p['id']}'")
+        if isinstance(p, dict):
+            preset_ids.add(p.get("id"))
     ids = set()
     for i, s in enumerate(cfg.get("sources") or []):
         sid = s.get("id", "")
@@ -260,6 +311,12 @@ def validate(cfg, catalog: Catalog):
                     or ("max_offset" in ad and not _num(ad["max_offset"], 0, 0.4)):
                 errs.append(f"{w}.adaptive: only 'enabled' (true/false) and 'max_offset' (0 to 0.4) are allowed")
         _check_devices(s, w, errs)
+        if "presets" in s and (not isinstance(s["presets"], list) or not all(isinstance(x, str) for x in s["presets"])):
+            errs.append(f"{w}.presets must be a list of preset ids")
+        else:
+            for pid in s.get("presets") or []:
+                if pid not in preset_ids:
+                    errs.append(f"{w}.presets: unknown preset '{pid}'")
         if "applied_advice" in s:
             _check_applied_advice(s["applied_advice"], f"{w}.applied_advice", errs)
         if "advice" in s:

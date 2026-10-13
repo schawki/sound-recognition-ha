@@ -2,6 +2,14 @@
 
 Les versions sont étiquetées `vX.Y.Z` ; le service se met à jour depuis Home Assistant vers la dernière étiquette.
 
+## 0.16.0
+
+- **Préréglages.** Des réglages prêts à l'emploi par type de pièce (salon, cuisine, chambre, chambre de bébé, bureau, salle de bains, buanderie, salle de sport, rangement, entrée, extérieur, garage) et par situation (TV à proximité, bruit extérieur, bébé, animaux, maison vide). Choisissez-en plusieurs pour une source : ils s'additionnent, celui qui est plus bas dans la liste l'emporte sur une valeur commune, et ce que vous réglez vous-même l'emporte toujours. Créez les vôtres dans *Réglages → Préréglages*, avec n'importe quel son détectable, ou dupliquez-en un. Voir [Préréglages](docs/presets.fr.md).
+- Les sons de sécurité (incendie, effraction, bébé) ne sont jamais rendus plus difficiles à détecter par un préréglage, et un préréglage ne peut pas fixer un son le plus faible au-dessus de -50 dBFS.
+- L'onglet *Conseils* propose le préréglage qui convient à la pièce d'une source, avec un bouton et Annuler. L'onglet *Sons* indique quand une valeur vient d'un préréglage, et les *Réglages* listent les préréglages de chaque source.
+- Home Assistant crée les entités des sons qu'un préréglage active.
+- API du service niveau 10 : mettez le service à jour depuis Home Assistant après avoir mis à jour l'intégration (le panneau le signale tant que ce n'est pas fait).
+
 ## 0.15.1
 
 - **Plus de choses dans l'onglet *Réglages*.** La conservation des clips par type de son quitte l'onglet *Clips* pour y venir ; la **sensibilité aux contextes** (de combien une TV, une radio ou de la musique relèvent les seuils des sons semblables), qui n'était plus modifiable depuis la 0.15.0, revient parmi les valeurs par défaut ; l'**adresse de go2rtc** peut y être essayée et enregistrée (elle reste proposée quand vous ajoutez une source).

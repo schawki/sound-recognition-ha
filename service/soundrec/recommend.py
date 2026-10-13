@@ -11,12 +11,14 @@ FALSE_DAYS = 14
 TEXTS = {
     "en": {
         "set_environment": "Tell the panel what kind of place « {source} » is in to get recommendations for it.",
+        "suggest_preset": "« {source} » ({environment}): apply the preset « {preset} ». It enables the sounds that fit this kind of room and sets matching values; you can still change anything.",
         "enable_contexts": "« {source} » ({environment}): enable {classes}. While they are heard, the thresholds of look-alike sounds are raised.",
         "enable_adaptive": "« {source} » ({environment}): enable the adaptive setting, so a noisy moment raises the thresholds for a while.",
         "raise_threshold": "« {source} »: {count} detections of « {class} » were marked false (highest score {peak}). Raise its threshold to {proposal}.",
     },
     "fr": {
         "set_environment": "Indiquez le type de pièce de « {source} » pour obtenir des recommandations adaptées.",
+        "suggest_preset": "« {source} » ({environment}) : appliquez le préréglage « {preset} ». Il active les sons qui conviennent à ce type de pièce et règle des valeurs adaptées ; vous pouvez tout modifier ensuite.",
         "enable_contexts": "« {source} » ({environment}) : activez {classes}. Tant qu'ils sont entendus, les seuils des sons qui leur ressemblent sont relevés.",
         "enable_adaptive": "« {source} » ({environment}) : activez le réglage adaptatif, pour qu'un moment bruyant relève les seuils pendant un temps.",
         "raise_threshold": "« {source} » : {count} détections de « {class} » ont été marquées fausses (score max {peak}). Relevez son seuil à {proposal}.",
@@ -30,6 +32,7 @@ def compute(cfg, lang="en", root=None, false_rows=(), places=None):
     txt = {**TEXTS["en"], **TEXTS.get(lang, {})}
     names = {c["mid"]: c["name"] for c in merged["classes"]}
     envs = {e["id"]: e for e in merged["environments"]}
+    place_presets = {q["place"]: q for q in merged.get("presets", []) if q.get("place")}
     out = []
     for src in cfg.get("sources", []):
         if not src.get("enabled", True):
@@ -43,6 +46,10 @@ def compute(cfg, lang="en", root=None, false_rows=(), places=None):
         if env is None:
             add("set_environment", "info", [], txt["set_environment"].format(source=sname))
         else:
+            preset = place_presets.get(env["id"])
+            if preset:
+                add("suggest_preset", "info", [], txt["suggest_preset"].format(source=sname, environment=env["name"], preset=preset["name"]),
+                    {"source": sid, "add_presets": [preset["id"]]}, applied=preset["id"] in (src.get("presets") or []))
             missing = [m for m in env["contexts"] if not st.resolve(cfg, catalog, sid, m)["enabled"]]
             if env["contexts"]:
                 add("enable_contexts", "warning", env["contexts"] if not missing else missing,

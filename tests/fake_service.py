@@ -33,7 +33,7 @@ class FakeClient:
     async def health(self):
         if STATE.down:
             raise CannotConnect("down")
-        return {"status": "ok", "version": "0.2.0", "api_level": 9, "commit": "abc1234", "release": "v0.2.0", "update": {"capable": STATE.update["capable"]}, **STATE.health_extra}
+        return {"status": "ok", "version": "0.2.0", "api_level": 10, "commit": "abc1234", "release": "v0.2.0", "update": {"capable": STATE.update["capable"]}, **STATE.health_extra}
 
     async def update_status(self):
         self._check()
@@ -70,6 +70,12 @@ class FakeClient:
     async def get_config(self):
         self._check()
         c = copy.deepcopy(STATE.cfg)
+        c["api"]["token"] = "***"
+        return c
+
+    async def get_config_effective(self):
+        self._check()
+        c = st.fold(copy.deepcopy(STATE.cfg), CAT)
         c["api"]["token"] = "***"
         return c
 

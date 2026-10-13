@@ -3,7 +3,7 @@ import { property, state } from "lit/decorators.js";
 import type { PanelApi } from "./api";
 import { clone, getBlock, setEnabled } from "./classes";
 import type { Key, T } from "./i18n";
-import { buildByKey, indexBlocks, resolveClass, type ByKey } from "./resolve";
+import { buildByKey, indexBlocks, presetCtxFor, resolveClass, type ByKey } from "./resolve";
 import type { Advice, Catalog, CatalogClass, ServiceConfig, SourceCfg } from "./types";
 import "./class-detail";
 
@@ -64,7 +64,7 @@ export class SoundsView extends LitElement {
 
   /** Effective state of a class on a source (the source's own enabled flag is ignored: it is shown separately). */
   private sourceOn(c: CatalogClass, s: SourceCfg): boolean {
-    return resolveClass(this.draft!, { ...s, enabled: true }, c, this.byKey).enabled;
+    return resolveClass(this.draft!, { ...s, enabled: true }, c, this.byKey, this.catalog ? presetCtxFor(this.catalog, this.draft!) : undefined).enabled;
   }
 
   private isOn(c: CatalogClass): boolean {

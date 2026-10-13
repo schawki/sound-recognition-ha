@@ -1,0 +1,209 @@
+# Presets: ready-made settings for a source, chosen by the kind of room (`place`) or by a situation. A source may have several; they add up
+# (their sounds are all enabled) and, when two of them set the same value, the one listed last on the source wins. What a source sets itself
+# always beats a preset. Language neutral data plus the texts, like environments.yaml.
+#
+# sounds:  settings of single sounds on the source, by AudioSet name (or mid): enabled, threshold, min_duration_s, cooldown_s, ...
+#          For a safety sound (fire, security, baby alerts) a preset can only make detection easier: a higher threshold, a longer minimum
+#          duration or a longer cooldown is ignored, and so is `enabled: false`.
+# source:  min_volume_dbfs (never above -50, so that safety sounds are still heard), clips_allowed (true/false), adaptive (true/false).
+presets:
+  # ---------------------------------------------------------------- one per kind of room
+  - id: room_living_tv
+    kind: place
+    place: living_tv
+    sounds:
+      Television: {enabled: true}
+      Radio: {enabled: true}
+      Music: {enabled: true}
+      Smoke detector, smoke alarm: {enabled: true}
+      Fire alarm: {enabled: true}
+      Shatter: {enabled: true}
+      Doorbell: {enabled: true}
+    source: {adaptive: true}
+    en: {name: "Living room", why: "A TV or speakers play voices, barking, doorbells and sirens that sound real: the TV, radio and music are tracked so look-alike sounds are harder to trigger while they play."}
+    fr: {name: "Salon", why: "Une TV ou des enceintes diffusent des voix, des aboiements, des sonnettes et des sirènes qui paraissent réels : la TV, la radio et la musique sont suivies pour que les sons qui leur ressemblent se déclenchent moins facilement pendant qu'elles jouent."}
+  - id: room_dining_room
+    kind: place
+    place: dining_room
+    sounds:
+      Television: {enabled: true}
+      Radio: {enabled: true}
+      Music: {enabled: true}
+      Smoke detector, smoke alarm: {enabled: true}
+      Fire alarm: {enabled: true}
+      Shatter: {enabled: true}
+    source: {adaptive: true}
+    en: {name: "Dining room", why: "Meals bring conversation, dishes and often a radio or a TV."}
+    fr: {name: "Salle à manger", why: "Les repas amènent conversation, vaisselle et souvent une radio ou une TV."}
+  - id: room_kitchen
+    kind: place
+    place: kitchen
+    sounds:
+      Radio: {enabled: true}
+      Music: {enabled: true}
+      Smoke detector, smoke alarm: {enabled: true}
+      Fire alarm: {enabled: true}
+      Shatter: {enabled: true}
+    source: {adaptive: true}
+    en: {name: "Kitchen", why: "Radio, extractor hood, running water and dishes make steady noise and sudden impacts. The smoke alarm matters most here."}
+    fr: {name: "Cuisine", why: "Radio, hotte, eau qui coule et vaisselle font un bruit continu et des chocs soudains. Le détecteur de fumée compte le plus ici."}
+  - id: room_bedroom
+    kind: place
+    place: bedroom
+    sounds:
+      Smoke detector, smoke alarm: {enabled: true}
+      Fire alarm: {enabled: true}
+      Shatter: {enabled: true}
+    source: {min_volume_dbfs: -65, clips_allowed: false}
+    en: {name: "Bedroom", why: "Usually quiet, so quiet sounds count. No clips by default: a bedroom is private. Turn clips back on for this source if you want them."}
+    fr: {name: "Chambre", why: "Généralement calme, donc les sons faibles comptent. Pas de clips par défaut : une chambre est privée. Réactivez les clips pour cette source si vous en voulez."}
+  - id: room_nursery
+    kind: place
+    place: nursery
+    sounds:
+      Baby cry, infant cry: {enabled: true, threshold: 0.45}
+      Crying, sobbing: {enabled: true}
+      Whimper: {enabled: true}
+      Smoke detector, smoke alarm: {enabled: true}
+      Fire alarm: {enabled: true}
+    source: {min_volume_dbfs: -65, clips_allowed: false}
+    en: {name: "Baby's room", why: "A baby's cry must not be missed, so it is detected a little more easily. No clips by default: a baby's room is private."}
+    fr: {name: "Chambre de bébé", why: "Les pleurs d'un bébé ne doivent pas être manqués : ils sont détectés un peu plus facilement. Pas de clips par défaut : une chambre de bébé est privée."}
+  - id: room_office
+    kind: place
+    place: office
+    sounds:
+      Radio: {enabled: true}
+      Music: {enabled: true}
+      Smoke detector, smoke alarm: {enabled: true}
+      Fire alarm: {enabled: true}
+      Doorbell: {enabled: true}
+    source: {adaptive: true}
+    en: {name: "Office", why: "Music, calls and keyboards: the adaptive setting keeps them from triggering alarms."}
+    fr: {name: "Bureau", why: "Musique, appels et claviers : le réglage adaptatif évite qu'ils déclenchent des alertes."}
+  - id: room_bathroom
+    kind: place
+    place: bathroom
+    sounds:
+      Smoke detector, smoke alarm: {enabled: true}
+      Fire alarm: {enabled: true}
+      Gush: {enabled: true}
+    source: {clips_allowed: false}
+    en: {name: "Bathroom and toilet", why: "A private room: no clips by default. Running water is noted, so a gush can be spotted."}
+    fr: {name: "Salle de bains et toilettes", why: "Une pièce privée : pas de clips par défaut. L'eau qui coule est repérée, pour distinguer un jaillissement."}
+  - id: room_laundry
+    kind: place
+    place: laundry
+    sounds:
+      Smoke detector, smoke alarm: {enabled: true}
+      Fire alarm: {enabled: true}
+      Gush: {enabled: true}
+      Drip: {enabled: true}
+    source: {adaptive: true}
+    en: {name: "Laundry and utility room", why: "Machines make loud, regular noise and water can leak: the adaptive setting calms the machines, the water sounds are watched."}
+    fr: {name: "Buanderie et local technique", why: "Les machines font un bruit fort et régulier et l'eau peut fuir : le réglage adaptatif calme les machines, les bruits d'eau sont surveillés."}
+  - id: room_gym
+    kind: place
+    place: gym
+    sounds:
+      Music: {enabled: true}
+      Radio: {enabled: true}
+      Smoke detector, smoke alarm: {enabled: true}
+      Fire alarm: {enabled: true}
+    source: {adaptive: true}
+    en: {name: "Gym", why: "Loud music and equipment: the adaptive setting keeps them from triggering alarms."}
+    fr: {name: "Salle de sport", why: "Musique forte et appareils : le réglage adaptatif évite qu'ils déclenchent des alertes."}
+  - id: room_storage
+    kind: place
+    place: storage
+    sounds:
+      Smoke detector, smoke alarm: {enabled: true}
+      Fire alarm: {enabled: true}
+      Shatter: {enabled: true}
+    en: {name: "Storage (cellar, attic)", why: "A quiet place nobody passes through: fire and breakage are what to listen for."}
+    fr: {name: "Rangement (cave, grenier)", why: "Un endroit calme où personne ne passe : l'incendie et la casse sont ce qu'il faut écouter."}
+  - id: room_entrance
+    kind: place
+    place: entrance
+    sounds:
+      Doorbell: {enabled: true}
+      Knock: {enabled: true}
+      Smoke detector, smoke alarm: {enabled: true}
+      Fire alarm: {enabled: true}
+      Shatter: {enabled: true}
+      Bark: {enabled: true}
+    source: {adaptive: true}
+    en: {name: "Entrance and hallway", why: "Doorbell, knocks and passing traffic: the adaptive setting keeps outside noise from triggering alarms."}
+    fr: {name: "Entrée et couloir", why: "Sonnette, coups à la porte et passages : le réglage adaptatif évite que le bruit extérieur déclenche des alertes."}
+  - id: room_outdoor
+    kind: place
+    place: outdoor
+    sounds:
+      Fireworks: {enabled: true}
+      Firecracker: {enabled: true}
+      Bark: {enabled: true}
+      Car alarm: {enabled: true}
+      Shatter: {enabled: true}
+    source: {adaptive: true}
+    en: {name: "Outdoors", why: "Wind, rain and fireworks: fireworks are tracked so they are not mistaken for gunshots, and the adaptive setting copes with wind and rain."}
+    fr: {name: "Extérieur", why: "Vent, pluie et feux d'artifice : les feux d'artifice sont suivis pour ne pas être pris pour des coups de feu, et le réglage adaptatif gère le vent et la pluie."}
+  - id: room_garage
+    kind: place
+    place: garage
+    sounds:
+      Smoke detector, smoke alarm: {enabled: true}
+      Fire alarm: {enabled: true}
+      Music: {enabled: true}
+    source: {adaptive: true}
+    en: {name: "Garage and workshop", why: "Tools and engines make loud, irregular noise: the adaptive setting keeps them from triggering alarms."}
+    fr: {name: "Garage et atelier", why: "Outils et moteurs font un bruit fort et irrégulier : le réglage adaptatif évite qu'ils déclenchent des alertes."}
+
+  # ---------------------------------------------------------------- situations, to add on top of a room
+  - id: situation_tv_nearby
+    kind: situation
+    sounds:
+      Television: {enabled: true}
+      Radio: {enabled: true}
+      Music: {enabled: true}
+    source: {adaptive: true}
+    en: {name: "A TV or speakers can be heard", why: "The room is next to one that has a TV or speakers: they are tracked so that voices, barking and alarms they play are harder to trigger."}
+    fr: {name: "Une TV ou des enceintes s'entendent", why: "La pièce est voisine d'une autre qui a une TV ou des enceintes : elles sont suivies pour que les voix, aboiements et alarmes qu'elles diffusent se déclenchent moins facilement."}
+  - id: situation_outside_noise
+    kind: situation
+    sounds:
+      Fireworks: {enabled: true}
+      Firecracker: {enabled: true}
+      Traffic noise, roadway noise: {enabled: true}
+    source: {adaptive: true}
+    en: {name: "Noise from outside", why: "Traffic, neighbours and fireworks reach the room: a noisy moment raises the thresholds for a while, and fireworks are not mistaken for gunshots."}
+    fr: {name: "Bruit venant de l'extérieur", why: "La circulation, les voisins et les feux d'artifice atteignent la pièce : un moment bruyant relève les seuils pendant un temps, et les feux d'artifice ne sont pas pris pour des coups de feu."}
+  - id: situation_baby
+    kind: situation
+    sounds:
+      Baby cry, infant cry: {enabled: true, threshold: 0.45}
+      Crying, sobbing: {enabled: true}
+      Whimper: {enabled: true}
+    en: {name: "A baby or a young child", why: "Crying and whimpering are listened for, and a baby's cry is detected a little more easily."}
+    fr: {name: "Un bébé ou un jeune enfant", why: "Les pleurs et les gémissements sont écoutés, et les pleurs d'un bébé sont détectés un peu plus facilement."}
+  - id: situation_pets
+    kind: situation
+    sounds:
+      Bark: {enabled: true}
+      Dog: {enabled: true}
+      Cat: {enabled: true}
+      Meow: {enabled: true}
+      Growling: {enabled: true}
+    en: {name: "Pets", why: "Barking, meowing and growling are listened for."}
+    fr: {name: "Animaux", why: "Les aboiements, miaulements et grognements sont écoutés."}
+  - id: situation_empty_home
+    kind: situation
+    sounds:
+      Shatter: {enabled: true}
+      Smash, crash: {enabled: true}
+      Breaking: {enabled: true}
+      Slam: {enabled: true}
+      Door: {enabled: true}
+      Thump, thud: {enabled: true}
+      Walk, footsteps: {enabled: true}
+    en: {name: "Empty home (surveillance)", why: "Sounds that should not be heard when nobody is home: breakage, slamming doors, footsteps. Many of them are everyday sounds, so use this on a source that listens only when the home is empty."}
+    fr: {name: "Maison vide (surveillance)", why: "Les sons qu'on ne devrait pas entendre quand personne n'est là : casse, portes qui claquent, pas. Beaucoup sont des sons du quotidien : réservez-le à une source qui n'écoute que quand la maison est vide."}

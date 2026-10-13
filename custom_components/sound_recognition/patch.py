@@ -14,6 +14,9 @@ def apply_patch(cfg: dict, patch: dict, audio_names: dict[str, str] | None = Non
     for key, value in (patch.get("source_patch") or {}).items():
         cur = src.get(key)
         src[key] = {**cur, **value} if isinstance(value, dict) and isinstance(cur, dict) else value
+    for pid in patch.get("add_presets") or []:                   # presets are added to the list of the source, never replacing it
+        if pid not in (src.get("presets") or []):
+            src["presets"] = [*(src.get("presets") or []), pid]
     classes = dict(src.get("classes") or {})
     for mid, block in (patch.get("class_patch") or {}).items():
         name = (audio_names or {}).get(mid)
@@ -22,7 +25,7 @@ def apply_patch(cfg: dict, patch: dict, audio_names: dict[str, str] | None = Non
     if classes:
         src["classes"] = classes
     if patch.get("rule"):             # a patch that answers an advice leaves a trace on the source, so the panel can show it and undo it
-        changes = {k: patch[k] for k in ("source_patch", "class_patch") if patch.get(k)}
+        changes = {k: patch[k] for k in ("source_patch", "class_patch", "add_presets") if patch.get(k)}
         ident = advice_id(patch["rule"], changes)
         trace = {"rule": patch["rule"], "classes": list(patch.get("classes") or (patch.get("class_patch") or {})), "at": datetime.now(timezone.utc).isoformat(),
                  "level": patch.get("level") or "info", "message": patch.get("message") or "", "patch": changes}
@@ -32,7 +35,7 @@ def apply_patch(cfg: dict, patch: dict, audio_names: dict[str, str] | None = Non
 
 def advice_id(rule: str, patch: dict) -> str:
     """Same identity as the panel: the rule and what it touches."""
-    return f"{rule}|{','.join(sorted(patch.get('class_patch') or {}))}|{','.join(sorted(patch.get('source_patch') or {}))}"
+    return f"{rule}|{','.join(sorted(patch.get('class_patch') or {}))}|{','.join(sorted(patch.get('source_patch') or {}))}|{','.join(sorted(patch.get('add_presets') or []))}"
 
 
 # What a patch changes, in words (the confirmation of the Repairs fix). English first, French as the translation; other languages fall back to English.

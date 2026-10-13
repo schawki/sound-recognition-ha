@@ -8,6 +8,7 @@ raw, merged = cm.load_raw(), cm.load_lang("en")
 CAT = st.Catalog(raw)
 classes = merged["classes"]
 rnd = random.Random(11)
+PRESET_FIELDS = ("threshold", "min_duration_s", "cooldown_s", "pre_roll_s", "clip_retention_days", "enabled")
 FIELDS = {"threshold": lambda: round(rnd.uniform(0.05, 0.95), 2), "min_duration_s": lambda: rnd.choice([0, 0.5, 2, 30]),
           "cooldown_s": lambda: rnd.choice([0, 5, 60]), "pre_roll_s": lambda: rnd.choice([0, 3]), "post_roll_s": lambda: rnd.choice([0, 8]),
           "clip_retention_days": lambda: rnd.choice([0, 1, 7, 90]), "min_volume_dbfs": lambda: rnd.choice([None, -80, -60, -45, -30]),
@@ -41,22 +42,30 @@ for _ in range(600):
     if rnd.random() < 0.3: src["clips"] = rnd.choice([{"allowed": False}, {"max_retention_days": 3}, {"allowed": True}, {"retention_by_category": rcat()}])
     if rnd.random() < 0.3: src["schedule"] = {"mode": "scheduled", "windows": [{"days": ["tue"], "from": "01:00", "to": "02:00"}]}
     cfg["sources"] = [src]
-    c = rnd.choice(picks)
-    exp = st.resolve(cfg, CAT, "s", c["mid"])
+    if rnd.random() < 0.6:                                        # presets: some of the catalog, some of the user, in a random order
+        pool = [p["id"] for p in raw["presets"]]
+        if rnd.random() < 0.6:
+            cfg["presets"] = [{"id": f"u{i}", "name": "u", "sounds": {key(x): {k: f() for k, f in FIELDS.items() if k in PRESET_FIELDS and rnd.random() < 0.5} for x in rnd.sample(classes, 3)},
+                               "source": {k: v for k, v in (("min_volume_dbfs", rnd.choice([-80, -65, -50])), ("clips_allowed", rnd.random() < 0.5), ("adaptive", rnd.random() < 0.5)) if rnd.random() < 0.5}}
+                              for i in range(rnd.choice([1, 2]))]
+            pool += [p["id"] for p in cfg["presets"]]
+        src["presets"] = rnd.sample(pool, rnd.choice([1, 2, 3]))
+    c = rnd.choice(picks + [x for x in classes if x["audioset_name"] in ("Baby cry, infant cry", "Bark", "Television", "Smoke detector, smoke alarm")][:2])
+    exp = st.resolve(st.fold(cfg, CAT), CAT, "s", c["mid"])
     cases.append({"cfg": cfg, "mid": c["mid"], "expected": exp})
 
 tmp = tempfile.mkdtemp()
-json.dump({"classes": classes, "cases": cases}, open(os.path.join(tmp, "cases.json"), "w"))
+json.dump({"classes": classes, "presets": merged["presets"], "cases": cases}, open(os.path.join(tmp, "cases.json"), "w"))
 script = f"""
 import {{ build }} from "esbuild";
 import {{ readFileSync }} from "node:fs";
 await build({{ entryPoints: ["src/resolve.ts"], bundle: true, format: "esm", outfile: "{tmp}/resolve.mjs", logLevel: "silent" }});
-const {{ resolveClass, buildByKey }} = await import("{tmp}/resolve.mjs");
+const {{ resolveClass, buildByKey, presetCtx }} = await import("{tmp}/resolve.mjs");
 const data = JSON.parse(readFileSync("{tmp}/cases.json", "utf8"));
 const byKey = buildByKey(data.classes), byMid = new Map(data.classes.map((c) => [c.mid, c]));
 let bad = 0;
 for (const k of data.cases) {{
-  const got = resolveClass(k.cfg, k.cfg.sources[0], byMid.get(k.mid), byKey);
+  const got = resolveClass(k.cfg, k.cfg.sources[0], byMid.get(k.mid), byKey, presetCtx(data.presets, k.cfg.presets, data.classes));
   if (JSON.stringify(sortKeys(got)) !== JSON.stringify(sortKeys(k.expected))) {{ if (bad++ < 3) console.log("MISMATCH", JSON.stringify(k.cfg), k.mid, "\\n got", JSON.stringify(got), "\\n exp", JSON.stringify(k.expected)); }}
 }}
 function sortKeys(o) {{ return Array.isArray(o) || o === null || typeof o !== "object" ? o : Object.fromEntries(Object.keys(o).sort().map((x) => [x, sortKeys(o[x])])); }}

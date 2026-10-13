@@ -7,6 +7,7 @@ For developers. The service exposes a local HTTP/WebSocket API under `/api/v1`, 
 | `health` | Status, version and API level |
 | `languages`, `catalog?lang=` | Available languages and the class catalog |
 | `config` (GET/PUT), `config/validate` | Read and write the configuration; dry run with warnings |
+| `config/effective` (GET) | The configuration with the presets folded in (what the service runs on; secrets masked). API level 10. Presets are described in [Presets](presets.en.md); the catalog lists the built-in ones under `presets`. |
 | `warnings`, `recommendations` | Advice computed from the configuration (see [the Advice tab](advice.en.md)) |
 | `stats?hours=` | Counts for the overview |
 | `sources`, `resolved` | Sources and the effective setting of each class, with its origin |

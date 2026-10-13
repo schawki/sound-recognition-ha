@@ -78,6 +78,11 @@ async def get_config(req):
     return web.json_response(_masked(req.app["engine"].cfg))
 
 
+async def get_config_effective(req):
+    """The configuration as the detection uses it: the presets of each source folded in. Read-only, never to be sent back."""
+    return web.json_response(_masked(req.app["engine"].eff))
+
+
 async def put_config(req):
     eng = req.app["engine"]
     try:
@@ -100,7 +105,7 @@ async def validate_config(req):
     cand = cfgmod._merge(cfgmod.DEFAULTS, body)
     eng.restore_secrets(cand)
     errs = cfgmod.validate(cand, eng.catalog)
-    return web.json_response({"errors": errs, "warnings": [] if errs else advisor.compute(cand, _lang(req), eng.catalog_root)})
+    return web.json_response({"errors": errs, "warnings": [] if errs else advisor.compute(st.fold(cand, eng.catalog), _lang(req), eng.catalog_root)})
 
 
 async def warnings(req):
@@ -116,7 +121,7 @@ async def resolved(req):
     eng = req.app["engine"]
     sid, cls = req.query.get("source"), req.query.get("class")
     try:
-        r = st.resolve(eng.cfg, eng.catalog, sid, cls)
+        r = st.resolve(eng.eff, eng.catalog, sid, cls)
     except (KeyError, StopIteration):
         return web.json_response({"error": "unknown source or class"}, status=404)
     return web.json_response(r)
@@ -355,7 +360,7 @@ def make_app(engine, updater=None):
     p = VERSION_PREFIX
     app.add_routes([
         web.get(f"{p}/health", health), web.get(f"{p}/update", update_status), web.post(f"{p}/update", update_start), web.get(f"{p}/languages", languages), web.post(f"{p}/token/rotate", rotate_token), web.get(f"{p}/storage", storage), web.get(f"{p}/catalog", catalog),
-        web.get(f"{p}/config", get_config), web.put(f"{p}/config", put_config), web.post(f"{p}/config/validate", validate_config),
+        web.get(f"{p}/config", get_config), web.get(f"{p}/config/effective", get_config_effective), web.put(f"{p}/config", put_config), web.post(f"{p}/config/validate", validate_config),
         web.get(f"{p}/warnings", warnings), web.get(f"{p}/sources", sources), web.get(f"{p}/resolved", resolved),
         web.get(f"{p}/events", events), web.get(f"{p}/recommendations", recommendations), web.put(f"{p}/sources/{{sid}}/external", set_external), web.put(f"{p}/sources/{{sid}}/place", set_place), web.get(f"{p}/stats", stats),
         web.post(f"{p}/events/{{id}}/feedback", feedback), web.get(f"{p}/clips", clips_list), web.post(f"{p}/clips/delete", clips_delete), web.post(f"{p}/events/delete_clipless", events_delete_clipless), web.get(f"{p}/clips/{{rel:.+}}", clip), web.get(f"{p}/ws", ws),

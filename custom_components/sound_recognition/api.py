@@ -73,6 +73,10 @@ class SoundRecClient:
     async def get_config(self) -> dict:
         return await self._request("GET", "/config")
 
+    async def get_config_effective(self) -> dict:
+        """The configuration with the presets folded in (what the service actually runs on)."""
+        return await self._request("GET", "/config/effective")
+
     async def put_config(self, cfg: dict, lang: str) -> dict:
         return await self._request("PUT", "/config", json=cfg, params={"lang": lang})
 

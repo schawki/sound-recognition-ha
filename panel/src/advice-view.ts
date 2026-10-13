@@ -50,7 +50,7 @@ export class AdviceView extends LitElement {
       this.recs = recs;
       this.saved = cfg;
       this.draft = clone(cfg);
-      this.names = new Map((cat as Catalog).classes.map((c) => [c.mid, c.name]));
+      this.names = new Map([...(cat as Catalog).classes.map((c) => [c.mid, c.name] as [string, string]), ...((cat as Catalog).presets ?? []).map((p) => [p.id, p.name] as [string, string]), ...((cfg as ServiceConfig).presets ?? []).map((p) => [p.id, p.name] as [string, string])]);
       this.audio = new Map((cat as Catalog).classes.map((c) => [c.mid, c.audioset_name]));
       this.suggest = new Map((cat as Catalog).classes.map((c) => [c.mid, c.suggestions]));
       this.done.clear();

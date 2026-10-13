@@ -60,7 +60,7 @@ class SoundRecCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self.health = await self.client.health()
             self.version = self.health.get("version")
             self.catalog = await self.client.catalog(self.lang)
-            self.service_config = await self.client.get_config()
+            self.service_config = await self.client.get_config_effective()
         except InvalidAuth as err:
             raise ConfigEntryAuthFailed from err
         except SoundRecError as err:

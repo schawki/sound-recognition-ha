@@ -6,8 +6,8 @@ type Plain = Record<string, unknown>;
 const isObj = (v: unknown): v is Plain => !!v && typeof v === "object" && !Array.isArray(v);
 
 /** Identity of an advice on a source: its rule and what it touches. Applying it again replaces the trace instead of adding one. */
-export const adviceId = (rule: string, p: { source_patch?: Plain; class_patch?: Record<string, ClassBlock> }): string =>
-  `${rule}|${Object.keys(p.class_patch ?? {}).sort().join(",")}|${Object.keys(p.source_patch ?? {}).sort().join(",")}`;
+export const adviceId = (rule: string, p: { source_patch?: Plain; class_patch?: Record<string, ClassBlock>; add_presets?: string[] }): string =>
+  `${rule}|${Object.keys(p.class_patch ?? {}).sort().join(",")}|${Object.keys(p.source_patch ?? {}).sort().join(",")}|${[...(p.add_presets ?? [])].sort().join(",")}`;
 
 const sourceOf = (cfg: ServiceConfig, id: string): SourceCfg | undefined => (cfg.sources ?? []).find((s: SourceCfg) => s.id === id);
 const blockKey = (classes: Record<string, ClassBlock>, mid: string, name?: string): string | undefined => Object.keys(classes).find((k) => k === mid || k === name);
@@ -22,6 +22,7 @@ export function applyPatch(cfg: ServiceConfig, patch: Patch, audioName: AudioNam
     const cur = (src as Plain)[k];
     (src as Plain)[k] = isObj(v) && isObj(cur) ? { ...cur, ...v } : v;
   }
+  for (const id of patch.add_presets ?? []) if (!(src.presets ?? []).includes(id)) src.presets = [...(src.presets ?? []), id];     // added to the list, never replacing it
   const classes: Record<string, ClassBlock> = (src.classes as Record<string, ClassBlock> | undefined) ?? {};
   for (const [mid, block] of Object.entries(patch.class_patch ?? {})) {
     const key = blockKey(classes, mid, audioName(mid)) ?? mid;
@@ -29,7 +30,7 @@ export function applyPatch(cfg: ServiceConfig, patch: Patch, audioName: AudioNam
   }
   if (Object.keys(classes).length) src.classes = classes;
   if (patch.rule) {
-    const changes = { ...(patch.source_patch ? { source_patch: patch.source_patch } : {}), ...(patch.class_patch ? { class_patch: patch.class_patch } : {}) };
+    const changes = { ...(patch.source_patch ? { source_patch: patch.source_patch } : {}), ...(patch.class_patch ? { class_patch: patch.class_patch } : {}), ...(patch.add_presets ? { add_presets: patch.add_presets } : {}) };
     const trace: AppliedAdvice = { rule: patch.rule, classes: patch.classes ?? Object.keys(patch.class_patch ?? {}), at: now, level: patch.level ?? "info", message: patch.message ?? "", patch: changes };
     const id = adviceId(patch.rule, changes);
     src.applied_advice = [...(src.applied_advice ?? []).filter((a) => adviceId(a.rule, a.patch) !== id), trace];
@@ -38,9 +39,10 @@ export function applyPatch(cfg: ServiceConfig, patch: Patch, audioName: AudioNam
 }
 
 /** True when at least one setting of the patch is still stored on the source. */
-export function inPlace(cfg: ServiceConfig, patch: Pick<Patch, "source" | "source_patch" | "class_patch">, audioName: AudioName = () => undefined): boolean {
+export function inPlace(cfg: ServiceConfig, patch: Pick<Patch, "source" | "source_patch" | "class_patch" | "add_presets">, audioName: AudioName = () => undefined): boolean {
   const src = sourceOf(cfg, patch.source);
   if (!src) return false;
+  if ((patch.add_presets ?? []).some((id) => (src.presets ?? []).includes(id))) return true;
   const classes = (src.classes as Record<string, ClassBlock> | undefined) ?? {};
   for (const [mid, block] of Object.entries(patch.class_patch ?? {})) {
     const key = blockKey(classes, mid, audioName(mid));
@@ -51,10 +53,14 @@ export function inPlace(cfg: ServiceConfig, patch: Pick<Patch, "source" | "sourc
 }
 
 /** Takes the settings of a patch off the source: the catalog (or the global setting) takes over again. Its trace is removed too. */
-export function removePatch(cfg: ServiceConfig, patch: Pick<Patch, "source" | "source_patch" | "class_patch"> & { rule?: string }, audioName: AudioName = () => undefined): ServiceConfig {
+export function removePatch(cfg: ServiceConfig, patch: Pick<Patch, "source" | "source_patch" | "class_patch" | "add_presets"> & { rule?: string }, audioName: AudioName = () => undefined): ServiceConfig {
   const next: ServiceConfig = JSON.parse(JSON.stringify(cfg));
   const src = sourceOf(next, patch.source);
   if (!src) return next;
+  if (patch.add_presets?.length && src.presets) {
+    src.presets = src.presets.filter((id) => !patch.add_presets!.includes(id));
+    if (!src.presets.length) delete src.presets;
+  }
   const classes = (src.classes as Record<string, ClassBlock> | undefined) ?? {};
   for (const [mid, block] of Object.entries(patch.class_patch ?? {})) {
     const key = blockKey(classes, mid, audioName(mid));

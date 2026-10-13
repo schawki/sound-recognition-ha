@@ -6,6 +6,7 @@ import type { Advice, ConnectionInfo, Environment, EsphomeDevice, ServiceConfig,
 import { deviations } from "./deviations";
 import "./storage-card";
 import "./retention-card";
+import "./presets-card";
 
 const DOCS = "https://github.com/schawki/sound-recognition-ha/blob/main/docs";
 
@@ -209,7 +210,7 @@ export class SettingsView extends LitElement {
       ${this.connection()}
       <section data-section="storage"><sound-recognition-storage .api=${this.api} .t=${t} .language=${this.language}></sound-recognition-storage></section>
       <sound-recognition-retention .api=${this.api} .t=${t}></sound-recognition-retention>
-      ${this.defaults()}${this.particular()}${this.home()}${this.esp()}`;
+      ${this.defaults()}<sound-recognition-presets .api=${this.api} .t=${t}></sound-recognition-presets>${this.particular()}${this.home()}${this.esp()}`;
   }
 
   static styles = css`

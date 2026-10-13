@@ -11,6 +11,7 @@ import "./structure-plan";
 import { ESPHOME_YAML } from "./esphome-yaml";
 import { RETENTION_CATEGORIES, RET_KEYS, retBlock, retForm } from "./retention";
 import type { RetentionCategory } from "./types";
+import { allPresets, findPreset, presetLines, soundName } from "./presets";
 
 const TYPES: [string, "typeRtsp" | "typeGo2rtc" | "typeAlsa" | "typeEsphome" | "typeFile"][] = [
   ["rtsp", "typeRtsp"], ["go2rtc", "typeGo2rtc"], ["alsa_rpi", "typeAlsa"], ["esphome", "typeEsphome"], ["file", "typeFile"],
@@ -29,7 +30,7 @@ interface Form {
   rows: Row[]; picked: Record<string, string>;
   offset: string; minVolume: string; scheduled: boolean; cells: boolean[];
   clipsAllowed: boolean; clipsMaxDays: string; ret: Record<RetentionCategory, string>;
-  environment: string; adaptive: boolean; adaptiveMax: string;
+  environment: string; adaptive: boolean; adaptiveMax: string; presets: string[];
   password: string;
   area: string; devEnabled: boolean; devMax: string; devExclude: string[]; devInclude: string;
 }
@@ -66,6 +67,7 @@ export class SourcesView extends LitElement {
   @state() private busy = false;
   @state() private loadError = false;
   @state() private environments: Environment[] = [];
+  @state() private catalog: Catalog | null = null;
   @state() private areas: HaArea[] = [];
   @state() private openings: HaOpening[] = [];
   @state() private devs: HaDevice[] = [];
@@ -86,7 +88,7 @@ export class SourcesView extends LitElement {
     try {
       this.config = await this.api.config();
       this.loadError = false;
-      void this.api.catalog().then((c) => { this.environments = c.environments ?? []; }, () => undefined);
+      void this.api.catalog().then((c) => { this.catalog = c; this.environments = c.environments ?? []; }, () => undefined);
       void this.api.areas().then((a) => { this.areas = a; }, () => undefined);
       void this.api.openings().then((o) => { this.openings = o; }, () => undefined);
       void this.api.structure().then((x) => { this.structure = x; }, () => undefined);
@@ -186,12 +188,12 @@ export class SourcesView extends LitElement {
       environment: s.environment ?? "", adaptive: s.adaptive?.enabled === true, adaptiveMax: s.adaptive?.max_offset == null ? "" : String(s.adaptive.max_offset),
       password: typeof s.password === "string" ? s.password : "",
       area: s.area ?? "", devEnabled: s.devices?.enabled === true, devMax: s.devices?.max_offset == null ? "" : String(s.devices.max_offset),
-      devExclude: [...(s.devices?.exclude ?? [])], devInclude: (s.devices?.include ?? []).join("\n"),
+      devExclude: [...(s.devices?.exclude ?? [])], devInclude: (s.devices?.include ?? []).join("\n"), presets: [...(s.presets ?? [])],
     };
   }
 
   private blankForm(): Form {
-    return { id: "", isNew: true, name: "", type: lastType, url: "", enabled: true, rows: [newRow()], picked: {}, offset: "", minVolume: "", scheduled: false, cells: new Array(336).fill(false), clipsAllowed: true, clipsMaxDays: "", ret: retForm(undefined), environment: "", adaptive: false, adaptiveMax: "", password: "", area: "", devEnabled: false, devMax: "", devExclude: [], devInclude: "" };
+    return { id: "", isNew: true, name: "", type: lastType, url: "", enabled: true, rows: [newRow()], picked: {}, offset: "", minVolume: "", scheduled: false, cells: new Array(336).fill(false), clipsAllowed: true, clipsMaxDays: "", ret: retForm(undefined), environment: "", adaptive: false, adaptiveMax: "", password: "", area: "", devEnabled: false, devMax: "", devExclude: [], devInclude: "", presets: [] };
   }
 
   /** Applies the form on a copy of the stored source, so fields the form does not know (class settings, advice) are kept. */
@@ -216,6 +218,7 @@ export class SourcesView extends LitElement {
       s.adaptive = { ...(existing?.adaptive ?? {}), enabled: f.adaptive };
       if (f.adaptiveMax.trim() !== "" && Number.isFinite(max)) s.adaptive.max_offset = max; else delete s.adaptive.max_offset;
     }
+    if (f.presets.length) s.presets = [...f.presets]; else delete s.presets;
     if (f.area) s.area = f.area; else delete s.area;
     const dmax = parseFloat(f.devMax), include = f.devInclude.split(/\r?\n|,/).map((x) => x.trim()).filter(Boolean);
     if (f.devEnabled || (existing?.devices && Object.keys(existing.devices).length) || include.length || f.devExclude.length) {
@@ -587,6 +590,25 @@ export class SourcesView extends LitElement {
     </fieldset>`;
   }
 
+  /** The presets of the source: an ordered list (the last one wins when two set the same value) and a menu to add more. */
+  private renderPresets(f: Form) {
+    const t = this.t, name = soundName(this.catalog), a = allPresets(this.catalog, this.config);
+    const group = (label: string, list: typeof a.place) => list.length ? html`<optgroup label=${label}>${list.filter((p) => !f.presets.includes(p.id)).map((p) => html`<option value=${p.id}>${p.name}</option>`)}</optgroup>` : nothing;
+    const move = (i: number, d: number) => { const l = [...f.presets]; [l[i], l[i + d]] = [l[i + d], l[i]]; this.set("presets", l); };
+    return html`<fieldset class="presets" data-presets><legend>${t("presetsField")}</legend>
+      <p class="dim">${t("presetsHelp")}</p>
+      ${f.presets.length === 0 ? html`<p class="dim" data-presets-none>${t("presetNone")}</p>` : f.presets.map((id, i) => {
+        const p = findPreset(id, this.catalog, this.config);
+        return html`<div class="presetrow" data-source-preset=${id}><span><strong>${p?.name ?? id}</strong>${p ? html`<br><span class="dim">${presetLines(p, name, t).join(" · ")}</span>` : nothing}</span>
+          <span class="presetbtns"><button type="button" data-action="preset-up" ?disabled=${i === 0} aria-label=${t("presetUp")} @click=${() => move(i, -1)}>↑</button>
+          <button type="button" data-action="preset-down" ?disabled=${i === f.presets.length - 1} aria-label=${t("presetDown")} @click=${() => move(i, 1)}>↓</button>
+          <button type="button" data-action="preset-remove" aria-label=${t("presetRemove")} @click=${() => this.set("presets", f.presets.filter((x) => x !== id))}>✕</button></span></div>`;
+      })}
+      <select name="preset_add" aria-label=${t("presetAdd")} @change=${(e: Event) => { const el = e.target as HTMLSelectElement; if (el.value) this.set("presets", [...f.presets, el.value]); el.value = ""; }}>
+        <option value="">${t("presetAdd")}</option>${group(t("presetGroupPlace"), a.place)}${group(t("presetGroupSituation"), a.situation)}${group(t("presetGroupMine"), a.mine)}</select>
+      <small>${t("presetSafetyNote")}</small></fieldset>`;
+  }
+
   private renderForm(f: Form) {
     const t = this.t;
     return html`
@@ -605,6 +627,7 @@ export class SourcesView extends LitElement {
           @input=${(e: Event) => this.set("password", (e.target as HTMLInputElement).value)} /><small>${t("espPasswordHelp")}</small></label>` : nothing}
         ${this.areas.length ? this.renderRoom(f) : nothing}
         ${this.renderPlace(f)}
+        ${this.renderPresets(f)}
         ${f.isNew
           ? html`<details class="adv"><summary>${t("advancedSettings")}</summary><div class="advbody">
         <label class="inline"><input type="checkbox" name="enabled" .checked=${f.enabled} @change=${(e: Event) => this.set("enabled", (e.target as HTMLInputElement).checked)} />${t("enabled")}</label>
@@ -665,6 +688,8 @@ export class SourcesView extends LitElement {
   }
 
   static styles = css`
+    .presetrow { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--divider-color); }
+    .presetbtns { display: flex; gap: 4px; }
     :host { display: block; }
     h2 { font-size: 1.05rem; font-weight: 500; margin: 0 0 12px; }
     .note { color: var(--secondary-text-color); } .note.error { color: var(--error-color, #db4437); }

@@ -13,6 +13,7 @@ export function deviations(s: SourceCfg, t: T, envs: Environment[]): string[] {
   if (s.clips?.retention_by_category && Object.keys(s.clips.retention_by_category).length) out.push(t("devRetention"));
   if (s.environment) out.push(t("devPlace", { name: envs.find((e) => e.id === s.environment)?.name ?? s.environment }));
   if (s.adaptive?.enabled) out.push(t("devAdaptive"));
+  if (s.presets?.length) out.push(t("devPresets", { n: s.presets.length }));
   const sounds = Object.keys((s.classes as Record<string, unknown> | undefined) ?? {}).length;
   if (sounds) out.push(t("devSounds", { n: sounds }));
   const advice = Object.keys(s.advice ?? {}).length;

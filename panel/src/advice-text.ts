@@ -2,7 +2,7 @@
 import type { ClassBlock, Patch, ServiceConfig, Suggestions } from "./types";
 import type { T } from "./i18n";
 
-type Part = { source_patch?: Record<string, unknown>; class_patch?: Record<string, ClassBlock> };
+type Part = { source_patch?: Record<string, unknown>; class_patch?: Record<string, ClassBlock>; add_presets?: string[] };
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 
 function field(t: T, k: string, v: unknown): string {
@@ -27,6 +27,7 @@ export function describeChanges(patch: Part, names: ReadonlyMap<string, string>,
     else if (k === "devices" && isObj(v) && v.enabled === true) lines.push(t("chDevices"));
     else lines.push(t("chSetting", { k }));
   }
+  for (const id of patch.add_presets ?? []) lines.push(t("chPreset", { name: names.get(id) ?? id }));
   return lines;
 }
 
@@ -49,5 +50,6 @@ export function describeBase(patch: Part & { source?: string }, names: ReadonlyM
     return `${names.get(mid) ?? mid}: ${parts.join(", ")}`;
   });
   for (const k of Object.keys(patch.source_patch ?? {})) lines.push(`${t("chSetting", { k })}: ${t("chRemoved")}`);
+  for (const id of patch.add_presets ?? []) lines.push(t("chPresetBase", { name: names.get(id) ?? id }));
   return lines;
 }

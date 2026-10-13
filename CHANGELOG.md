@@ -2,6 +2,14 @@
 
 Releases are tagged `vX.Y.Z`; the service updates itself from Home Assistant to the latest tag.
 
+## 0.16.0
+
+- **Presets.** Ready-made settings by kind of room (living room, kitchen, bedroom, baby's room, office, bathroom, laundry, gym, storage, entrance, outdoors, garage) and by situation (TV nearby, outside noise, baby, pets, empty home). Pick several for a source: they add up, the one lower in the list wins on a shared value, and what you set yourself always wins. Create your own in *Settings → Presets*, with any detectable sound, or duplicate one. See [Presets](docs/presets.en.md).
+- Safety sounds (fire, break-in, baby) are never made harder to detect by a preset, and a preset cannot set a quietest sound above -50 dBFS.
+- The *Advice* tab suggests the preset that fits a source's room, with a button and Undo. The *Sounds* tab shows when a value comes from a preset, and *Settings* lists the presets of each source.
+- Home Assistant creates entities for the sounds a preset switches on.
+- Service API level 10: update the service from Home Assistant after updating the integration (the panel says so until you do).
+
 ## 0.15.1
 
 - **More in the *Settings* tab.** The retention of the clips by kind of sound moves there from the *Clips* tab; the **sensitivity to contexts** (how much a TV, radio or music raises the thresholds of look-alike sounds), which could no longer be changed since 0.15.0, is back among the default values; the **go2rtc address** can be tried and saved there (it is still offered when you add a source).

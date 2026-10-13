@@ -561,3 +561,11 @@ async def test_clips_are_for_administrators_only(hass, hass_client, hass_client_
     assert (await anonymous.get(path)).status == 401
     signed = signed_clip_url(hass, entry.entry_id, "kitchen/e1.wav")              # what notifications and the panel use
     assert (await anonymous.get(signed)).status == 200
+
+
+async def test_a_sound_enabled_by_a_preset_gets_its_entity(hass):
+    """The entities follow the configuration the service runs on (presets folded in), not the stored one."""
+    fs.STATE.cfg["classes"]["Bark"] = {"enabled": False}
+    fs.STATE.cfg["sources"][0]["presets"] = ["situation_pets"]
+    entry = await setup_entry(hass)
+    assert eid(hass, "binary_sensor", entry, f"kitchen_{BARK.strip('/').replace('/', '_')}") is not None
