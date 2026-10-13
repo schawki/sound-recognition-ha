@@ -1132,6 +1132,35 @@ with sync_playwright() as p:
         ok(pg.locator("[data-action=move-start]").count() == 0, msg)
         pg.close()
 
+    # old folders kept after a move: delete their clips, or be told what to do by hand
+    pg = new("?noesp=1&oldf=plain", "light", 1200, 1000)
+    pg.wait_for_selector("sound-recognition-live .card")
+    pg.click("button[data-tab=settings]")
+    pg.wait_for_selector("[data-old]")
+    ok("69 clips, 25 MB" in text(pg, "[data-old]")[0] and "/var/lib/soundrec/old-clips" in text(pg, "[data-old]")[0], "an old folder is listed with what is left in it")
+    pg.click("[data-action=old-delete]")
+    ok(pg.locator("[data-old-confirm]").count() == 1 and "69 clips" in text(pg, "[data-old-confirm]")[0] and "69" in text(pg, "[data-old-confirm]")[0] and pg.evaluate("(window.__state.cleanCalls || []).length") == 0, "deleting asks first and nothing is requested yet")
+    pg.click("[data-action=old-cancel]")
+    ok(pg.evaluate("(window.__state.cleanCalls || []).length") == 0 and pg.locator("[data-old-confirm]").count() == 0, "cancel deletes nothing")
+    pg.click("[data-action=old-delete]"); pg.click("[data-action=old-yes]")
+    pg.wait_for_selector("[data-old-progress]")
+    ok(pg.evaluate("window.__state.cleanCalls") == ["/var/lib/soundrec/old-clips"], "the folder is sent to the service")
+    for _ in range(80):
+        if not text(pg, "[data-old]"):
+            break
+        pg.wait_for_timeout(250)
+    ok(not text(pg, "[data-old]"), "the button goes away once the old folder is gone")
+    pg.close()
+    for kind, note, button in (("mount", "mount_point", True), ("mixed", "other_files", True), ("ro", "not_writable", False), ("nohelper", "no_helper", False)):
+        pg = new(f"?noesp=1&oldf={kind}", "light", 1200, 1000)
+        pg.wait_for_selector("sound-recognition-live .card")
+        pg.click("button[data-tab=settings]")
+        pg.wait_for_selector("[data-old]")
+        notes = text(pg, f"[data-old-note={note}]")
+        ok(len(notes) == 1 and (note in ("mount_point", "other_files") or "rm -r /var/lib/soundrec/old-clips" in notes[0]), f"{kind}: the panel says what stays or what to do by hand")
+        ok((pg.locator("[data-action=old-delete]").count() == 1) == button, f"{kind}: the delete button is {'there' if button else 'not offered'}")
+        pg.close()
+
     # presets: library in Settings, then chosen on a source
     pg = new("?noesp=1", "light", 1200, 1000)
     pg.wait_for_selector("sound-recognition-live .card")

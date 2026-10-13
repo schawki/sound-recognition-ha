@@ -602,3 +602,13 @@ async def test_panel_asks_the_service_to_move_the_clips(hass, hass_ws_client):
     assert r["success"] and r["result"]["state"] == "requested" and fs.STATE.moved == "/mnt/nas/clips"
     await ws.send_json({"id": 3, "type": "sound_recognition/storage"})
     assert (await ws.receive_json())["result"]["move"]["state"] == "requested"
+
+
+async def test_panel_asks_the_service_to_delete_an_old_folder(hass, hass_ws_client):
+    await setup_entry(hass)
+    ws = await hass_ws_client(hass)
+    await ws.send_json({"id": 1, "type": "sound_recognition/storage_old_delete", "path": "/etc"})
+    assert not (await ws.receive_json())["success"]
+    await ws.send_json({"id": 2, "type": "sound_recognition/storage_old_delete", "path": "/var/lib/soundrec/clips"})
+    r = await ws.receive_json()
+    assert r["success"] and fs.STATE.deleted_old == "/var/lib/soundrec/clips"

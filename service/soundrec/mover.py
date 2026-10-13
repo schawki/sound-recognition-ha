@@ -14,6 +14,8 @@ import shutil
 import time
 from pathlib import Path
 
+DAY_DIR = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
 STALLED_REQUEST_S = 90          # a request nobody picked up: the helper is not running
 STALLED_RUN_S = 5 * 60          # the helper touches its status every 20 s while it works
 SAFE_PATH = re.compile(r"^/[A-Za-z0-9._/@+-]+$")     # what systemd and the helper handle without surprise (no space, no quote)
@@ -111,7 +113,99 @@ class Mover:
                 pass
         message = data.get("message", "") if state != "requested" else ""
         return {"capable": self.capable, "roots": self.roots(), "state": state, "message": str(message), "from": data.get("from", ""), "to": data.get("to", ""),
-                "stalled": stalled, "log": self._log_tail() if state in ("failed", "running") else ""}
+                "stalled": stalled, "log": self._log_tail() if state in ("failed", "running") else "", "clean": self.clean_status(now)}
+
+    # ------------------------------------------------------------------ the old folders kept after a move
+    def kept(self) -> list[str]:
+        """The folders the helper left behind after a move (it writes the list itself, as root: the service cannot add to it)."""
+        try:
+            lines = (self.status_dir / "move-old").read_text().splitlines() if self.status_dir else []
+        except OSError:
+            return []
+        return [l.strip() for l in lines if l.strip().startswith("/")]
+
+    def old_folders(self, current: str | None = None) -> list[dict]:
+        """Each kept folder that still exists, with what is in it and what stops the helper from removing it completely. Walks the folders: call it off the event loop.
+        notes: mount_point (the folder stays), other_files (they stay, and so does the folder), not_writable (the service account cannot delete there: by hand),
+        no_helper (nothing here can delete: by hand)."""
+        out = []
+        cur = os.path.realpath(current) if current else None
+        for path in self.kept():
+            if not os.path.isdir(path):
+                continue
+            if cur and (os.path.realpath(path) == cur or cur.startswith(os.path.realpath(path) + os.sep) or os.path.realpath(path).startswith(cur + os.sep)):
+                continue                    # the folder the clips are in now (or around / inside it) is never offered for deletion
+            clips, size, other = 0, 0, 0
+            try:
+                for name in os.listdir(path):
+                    full = os.path.join(path, name)
+                    if DAY_DIR.match(name) and os.path.isdir(full) and not os.path.islink(full):
+                        for f in os.listdir(full):
+                            fp = os.path.join(full, f)
+                            if f.endswith((".wav", ".json")):
+                                size += os.path.getsize(fp)
+                                clips += f.endswith(".wav")
+                            else:
+                                other += 1
+                    else:
+                        other += 1
+            except OSError:
+                pass
+            notes = []
+            if os.path.ismount(path):
+                notes.append("mount_point")
+            if other:
+                notes.append("other_files")
+            if not os.access(path, os.W_OK | os.X_OK):
+                notes.append("not_writable")
+            if not self.capable:
+                notes.append("no_helper")
+            out.append({"path": path, "clips": clips, "bytes": size, "other": other, "notes": notes})
+        return out
+
+    def _read_clean(self) -> dict:
+        try:
+            data = json.loads((self.status_dir / "clean.json").read_text()) if self.status_dir else {}
+            return data if isinstance(data, dict) else {}
+        except (OSError, ValueError):
+            return {}
+
+    def clean_status(self, now: float | None = None) -> dict:
+        """{state: idle | requested | running | done | failed, message, path, stalled} for the deletion of an old folder."""
+        now = time.time() if now is None else now
+        data = self._read_clean()
+        state, stalled = data.get("state", "idle"), False
+        if state not in ("idle", "running", "done", "failed"):
+            state = "idle"
+        pending = self.request_dir / "move-delete" if self.request_dir else None
+        if pending is not None and pending.exists() and state != "running":
+            state = "requested"
+            try:
+                stalled = now - pending.stat().st_mtime > STALLED_REQUEST_S
+            except OSError:
+                pass
+        elif state == "running":
+            try:
+                stalled = now - (self.status_dir / "clean.json").stat().st_mtime > STALLED_RUN_S
+            except OSError:
+                pass
+        return {"state": state, "message": str(data.get("message", "")) if state != "requested" else "", "path": data.get("path", ""), "stalled": stalled}
+
+    def request_delete(self, path: str) -> str:
+        """Asks the helper to delete the clips of a kept folder. 'requested', 'busy' (a move or a deletion is under way), 'unavailable' (no helper) or 'unknown' (not a kept folder)."""
+        if not self.capable:
+            return "unavailable"
+        if path not in self.kept() or not os.path.isdir(path):
+            return "unknown"
+        if self.status()["state"] in ("requested", "running") or self.clean_status()["state"] in ("requested", "running"):
+            return "busy"
+        try:
+            fd = os.open(self.request_dir / "move-delete", os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
+        except FileExistsError:
+            return "busy"
+        with os.fdopen(fd, "w") as f:
+            json.dump({"old": path}, f)
+        return "requested"
 
     def active(self, now: float | None = None) -> bool:
         """A move is requested or running (and its helper is alive): clips must not be written or purged. Cached for two seconds."""

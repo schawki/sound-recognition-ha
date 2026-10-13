@@ -108,3 +108,69 @@ async def test_the_api_says_when_the_installation_cannot_move_the_clips(client, 
     client.engine.mover, *_ = make(tmp_path, capable=False)
     assert (await client.post("/api/v1/storage/move", headers=H, json={"path": "/mnt/x"})).status == 501
     assert (await client.post("/api/v1/storage/move", json={"path": "/mnt/x"})).status == 401
+
+
+def keep(status, *paths):
+    (status / "move-old").write_text("\n".join(str(p) for p in paths) + "\n")
+
+
+def old_folder(tmp_path, name="old", extra=False):
+    old = tmp_path / name
+    (old / "2026-10-01").mkdir(parents=True)
+    (old / "2026-10-01/a.wav").write_bytes(b"x" * 1000)
+    (old / "2026-10-01/a.json").write_text("{}")
+    if extra:
+        (old / "notes.txt").write_text("mine")
+    return old
+
+
+def test_old_folders_say_what_they_hold_and_what_the_helper_cannot_do(tmp_path):
+    m, _, status, _ = make(tmp_path)
+    plain, mixed = old_folder(tmp_path, "plain"), old_folder(tmp_path, "mixed", extra=True)
+    keep(status, plain, mixed, tmp_path / "gone")
+    rows = {r["path"]: r for r in m.old_folders()}
+    assert set(rows) == {str(plain), str(mixed)}, "a folder that no longer exists is not offered"
+    assert rows[str(plain)]["clips"] == 1 and rows[str(plain)]["bytes"] == 1002 and rows[str(plain)]["notes"] == []
+    assert rows[str(mixed)]["other"] == 1 and rows[str(mixed)]["notes"] == ["other_files"]
+    helperless = Mover(str(tmp_path / "req"), str(status))
+    (status / "move-capable").unlink()
+    assert "no_helper" in helperless.old_folders()[0]["notes"]
+
+
+def test_the_current_folder_is_never_offered_for_deletion(tmp_path):
+    m, _, status, _ = make(tmp_path)
+    cur, other = old_folder(tmp_path, "cur"), old_folder(tmp_path, "other")
+    keep(status, cur, other)
+    assert [r["path"] for r in m.old_folders(str(cur))] == [str(other)]
+
+
+def test_a_deletion_can_only_be_asked_for_a_folder_the_helper_listed(tmp_path):
+    m, req, status, _ = make(tmp_path)
+    old = old_folder(tmp_path)
+    keep(status, old)
+    assert m.request_delete(str(tmp_path / "elsewhere")) == "unknown"
+    assert m.request_delete(str(old)) == "requested" and json.loads((req / "move-delete").read_text()) == {"old": str(old)}
+    assert m.clean_status()["state"] == "requested" and m.request_delete(str(old)) == "busy"
+    (req / "move-delete").unlink()
+    (status / "clean.json").write_text(json.dumps({"state": "done", "message": "ok", "path": str(old)}))
+    s = m.clean_status()
+    assert s["state"] == "done" and s["message"] == "ok" and s["path"] == str(old)
+
+
+async def test_the_api_lists_old_folders_and_deletes_only_listed_ones(client, tmp_path):
+    e = client.engine
+    e.mover, req, status, _ = make(tmp_path)
+    old = old_folder(tmp_path)
+    keep(status, old)
+    s = await (await client.get("/api/v1/storage", headers=H)).json()
+    assert s["move"]["old"][0]["path"] == str(old) and s["move"]["old"][0]["clips"] == 1 and s["move"]["clean"]["state"] == "idle"
+    assert (await client.post("/api/v1/storage/old/delete", headers=H, json={"path": "/etc"})).status == 404
+    r = await client.post("/api/v1/storage/old/delete", headers=H, json={"path": str(old)})
+    assert r.status == 202 and json.loads((req / "move-delete").read_text()) == {"old": str(old)}
+    assert (await client.post("/api/v1/storage/old/delete", headers=H, json={"path": str(old)})).status == 409
+    assert (await client.post("/api/v1/storage/old/delete", json={"path": str(old)})).status == 401
+
+
+async def test_the_api_says_when_nothing_can_delete(client, tmp_path):
+    client.engine.mover, *_ = make(tmp_path, capable=False)
+    assert (await client.post("/api/v1/storage/old/delete", headers=H, json={"path": "/x"})).status == 501

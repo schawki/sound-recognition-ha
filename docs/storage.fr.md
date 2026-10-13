@@ -40,11 +40,22 @@ Onglet *Réglages*, carte *Stockage*, **Déplacer les clips** :
 
 À savoir :
 
-- **Rien n'est supprimé.** L'ancien dossier reste où il était, avec tous ses clips. Vérifiez que le nouvel endroit fonctionne, puis supprimez vous-même l'ancien dossier.
+- **Le déplacement ne supprime rien.** L'ancien dossier reste où il était, avec tous ses clips. Vérifiez que le nouvel endroit fonctionne, puis supprimez les anciens clips depuis la carte (voir plus bas).
 - Pendant la copie, les détections continuent, mais **aucun nouveau clip n'est gardé** (l'historique dit « les clips étaient en cours de déplacement ») et aucun ancien clip n'est purgé.
 - La copie demande de la place : le nouvel endroit doit avoir la taille des clips plus 10 %. Si la copie ou la vérification échoue, ou si le service ne redémarre pas sur le nouveau dossier, le réglage précédent est rétabli et la carte dit pourquoi.
 - L'assistant n'accepte qu'un dossier existant, vide et réel (pas un lien) sous les emplacements autorisés, et écrit avec le compte du service : il ne peut donc jamais écrire là où le service lui-même ne le pourrait pas. Les emplacements autorisés s'étendent à l'installation avec `SOUNDREC_MOVE_ROOTS=/data:/backup`. Il est activé par défaut ; `SOUNDREC_REMOTE_MOVE=0 bash deploy/install.sh` le retire.
 - Avec **Docker**, la carte ne peut pas déplacer les clips : liez le dossier voulu au dossier des clips du conteneur (`-v /votre/dossier:/data/clips`) et copiez les clips une fois à la main.
+
+### Supprimer les anciens clips
+
+Une fois les clips déplacés, la carte *Stockage* liste l'**ancien dossier** avec ce qu'il contient encore et un bouton **Supprimer les anciens clips…** (avec confirmation). Le bouton reste tant que l'ancien dossier existe ; il disparaît quand le dossier a disparu (supprimé depuis la carte, ou à la main).
+
+L'assistant ne supprime que ce que le service a écrit (les dossiers par jour et leurs fichiers `.wav` et `.json`), avec le compte du service, jamais avec `rm -r`. Il refuse si le dossier est celui en service, ou si le dossier en service ne contient aucun clip alors que l'ancien en contient. Certains dossiers ne peuvent pas être retirés complètement, et la carte dit alors quoi faire :
+
+- **Un disque ou un partage monté sur la machine :** les clips sont supprimés, le dossier reste. Pour le retirer, démontez-le (avec un conteneur Proxmox, retirez le point de montage dans les *Ressources* du conteneur, ou `pct set <id> -delete mp0` sur l'hôte) puis supprimez le dossier.
+- **Des fichiers qui ne sont pas des clips :** ils sont conservés, et le dossier aussi. Supprimez-les à la main si vous n'en avez pas besoin.
+- **Le service ne peut pas supprimer là** (partage en lecture seule, fichiers d'un autre utilisateur) : le bouton est désactivé. Supprimez le dossier à la main dans le shell de la machine qui fait tourner le service (`rm -r <dossier>`), ou donnez au compte du service le droit d'y écrire.
+- **Pas d'assistant sur cette installation :** pareil, à la main.
 
 ## Changer le jeton
 

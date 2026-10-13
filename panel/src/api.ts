@@ -32,6 +32,10 @@ export class PanelApi {
   storageMove(path: string): Promise<MoveInfo> {
     return this.hass.callWS({ type: "sound_recognition/storage_move", path });
   }
+  /** Asks the service to have the clips left in an old folder (kept after a move) deleted. */
+  storageOldDelete(path: string): Promise<MoveInfo> {
+    return this.hass.callWS({ type: "sound_recognition/storage_old_delete", path });
+  }
   /** Changes the token between Home Assistant and the service; the new one is stored by the integration and never reaches the panel. */
   rotateToken(): Promise<unknown> {
     return this.hass.callWS({ type: "sound_recognition/token_rotate" });

@@ -2,7 +2,7 @@ import { LitElement, css, html, nothing } from "lit";
 import { property, state } from "lit/decorators.js";
 import type { PanelApi } from "./api";
 import type { T } from "./i18n";
-import type { StorageInfo } from "./types";
+import type { MoveInfo, StorageInfo } from "./types";
 import { formatBytes } from "./util";
 
 const GUIDE = "https://github.com/schawki/sound-recognition-ha/blob/main/docs/storage";
@@ -27,6 +27,8 @@ export class StorageCard extends LitElement {
   @state() private moveTo = "";
   @state() private moveConfirm = false;
   @state() private moveErrors: string[] = [];
+  @state() private oldConfirm = "";
+  @state() private oldError = "";
   private poll = 0;
 
   connectedCallback(): void {
@@ -41,7 +43,8 @@ export class StorageCard extends LitElement {
 
   /** While a move is requested or running, the figures are read again every few seconds (the service restarts at the end: a failed read is ignored). */
   private watchMove(): void {
-    const going = this.info?.move && ["requested", "running"].includes(this.info.move.state);
+    const mv = this.info?.move;
+    const going = mv && (["requested", "running"].includes(mv.state) || ["requested", "running"].includes(mv.clean?.state ?? "idle"));
     if (going && !this.poll) {
       this.poll = window.setInterval(() => void this.api.storage().then((i) => { this.info = i; this.watchMove(); }, () => undefined), 3000);
     } else if (!going && this.poll) {
@@ -67,6 +70,48 @@ export class StorageCard extends LitElement {
     } finally { this.busy = false; }
   }
 
+  private async deleteOld(path: string): Promise<void> {
+    this.busy = true; this.oldError = "";
+    try {
+      const move = await this.api.storageOldDelete(path);
+      this.oldConfirm = "";
+      if (this.info) this.info = { ...this.info, move: { ...(this.info.move as MoveInfo), ...move, old: this.info.move?.old } };
+      this.watchMove();
+    } catch (err) {
+      this.oldConfirm = "";
+      this.oldError = this.t("oldFailed", { message: (err as { message?: string }).message ?? String(err) });
+    } finally { this.busy = false; }
+  }
+
+  /** The old folders kept after a move: what is left in them, a button to delete their clips, and for what the button cannot do, what to do by hand. */
+  private oldSection(i: StorageInfo) {
+    const t = this.t, m = i.move;
+    const olds = m?.old ?? [], clean = m?.clean;
+    if (!olds.length) return nothing;
+    const busy = clean && ["requested", "running"].includes(clean.state);
+    return html`<h3>${t("oldTitle")}</h3><p class="dim">${t("oldHelp")}</p>
+      ${olds.map((o) => {
+        const hand = o.notes.includes("not_writable") || o.notes.includes("no_helper");
+        const cmd = `rm -r ${o.path}`;
+        const mine = clean && clean.path === o.path;
+        return html`<div class="old" data-old=${o.path}><div><strong>${o.path}</strong><br><span class="dim">${o.clips ? t("oldContent", { n: o.clips, size: this.size(o.bytes) }) : t("oldEmpty")}</span>
+          ${o.notes.includes("mount_point") ? html`<p class="dim" data-old-note="mount_point">${t("oldNote_mount_point")}</p>` : nothing}
+          ${o.notes.includes("other_files") ? html`<p class="dim" data-old-note="other_files">${t("oldNote_other_files", { n: o.other })}</p>` : nothing}
+          ${o.notes.includes("not_writable") ? html`<p class="note error" data-old-note="not_writable">${t("oldNote_not_writable", { command: cmd })}</p>` : nothing}
+          ${o.notes.includes("no_helper") && !o.notes.includes("not_writable") ? html`<p class="note error" data-old-note="no_helper">${t("oldNote_no_helper", { command: cmd })}</p>` : nothing}
+          ${!o.clips && !o.notes.length ? html`<p class="dim" data-old-note="leftover">${t("oldNote_leftover", { command: cmd })}</p>` : nothing}
+          ${mine && busy ? html`<p role="status" data-old-progress>${clean!.state === "requested" ? t("oldRequested") : t("oldRunning")}</p>` : nothing}
+          ${mine && clean!.state === "failed" ? html`<p class="note error" data-old-failed>${t("oldFailed", { message: clean!.message })}</p>` : nothing}
+          ${mine && clean!.state === "done" ? html`<p class="ok" data-old-done>${clean!.message}</p>` : nothing}</div>
+          ${hand || !o.clips || busy ? nothing : this.oldConfirm === o.path
+            ? html`<div class="confirm" role="alertdialog" data-old-confirm><p>${t("oldConfirm", { n: o.clips, size: this.size(o.bytes), path: o.path, now: i.clips })}</p>
+                <div class="buttons"><button class="danger" data-action="old-yes" ?disabled=${this.busy} @click=${() => void this.deleteOld(o.path)}>${t("oldYes")}</button>
+                  <button data-action="old-cancel" @click=${() => (this.oldConfirm = "")}>${t("cancel")}</button></div></div>`
+            : html`<button data-action="old-delete" @click=${() => { this.oldConfirm = o.path; this.oldError = ""; }}>${t("oldDelete")}</button>`}</div>`;
+      })}
+      ${this.oldError ? html`<p class="note error" role="alert" data-old-error>${this.oldError}</p>` : nothing}`;
+  }
+
   private reason(code: string): string {
     const key = `moveErr_${code}` as Parameters<T>[0];
     const known = ["not_absolute", "bad_characters", "not_found", "not_directory", "symlink", "same_folder", "nested", "outside_roots", "not_empty", "not_writable", "not_enough_space"];
@@ -77,7 +122,7 @@ export class StorageCard extends LitElement {
     const t = this.t, m = i.move, lang = this.language.startsWith("fr") ? "fr" : "en";
     const guide = html`<a href=${`${GUIDE}.${lang}.md#moving-the-clips`} target="_blank" rel="noreferrer noopener">${t("storageGuide")}</a>`;
     if (!m) return html`<h3>${t("moveTitle")}</h3><p class="dim" data-move-update>${t("moveNeedsUpdate")}</p>`;
-    if (!m.capable) return html`<h3>${t("moveTitle")}</h3><p class="dim" data-move-disabled>${t("moveNotEnabled")} ${guide}</p>`;
+    if (!m.capable) return html`<h3>${t("moveTitle")}</h3><p class="dim" data-move-disabled>${t("moveNotEnabled")} ${guide}</p>${this.oldSection(i)}`;
     const going = m.state === "requested" || m.state === "running";
     return html`<h3>${t("moveTitle")}</h3>
       <p class="dim">${t("moveHelp", { roots: m.roots.join(", ") })} ${guide}</p>
@@ -91,7 +136,8 @@ export class StorageCard extends LitElement {
           ${this.moveConfirm ? html`<div class="confirm" role="alertdialog" data-move-confirm><p>${t("moveConfirm", { size: this.size(i.bytes), path: this.moveTo.trim() })}</p>
               <div class="buttons"><button class="primary" data-action="move-yes" ?disabled=${this.busy} @click=${() => void this.startMove()}>${t("moveYes")}</button>
                 <button data-action="move-cancel" @click=${() => (this.moveConfirm = false)}>${t("cancel")}</button></div></div>`
-            : html`<div class="buttons"><button data-action="move-start" ?disabled=${this.busy || !this.moveTo.trim()} @click=${() => { this.moveConfirm = true; this.moveErrors = []; }}>${t("moveButton")}</button></div>`}`}`;
+            : html`<div class="buttons"><button data-action="move-start" ?disabled=${this.busy || !this.moveTo.trim()} @click=${() => { this.moveConfirm = true; this.moveErrors = []; }}>${t("moveButton")}</button></div>`}`}
+      ${this.oldSection(i)}`;
   }
 
   private async load(): Promise<void> {
@@ -167,6 +213,7 @@ export class StorageCard extends LitElement {
     button.danger { background: var(--error-color, #db4437); color: #fff; border-color: transparent; }
     .ok { color: var(--success-color, #43a047); } .note.error { color: var(--error-color, #db4437); } a { color: var(--primary-color); }
     .row { display: flex; align-items: center; gap: 8px; margin: 10px 0 2px; flex-wrap: wrap; } .wide { width: min(420px, 100%); font: inherit; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--divider-color); background: var(--primary-background-color); color: var(--primary-text-color); }
+    .old { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: flex-start; padding: 6px 0; border-bottom: 1px solid var(--divider-color); } .old p { margin: 4px 0; max-width: 60ch; }
     .confirm { border: 1px solid var(--warning-color, #ffa600); border-radius: 8px; padding: 6px 12px; margin: 8px 0; }
   `;
 }

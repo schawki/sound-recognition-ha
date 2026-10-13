@@ -40,11 +40,22 @@ The folder is a setting of the service (`storage.clips_dir`), so the clips can l
 
 What to know:
 
-- **Nothing is deleted.** The old folder stays where it was, with all its clips. Check that the new place works, then delete the old folder yourself.
+- **Nothing is deleted by the move.** The old folder stays where it was, with all its clips. Check that the new place works, then delete the old clips from the card (see below).
 - During the copy the detections go on, but **no new clip is kept** (the history says "the clips were being moved") and no old clip is purged.
 - The copy needs room: the new place must have the size of the clips plus 10 %. If the copy or the check fails, or the service does not restart on the new folder, the previous setting is restored and the card says why.
 - The helper accepts only an existing, empty, real folder (no link) under the allowed places, and writes as the service account, so it can never write where the service itself could not. The allowed places can be extended at install time with `SOUNDREC_MOVE_ROOTS=/data:/backup`. It is on by default; `SOUNDREC_REMOTE_MOVE=0 bash deploy/install.sh` removes it.
 - With **Docker**, the card cannot move the clips: bind the folder you want to the clips folder of the container (`-v /your/folder:/data/clips`) and copy the clips once by hand.
+
+### Deleting the old clips
+
+Once the clips are moved, the *Storage* card lists the **old folder** with what is left in it and a **Delete the old clips…** button (with a confirmation). The button stays as long as the old folder exists; it goes away once the folder is gone (deleted from the card, or by hand).
+
+The helper only deletes what the service wrote (the day folders and their `.wav` and `.json` files), as the service account, never with `rm -r`. It refuses if the folder is the one in use, or if the folder in use holds no clip while the old one does. Some folders cannot be removed completely, and the card then tells what to do:
+
+- **A disk or a share mounted on the machine:** the clips are deleted, the folder stays. To remove it, unmount it (with a Proxmox container, remove the mount point in the container's *Resources*, or `pct set <id> -delete mp0` on the host) and delete the folder.
+- **Files that are not clips:** they are kept, and so is the folder. Delete them by hand if you do not need them.
+- **The service cannot delete there** (read-only share, files that belong to another user): the button is off. Delete the folder by hand in the shell of the machine that runs the service (`rm -r <folder>`), or give the service account the right to write there.
+- **No helper on this installation:** the same, by hand.
 
 ## Changing the token
 

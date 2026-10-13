@@ -40,7 +40,7 @@ def test_updater_units_match_installer_and_service():
 def test_move_units_match_installer_and_service():
     d = ROOT / "deploy"
     install = (d / "install.sh").read_text()
-    assert "PathExists=/var/lib/soundrec/update-request/move" in (d / "soundrec-move.path").read_text()
+    assert "PathExistsGlob=/var/lib/soundrec/update-request/move*" in (d / "soundrec-move.path").read_text()   # `move` and `move-delete`
     assert "ExecStart=/usr/local/sbin/soundrec-move" in (d / "soundrec-move.service").read_text() and "/usr/local/sbin/soundrec-move" in install
     for flag in ("move-capable", "move-roots", "SOUNDREC_REMOTE_MOVE", "SOUNDREC_CLIPS", "MOVE_ROOTS"):
         assert flag in install, flag

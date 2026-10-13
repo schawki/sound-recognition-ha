@@ -100,6 +100,10 @@ class SoundRecClient:
         """Asks the service to move the clips to another folder (API level 11: 404 on an older service, 422 {errors} when the folder cannot be used)."""
         return await self._request("POST", "/storage/move", json={"path": path})
 
+    async def storage_old_delete(self, path: str) -> dict:
+        """Asks the service to have the clips left in a folder kept after a move deleted (API level 11; 404 when the folder is not one of those)."""
+        return await self._request("POST", "/storage/old/delete", json={"path": path})
+
     async def rotate_token(self) -> str:
         """Asks the service for a new token (the old one still works for a minute) and returns it."""
         return (await self._request("POST", "/token/rotate"))["token"]

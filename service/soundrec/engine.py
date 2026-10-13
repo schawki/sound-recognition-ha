@@ -197,7 +197,7 @@ class Engine:
         return {**u, "per_day_bytes": per_day, "days_left": (free / per_day) if (free is not None and per_day) else None,
                 "max_gb": s.get("clips_max_gb"), "min_free_gb": s.get("clips_min_free_gb"), "paused": self._check_free_space(),
                 "auto_deleted": self.store.count_reason("quota"), "skipped": self.store.count_reason("disk_low"),
-                "moved_skipped": self.store.count_reason("moving"), "move": self.mover.status()}
+                "moved_skipped": self.store.count_reason("moving"), "move": {**self.mover.status(), "old": self.mover.old_folders(s["clips_dir"])}}
 
     # ---------------------------------------------------------------- token
     def rotate_token(self):

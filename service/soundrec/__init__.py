@@ -10,5 +10,5 @@ __version__ = "0.17.0"
 # 8: retention of clips by category (`clips.retention_by_category`), verdict `good` on detections, `POST /events/delete_clipless`, `feedback` clip filter.
 # 9: `GET /storage` (size, growth, limits of the clips), `POST /token/rotate`, `storage.clips_max_gb` / `clips_min_free_gb`, clip reasons `quota` and `disk_low`.
 # 10: presets (`catalog.presets`, `presets` in the configuration and on each source), `GET /config/effective` (the configuration with the presets folded in), provenance `preset`.
-# 11: `POST /storage/move` (move the clips to another folder), `GET /storage` carries `move` (state of the helper) and `moved_skipped`, clip reason `moving`.
+# 11: `POST /storage/move` (move the clips to another folder), `POST /storage/old/delete` (delete the clips left in the old folder), `GET /storage` carries `move` (state of the helper, old folders kept) and `moved_skipped`, clip reason `moving`.
 API_LEVEL = 11

@@ -16,6 +16,7 @@ For developers. The service exposes a local HTTP/WebSocket API under `/api/v1`, 
 | `clips`, `clips/delete`, `clips/{path}` | List (filter by `source`, `mid`, `usage`, `since`, `until`, `feedback` = `false`, `good` or `unjudged`), delete (`ids` or `filter`, `dry_run`), download |
 | `storage` | GET: folder, size, free space, growth per day, days left, and the two limits (`storage.clips_max_gb`, `storage.clips_min_free_gb`); a clip missing because of them carries `clip_reason` `quota` or `disk_low` |
 | `storage/move` | POST `{path}`: asks the root helper to move the clips to another folder (API level 11). 202 with the state; 422 `{errors: [codes]}` when the folder cannot be used; 501 without helper; 409 when a move is already under way. `GET storage` carries `move` (`capable`, `roots`, `state`, `message`, `from`, `to`, `stalled`) and `moved_skipped`; a clip missing because of a move carries `clip_reason` `moving` |
+| `storage/old/delete` | POST `{path}`: asks the root helper to delete the clips left in a folder it kept after a move (API level 11). 202; 404 when the folder is not in the helper's list; 501 without helper; 409 when busy. `GET storage` lists those folders under `move.old` (`path`, `clips`, `bytes`, `other`, `notes`: `mount_point`, `other_files`, `not_writable`, `no_helper`) and the deletion state under `move.clean` |
 | `token/rotate` | POST: makes a new API token and returns it; the old one works for one more minute |
 | `ws` | Live events |
 

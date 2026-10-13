@@ -33,7 +33,10 @@ export interface StorageInfo {
   max_gb: number | null; min_free_gb: number | null; paused: boolean; auto_deleted: number; skipped: number;
   moved_skipped?: number; move?: MoveInfo }
 /** The move of the clips to another folder: the helper installed on the service machine, and how far it went. Absent from a service older than API level 11. */
-export interface MoveInfo { capable: boolean; roots: string[]; state: "idle" | "requested" | "running" | "done" | "failed"; message: string; from: string; to: string; stalled: boolean; log: string }
+export interface MoveInfo { capable: boolean; roots: string[]; state: "idle" | "requested" | "running" | "done" | "failed"; message: string; from: string; to: string; stalled: boolean; log: string;
+  /** The old folders kept after a move and the state of the deletion of their clips. */
+  old?: OldFolder[]; clean?: { state: "idle" | "requested" | "running" | "done" | "failed"; message: string; path: string; stalled: boolean } }
+export interface OldFolder { path: string; clips: number; bytes: number; other: number; notes: ("mount_point" | "other_files" | "not_writable" | "no_helper")[] }
 export interface ClipsDeleted { count: number; bytes: number; dry_run: boolean }
 
 export interface Overview {

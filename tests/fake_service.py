@@ -7,7 +7,7 @@ from soundrec import API_LEVEL, advisor, catalog as cm, config as cfgmod, recomm
 from custom_components.sound_recognition.api import CannotConnect, InvalidAuth, InvalidConfig, SoundRecClient, SoundRecError
 
 CAT = st.Catalog(cm.load_raw())
-STATE = SimpleNamespace(update=None, health_extra={}, cfg=None, down=False, token="tok", handler=None, stop=None, status={}, events=[], feedback={}, pushed={}, clip_calls=[], places={}, storage=None, api_level=None, moved=None)
+STATE = SimpleNamespace(update=None, health_extra={}, cfg=None, down=False, token="tok", handler=None, stop=None, status={}, events=[], feedback={}, pushed={}, clip_calls=[], places={}, storage=None, api_level=None, moved=None, deleted_old=None)
 
 
 def reset(cfg=None):
@@ -18,7 +18,8 @@ def reset(cfg=None):
     STATE.update, STATE.health_extra, STATE.api_level = {"state": "idle", "capable": True}, {}, API_LEVEL
     STATE.storage = {"path": "/var/lib/soundrec/clips", "clips": 69, "bytes": 25_000_000, "free_bytes": 6_000_000_000, "total_bytes": 20_000_000_000, "per_day_bytes": 3_000_000, "days_left": 2000.0,
                      "max_gb": None, "min_free_gb": None, "paused": False, "auto_deleted": 0, "skipped": 0, "moved_skipped": 0,
-                     "move": {"capable": True, "roots": ["/mnt", "/media"], "state": "idle", "message": "", "from": "", "to": "", "stalled": False, "log": ""}}
+                     "move": {"capable": True, "roots": ["/mnt", "/media"], "state": "idle", "message": "", "from": "", "to": "", "stalled": False, "log": "",
+                              "clean": {"state": "idle", "message": "", "path": "", "stalled": False}, "old": []}}
 
 
 class FakeClient:
@@ -158,6 +159,13 @@ class FakeClient:
         STATE.storage = {**STATE.storage, "move": {"capable": True, "roots": ["/mnt"], "state": "requested", "message": "", "from": "", "to": "", "stalled": False, "log": ""}}
         STATE.moved = path
         return STATE.storage["move"]
+
+    async def storage_old_delete(self, path):
+        self._check()
+        if path != "/var/lib/soundrec/clips":
+            raise SoundRecError("HTTP 404 on /storage/old/delete")
+        STATE.deleted_old = path
+        return {"capable": True, "state": "idle", "clean": {"state": "requested", "message": "", "path": path, "stalled": False}}
 
     async def rotate_token(self):
         self._check()
