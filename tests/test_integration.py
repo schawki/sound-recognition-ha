@@ -604,3 +604,17 @@ async def test_a_warning_without_a_gesture_stays_a_plain_alert(hass):
     await setup_entry(hass)
     plain = [i for i in ir.async_get(hass).issues.values() if i.domain == DOMAIN and i.translation_key == "advice" and not i.is_fixable]
     assert plain
+
+
+async def test_clips_are_for_administrators_only(hass, hass_client, hass_client_no_auth, hass_read_only_access_token):
+    from custom_components.sound_recognition import signed_clip_url
+    entry = await setup_entry(hass)
+    path = f"/api/sound_recognition/clip/{entry.entry_id}/kitchen/e1.wav"
+    admin = await hass_client()
+    assert (await admin.get(path)).status == 200
+    reader = await hass_client(hass_read_only_access_token)                       # a logged-in user who is not an administrator
+    assert (await reader.get(path)).status == 403
+    anonymous = await hass_client_no_auth()
+    assert (await anonymous.get(path)).status == 401
+    signed = signed_clip_url(hass, entry.entry_id, "kitchen/e1.wav")              # what notifications and the panel use
+    assert (await anonymous.get(signed)).status == 200

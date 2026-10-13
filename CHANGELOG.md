@@ -2,6 +2,13 @@
 
 Releases are tagged `vX.Y.Z`; the service updates itself from Home Assistant to the latest tag.
 
+## 0.13.0
+
+- **Clips are for administrators.** A Home Assistant user who is not an administrator can no longer fetch a clip by its address, since clips can hold private speech. The links given by the panel and by the notifications (signed links) keep working.
+- **The service's token is only accepted in the `Authorization` header**, no longer in the address (`?token=`), where it ends up in logs. The integration already used the header; nothing to change unless you wrote your own client.
+- **New section "Protect the service"** in the installation guide: firewall rules (Proxmox or `ufw`) so that only Home Assistant reaches port 8765, and the other precautions.
+- Update the integration through HACS, restart Home Assistant, then update the service from Home Assistant.
+
 ## 0.12.1
 
 - **A microphone you added is never shown as "ignored".** An ESP32 that was ignored (for example by pressing *Submit* in the Repairs alert) and then added as a source stayed marked as ignored. It is now forgotten by the ignored list as soon as it is a source, so removing the source later offers it again.

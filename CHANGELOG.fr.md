@@ -2,6 +2,13 @@
 
 Les versions sont étiquetées `vX.Y.Z` ; le service se met à jour depuis Home Assistant vers la dernière étiquette.
 
+## 0.13.0
+
+- **Les clips sont réservés aux administrateurs.** Un utilisateur de Home Assistant qui n'est pas administrateur ne peut plus récupérer un clip par son adresse, car un clip peut contenir de la parole privée. Les liens donnés par le panneau et par les notifications (liens signés) continuent de fonctionner.
+- **Le jeton du service n'est accepté que dans l'en-tête `Authorization`**, plus dans l'adresse (`?token=`), où il finit dans des journaux. L'intégration utilisait déjà l'en-tête ; rien à changer, sauf si vous avez écrit votre propre client.
+- **Nouvelle section « Protéger le service »** dans le guide d'installation : règles de pare-feu (Proxmox ou `ufw`) pour que seul Home Assistant joigne le port 8765, et les autres précautions.
+- Mettez à jour l'intégration par HACS, redémarrez Home Assistant, puis mettez à jour le service depuis Home Assistant.
+
 ## 0.12.1
 
 - **Un micro ajouté n'est plus jamais affiché comme « ignoré ».** Un ESP32 ignoré (par exemple avec *Envoyer* dans l'alerte des Réparations) puis ajouté comme source restait marqué ignoré. Il est maintenant oublié de la liste des ignorés dès qu'il est une source : le retirer plus tard le fait proposer de nouveau.

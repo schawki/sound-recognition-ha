@@ -170,3 +170,8 @@ async def test_events_with_a_bad_number_answer_400_not_500(filled):
         r = await filled.get(f"/api/v1/events?{q}", headers=H)
         assert r.status == 400
     assert (await filled.get("/api/v1/events?since=0&limit=5", headers=H)).status == 200
+
+
+async def test_the_token_is_only_accepted_in_the_header(filled):
+    assert (await filled.get("/api/v1/sources", headers=H)).status == 200
+    assert (await filled.get("/api/v1/sources?token=tok")).status == 401

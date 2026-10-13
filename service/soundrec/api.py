@@ -22,7 +22,7 @@ async def auth(req, handler):
         return await handler(req)
     token = req.app["engine"].cfg["api"]["token"]
     header = req.headers.get("Authorization", "")
-    given = header[7:] if header.startswith("Bearer ") else req.query.get("token", "")
+    given = header[7:] if header.startswith("Bearer ") else ""      # never in the URL: addresses end up in logs
     if not given or not hmac.compare_digest(given, token):
         return web.json_response({"error": "unauthorized"}, status=401)
     return await handler(req)

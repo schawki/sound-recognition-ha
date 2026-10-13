@@ -47,6 +47,10 @@ class SoundRecClipView(HomeAssistantView):
     requires_auth = True
 
     async def get(self, request: web.Request, entry_id: str, rel: str) -> web.Response:
+        user = request.get("hass_user")
+        if "authSig" not in request.query and (user is None or not user.is_admin):
+            return web.Response(status=403)    # clips can hold private speech: a logged-in user who is not an administrator is refused;
+                                               # a signed link (panel, notifications) is the administrator's own gesture, Home Assistant checks its signature
         hass: HomeAssistant = request.app["hass"]
         entry = hass.config_entries.async_get_entry(entry_id)
         if entry is None or entry.domain != DOMAIN or not hasattr(entry, "runtime_data"):
