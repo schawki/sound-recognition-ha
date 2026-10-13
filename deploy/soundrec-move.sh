@@ -65,7 +65,8 @@ m = re.search(r"^[ \t]+clips_dir:[ \t]*['\"]?([^'\"\n#]+?)['\"]?[ \t]*(#.*)?$", 
 print(m.group(1) if m else "")
 PY
 )"
-[ -n "$CURRENT" ] && [ -d "$CURRENT" ] || fail "Cannot find the current clips folder in the configuration"
+[ -n "$CURRENT" ] || fail "Cannot find the current clips folder in the configuration"
+[ -d "$CURRENT" ] || fail "The current clips folder in the configuration does not exist"
 CURRENT="$(realpath -e -- "$CURRENT")"
 FROM="$CURRENT" TO="$DEST"
 [ "$CURRENT" != "$DEST" ] || fail "The clips are already in that folder"
