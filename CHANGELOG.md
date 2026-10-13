@@ -2,6 +2,12 @@
 
 Releases are tagged `vX.Y.Z`; the service updates itself from Home Assistant to the latest tag.
 
+## 0.15.1
+
+- **More in the *Settings* tab.** The retention of the clips by kind of sound moves there from the *Clips* tab; the **sensitivity to contexts** (how much a TV, radio or music raises the thresholds of look-alike sounds), which could no longer be changed since 0.15.0, is back among the default values; the **go2rtc address** can be tried and saved there (it is still offered when you add a source).
+- **Sources with their own settings** are listed in *Settings*, with what each one sets for itself (sensitivity, volume, hours, clips, place, sounds, advice) and an *Open* button. The advice you changed or hid for all sources are listed there too, with *Restore*.
+- No service change: only the version number moves. Update the integration through HACS and restart Home Assistant.
+
 ## 0.15.0
 
 - **A new *Settings* tab** gathers what is set once and rarely changed, on one page: the **connection** (address of the service, its version, the **Change the token** button), the **storage** (the two limits), the **default values** (quietest sound taken into account, clips kept by default, longest retention), the **link with Home Structure** (and why Sound Recognition uses it), and the ESP32 microphones you put aside (with *Stop ignoring*). Sources, sounds and advice keep their own tabs.

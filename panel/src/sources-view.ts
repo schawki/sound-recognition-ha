@@ -72,6 +72,7 @@ export class SourcesView extends LitElement {
   @state() private hsPlace: HsPlace | null = null;
   @state() private structure: StructureInfo | null = null;
   private devsFor = "";
+  @property({ attribute: false }) focusSource: string | null = null;   // set when Settings sends the user to one source: opens its form, then says it did
   @property({ type: Boolean }) wantEsp = false;                  // set by the panel banner: opens the form on "ESP32 microphone", then says it did
   @state() private esp: { devices: EsphomeDevice[]; tried: boolean; copied: boolean } = { devices: [], tried: false, copied: false };
   @state() private g2: { url: string; streams: Go2rtcStreams["streams"]; loading: boolean; error: string; tried: boolean } = { url: "", streams: [], loading: false, error: "", tried: false };
@@ -100,6 +101,12 @@ export class SourcesView extends LitElement {
       lastType = "esphome";
       this.openForm(this.blankForm());
       this.dispatchEvent(new CustomEvent("esp-opened", { bubbles: true, composed: true }));
+    }
+    if (this.focusSource && this.config) {
+      const src = this.config.sources?.find((x) => x.id === this.focusSource);
+      this.focusSource = null;
+      if (src) this.openForm(this.toForm(src));
+      this.dispatchEvent(new CustomEvent("source-opened", { bubbles: true, composed: true }));
     }
     if (this.form?.type === "go2rtc" && !this.g2.tried && !this.g2.loading) void this.loadStreams();
     if (this.form?.type === "esphome" && !this.esp.tried) void this.loadEsphome();

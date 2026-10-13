@@ -2,8 +2,7 @@ import { LitElement, css, html, nothing } from "lit";
 import { property, state } from "lit/decorators.js";
 import type { PanelApi } from "./api";
 import type { T } from "./i18n";
-import type { Catalog, ClipFilter, ClipRow, ClipsPage, Overview, RetentionCategory } from "./types";
-import { RETENTION_CATEGORIES, RET_KEYS, retBlock, retForm } from "./retention";
+import type { Catalog, ClipFilter, ClipRow, ClipsPage, Overview } from "./types";
 import "./feedback-control";
 import "./storage-card";
 import { formatBytes, relativeTime } from "./util";
@@ -29,9 +28,6 @@ export class ClipsView extends LitElement {
   @state() private to = "";
   @state() private verdict: "" | "false" | "good" | "unjudged" = "";
   @state() private clipless = 0;
-  @state() private ret: Record<RetentionCategory, string> = retForm(undefined);
-  @state() private retMsg = "";
-  @state() private retErrors: string[] = [];
   @state() private picked = new Set<string>();
   @state() private pending: Pending | null = null;
   @state() private result = "";
@@ -51,46 +47,7 @@ export class ClipsView extends LitElement {
       this.audio = new Map((cat as Catalog).classes.map((k) => [k.mid, k.audioset_name]));
       this.sources = new Map((ov as Overview).sources.map((s) => [s.id, s.name]));
     } catch { /* the list below reports the connection problem */ }
-    try {
-      this.ret = retForm((await this.api.config()).defaults?.clips?.retention_by_category);
-    } catch { /* the settings block just stays empty */ }
     await this.load(false);
-  }
-
-  /** Saves the global retention by kind of sound (defaults.clips.retention_by_category) on a fresh copy of the configuration. */
-  private async saveRetention(): Promise<void> {
-    this.busy = true;
-    this.retMsg = "";
-    this.retErrors = [];
-    try {
-      const cfg = await this.api.config();
-      const block = retBlock(this.ret);
-      const defaults = { ...(cfg.defaults ?? {}) };
-      const clips = { ...(defaults.clips ?? {}) };
-      if (Object.keys(block).length) clips.retention_by_category = block; else delete clips.retention_by_category;
-      defaults.clips = clips;
-      const next = { ...cfg, defaults };
-      const check = await this.api.validate(next);
-      if (check.errors.length) { this.retErrors = check.errors; return; }
-      await this.api.save(next);
-      this.retMsg = this.t("retentionSaved");
-    } catch (err) {
-      this.retErrors = [(err as { message?: string }).message ?? String(err)];
-    } finally {
-      this.busy = false;
-    }
-  }
-
-  private retentionCard() {
-    const t = this.t;
-    return html`<details class="retention" data-retention><summary>${t("retentionTitle")}</summary>
-      <p class="dim">${t("retentionHelp")}</p>
-      <div class="two">${RETENTION_CATEGORIES.map((k) => html`<label>${t(RET_KEYS[k])}<input name=${`ret_${k}`} type="number" min="0" max="3650" step="1" .value=${this.ret[k]}
-        @input=${(e: Event) => { this.ret = { ...this.ret, [k]: (e.target as HTMLInputElement).value }; this.retMsg = ""; }} /></label>`)}</div>
-      ${parseInt(this.ret.confidential, 10) > 0 ? html`<p class="note error" data-confidential-warning>${t("clipForbiddenOn")}</p>` : nothing}
-      ${this.retErrors.map((e) => html`<p class="note error">${e}</p>`)}
-      <div class="buttons"><button class="primary" data-action="save-retention" ?disabled=${this.busy} @click=${() => void this.saveRetention()}>${t("retentionSave")}</button>
-        ${this.retMsg ? html`<span class="ok" role="status" data-retention-saved>${this.retMsg}</span>` : nothing}</div></details>`;
   }
 
   private get filter(): ClipFilter {
@@ -230,7 +187,6 @@ export class ClipsView extends LitElement {
     const allShown = this.rows.length > 0 && this.rows.every((r) => this.picked.has(r.id));
     return html`
       <sound-recognition-storage readonly .api=${this.api} .t=${t} .language=${this.language}></sound-recognition-storage>
-      ${this.retentionCard()}
       <div class="filters">
         <select name="source" aria-label=${t("allSources")} @change=${(e: Event) => this.change(() => (this.source = (e.target as HTMLSelectElement).value))}>
           <option value="" ?selected=${this.source === ""}>${t("allSources")}</option>${[...this.sources].map(([id, n]) => html`<option value=${id} ?selected=${this.source === id}>${n}</option>`)}</select>
@@ -275,10 +231,6 @@ export class ClipsView extends LitElement {
     :host { display: block; }
     .note { color: var(--secondary-text-color); } .note.error { color: var(--error-color, #db4437); } .ok { color: var(--success-color, #43a047); }
     .dim { color: var(--secondary-text-color); font-size: 0.85rem; } p.dim { margin: 2px 0; }
-    .retention { border: 1px solid var(--divider-color); border-radius: 12px; padding: 8px 14px; margin-bottom: 14px; background: var(--card-background-color); }
-    .retention summary { cursor: pointer; font-weight: 500; } .retention label { display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem; }
-    .retention input { font: inherit; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--divider-color); background: var(--primary-background-color); color: var(--primary-text-color); min-width: 0; }
-    .two { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin: 10px 0; }
     button.primary { background: var(--primary-color); border-color: transparent; color: var(--text-primary-color, #fff); }
     .filters { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; align-items: center; }
     .date { display: flex; gap: 6px; align-items: center; color: var(--secondary-text-color); font-size: 0.9rem; }

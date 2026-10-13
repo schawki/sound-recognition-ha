@@ -2,6 +2,12 @@
 
 Les versions sont étiquetées `vX.Y.Z` ; le service se met à jour depuis Home Assistant vers la dernière étiquette.
 
+## 0.15.1
+
+- **Plus de choses dans l'onglet *Réglages*.** La conservation des clips par type de son quitte l'onglet *Clips* pour y venir ; la **sensibilité aux contextes** (de combien une TV, une radio ou de la musique relèvent les seuils des sons semblables), qui n'était plus modifiable depuis la 0.15.0, revient parmi les valeurs par défaut ; l'**adresse de go2rtc** peut y être essayée et enregistrée (elle reste proposée quand vous ajoutez une source).
+- **Les sources avec des réglages particuliers** sont listées dans *Réglages*, avec ce que chacune règle pour elle-même (sensibilité, volume, horaires, clips, lieu, sons, conseils) et un bouton *Ouvrir*. Les conseils que vous avez modifiés ou masqués pour toutes les sources y sont aussi, avec *Rétablir*.
+- Aucun changement du service : seul le numéro de version bouge. Mettez à jour l'intégration par HACS et redémarrez Home Assistant.
+
 ## 0.15.0
 
 - **Un nouvel onglet *Réglages*** rassemble sur une seule page ce qui se règle une fois et change rarement : la **connexion** (adresse du service, sa version, bouton **Changer le jeton**), le **stockage** (les deux limites), les **valeurs par défaut** (son le plus faible pris en compte, clips gardés par défaut, durée maximale), le **lien avec Home Structure** (et pourquoi Reconnaissance de sons l'utilise) et les micros ESP32 mis de côté (avec *Ne plus ignorer*). Les sources, les sons et les conseils gardent leurs onglets.

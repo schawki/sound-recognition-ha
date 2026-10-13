@@ -80,11 +80,11 @@ class SoundRecognitionPanel extends LitElement {
     const common = { api: this.api, t, language: this.uiLang };
     switch (this.tab) {
       case "insights": return html`<sound-recognition-insights .api=${common.api} .t=${t} .language=${common.language} @open-tab=${this.openTab}></sound-recognition-insights>`;
-      case "sources": return html`<sound-recognition-sources .api=${common.api} .t=${t} .language=${common.language} .wantEsp=${this.wantEsp} @esp-opened=${() => { this.wantEsp = false; }} @esp-pending=${(e: CustomEvent<number>) => { this.espPending = e.detail; }}></sound-recognition-sources>`;
+      case "sources": return html`<sound-recognition-sources .api=${common.api} .t=${t} .language=${common.language} .wantEsp=${this.wantEsp} .focusSource=${this.focusKey} @source-opened=${() => { this.focusKey = null; }} @esp-opened=${() => { this.wantEsp = false; }} @esp-pending=${(e: CustomEvent<number>) => { this.espPending = e.detail; }}></sound-recognition-sources>`;
       case "sounds": return html`<sound-recognition-sounds .api=${common.api} .t=${t} .language=${common.language}></sound-recognition-sounds>`;
       case "advice": return html`<sound-recognition-advice .api=${common.api} .t=${t} .language=${common.language} .focusKey=${this.focusKey}></sound-recognition-advice>`;
       case "clips": return html`<sound-recognition-clips .api=${common.api} .t=${t} .language=${common.language} @open-tab=${this.openTab}></sound-recognition-clips>`;
-      case "settings": return html`<sound-recognition-settings .api=${common.api} .t=${t} .language=${common.language}></sound-recognition-settings>`;
+      case "settings": return html`<sound-recognition-settings .api=${common.api} .t=${t} .language=${common.language} @open-tab=${this.openTab}></sound-recognition-settings>`;
       default: return html`<sound-recognition-live .api=${common.api} .t=${t} .language=${common.language} @open-tab=${this.openTab}></sound-recognition-live>`;
     }
   }

@@ -28,6 +28,7 @@
       { id: "garden", name: "Garden camera", type: "go2rtc", url: "rtsp://x/g", threshold_offset: 0.1 },
     ],
   };
+  if (q.get("advover")) state.config.advice = { speech_target: "ignore" };
   state.saves = [];
   if (q.get("trace")) {                                 // an advice applied earlier whose cause is gone from the list (a sound switched off)
     const k = state.config.sources[0];
