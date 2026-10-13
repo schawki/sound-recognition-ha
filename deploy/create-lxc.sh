@@ -9,6 +9,8 @@
 #   GATEWAY     gateway, only with a static IP             DNS  (container default = host's)
 #   CORES (2)   MEMORY in MB (1024)   DISK in GB (8)       VLAN  optional vlan tag
 #   REPO_URL    git repository to install from (https://github.com/schawki/sound-recognition-ha.git)   REF  branch or tag (main)
+#   CLIPS_HOST  a folder of the Proxmox host (a disk, a mounted NAS share) to keep the clips in, mounted in the container as /mnt/clips.
+#               It must exist; the script gives it to the service account. Leave it empty to keep the clips inside the container.
 #   SOURCE=local  copy this folder into the container instead of cloning from GitHub (offline / unpublished changes)
 #   YES=1       skip the confirmation question
 set -euo pipefail
@@ -38,6 +40,12 @@ if [ "$SOURCE" = "local" ]; then
   done
 fi
 if [ "$IP" != "dhcp" ] && [ -z "${GATEWAY:-}" ]; then die "a static IP needs GATEWAY=..."; fi
+CLIPS_HOST="${CLIPS_HOST:-}"
+if [ -n "$CLIPS_HOST" ]; then
+  CLIPS_HOST="${CLIPS_HOST%/}"
+  [[ "$CLIPS_HOST" =~ ^/[A-Za-z0-9._/@+-]+$ ]] || die "CLIPS_HOST must be an absolute path made of letters, digits and . _ / @ + - only"
+  [ -d "$CLIPS_HOST" ] || die "CLIPS_HOST ($CLIPS_HOST) does not exist on this host: create or mount it first"
+fi
 
 CTID="${CTID:-$(pvesh get /cluster/nextid)}"
 pct status "$CTID" >/dev/null 2>&1 && die "container $CTID already exists (choose another CTID=...)"
@@ -53,6 +61,8 @@ NET="name=eth0,bridge=$BRIDGE,ip=$IP"
 [ "$IP" != "dhcp" ] && NET="$NET,gw=$GATEWAY"
 [ -n "${VLAN:-}" ] && NET="$NET,tag=$VLAN"
 
+if [ -n "$CLIPS_HOST" ]; then CLIPS_MSG="$CLIPS_HOST (host folder, seen as /mnt/clips in the container)"
+else CLIPS_MSG="inside the container ($DISK GB disk); you can move them later from Home Assistant"; fi
 cat <<MSG
 
 About to create:
@@ -60,6 +70,7 @@ About to create:
   resources   $CORES vCPU, $MEMORY MB RAM, ${DISK} GB disk on '$STORAGE'
   network     $NET
   template    $TEMPLATE (from '$TEMPLATE_STORAGE')
+  clips       $CLIPS_MSG
 MSG
 if [ "${YES:-0}" != "1" ]; then
   read -r -p "Continue? [y/N] " ans
@@ -77,6 +88,7 @@ ARGS=(--hostname "$HOSTNAME_CT" --unprivileged 1 --onboot 1 --cores "$CORES" --m
       --rootfs "$STORAGE:$DISK" --net0 "$NET" --features nesting=1 --ostype debian)
 [ -n "${DNS:-}" ] && ARGS+=(--nameserver "$DNS")
 pct create "$CTID" "$TEMPLATE_STORAGE:vztmpl/$TEMPLATE" "${ARGS[@]}"
+[ -n "$CLIPS_HOST" ] && pct set "$CTID" -mp0 "$CLIPS_HOST,mp=/mnt/clips,backup=0"
 pct start "$CTID"
 
 say "Waiting for the network in the container"
@@ -85,6 +97,17 @@ for _ in $(seq 1 30); do
   sleep 2
 done
 pct exec "$CTID" -- sh -c 'getent hosts deb.debian.org >/dev/null 2>&1' || die "the container has no network/DNS (check BRIDGE, IP, GATEWAY, DNS)"
+
+# ---- clips on a host folder: the service account is created now so the folder can be given to it (unprivileged container: uid + 100000 on the host)
+CLIPS_ENV=()
+if [ -n "$CLIPS_HOST" ]; then
+  say "Giving $CLIPS_HOST to the service account"
+  pct exec "$CTID" -- sh -c 'id soundrec >/dev/null 2>&1 || useradd --system --home-dir /var/lib/soundrec --shell /usr/sbin/nologin soundrec'
+  SUID="$(pct exec "$CTID" -- id -u soundrec)"; SGID="$(pct exec "$CTID" -- id -g soundrec)"
+  chown "$((100000 + SUID)):$((100000 + SGID))" "$CLIPS_HOST" || die "cannot give $CLIPS_HOST to uid $((100000 + SUID)) (a NAS share may need its own permissions for that user)"
+  chmod 0750 "$CLIPS_HOST"
+  CLIPS_ENV=(SOUNDREC_CLIPS=/mnt/clips)
+fi
 
 # ---- install
 SRC_DIR=/opt/sound-recognition-ha
@@ -103,7 +126,7 @@ fi
 
 say "Installing the service"
 TZ_HOST="$(cat /etc/timezone 2>/dev/null || true)"
-pct exec "$CTID" -- env SOUNDREC_TZ="${SOUNDREC_TZ:-$TZ_HOST}" bash "$SRC_DIR/deploy/install.sh"
+pct exec "$CTID" -- env SOUNDREC_TZ="${SOUNDREC_TZ:-$TZ_HOST}" "${CLIPS_ENV[@]}" bash "$SRC_DIR/deploy/install.sh"
 
 IPADDR="$(pct exec "$CTID" -- hostname -I 2>/dev/null | awk '{print $1}')"
 say "Done"

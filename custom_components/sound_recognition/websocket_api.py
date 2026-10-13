@@ -212,6 +212,20 @@ async def ws_storage(hass, connection, msg, entry):
     connection.send_result(msg["id"], await entry.runtime_data.client.storage())
 
 
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/storage_move", vol.Required("path"): str, **ENTRY})
+@websocket_api.require_admin
+@websocket_api.async_response
+@_with_entry
+async def ws_storage_move(hass, connection, msg, entry):
+    """Asks the service to move the clips to another folder. A folder that cannot be used answers `invalid_path` with the reasons (codes) separated by commas."""
+    try:
+        res = await entry.runtime_data.client.storage_move(msg["path"])
+    except InvalidConfig as err:
+        connection.send_error(msg["id"], "invalid_path", ",".join(err.errors))
+        return
+    connection.send_result(msg["id"], res)
+
+
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/connection", **ENTRY})
 @websocket_api.require_admin
 @websocket_api.async_response
@@ -443,7 +457,7 @@ async def ws_go2rtc_streams(hass, connection, msg, entry):
     connection.send_result(msg["id"], {"configured": True, "url": base, "streams": streams})
 
 
-COMMANDS = (ws_connection, ws_storage, ws_token_rotate, ws_esphome_devices, ws_esphome_ignore, ws_go2rtc_streams, ws_overview, ws_update, ws_update_install, ws_catalog, ws_warnings, ws_config, ws_config_validate, ws_config_save, ws_resolved, ws_events, ws_clips, ws_clips_delete, ws_events_delete_clipless, ws_recommendations, ws_areas, ws_openings, ws_devices, ws_place, ws_structure, ws_stats, ws_event_feedback, ws_subscribe)
+COMMANDS = (ws_connection, ws_storage, ws_storage_move, ws_token_rotate, ws_esphome_devices, ws_esphome_ignore, ws_go2rtc_streams, ws_overview, ws_update, ws_update_install, ws_catalog, ws_warnings, ws_config, ws_config_validate, ws_config_save, ws_resolved, ws_events, ws_clips, ws_clips_delete, ws_events_delete_clipless, ws_recommendations, ws_areas, ws_openings, ws_devices, ws_place, ws_structure, ws_stats, ws_event_feedback, ws_subscribe)
 
 
 def async_register(hass: HomeAssistant) -> None:

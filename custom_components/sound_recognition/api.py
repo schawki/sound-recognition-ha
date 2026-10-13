@@ -96,6 +96,10 @@ class SoundRecClient:
         """What the clips take, the free space, the growth and the two limits of the administrator."""
         return await self._request("GET", "/storage")
 
+    async def storage_move(self, path: str) -> dict:
+        """Asks the service to move the clips to another folder (API level 11: 404 on an older service, 422 {errors} when the folder cannot be used)."""
+        return await self._request("POST", "/storage/move", json={"path": path})
+
     async def rotate_token(self) -> str:
         """Asks the service for a new token (the old one still works for a minute) and returns it."""
         return (await self._request("POST", "/token/rotate"))["token"]

@@ -66,6 +66,25 @@ async def storage(req):
     return web.json_response(await asyncio.get_running_loop().run_in_executor(None, req.app["engine"].storage_info))
 
 
+async def storage_move(req):
+    """Asks the root helper to move the clips to another folder: 202, 422 {errors: [...]} when the folder cannot be used, 501 without helper, 409 when busy."""
+    eng = req.app["engine"]
+    try:
+        body = await req.json()
+    except ValueError:
+        body = {}
+    dest = body.get("path") if isinstance(body, dict) else None
+    if not eng.mover.capable:
+        return web.json_response({"error": "moving the clips from Home Assistant is not enabled on this installation (see deploy/DEPLOY.md)"}, status=501)
+    used = (await asyncio.get_running_loop().run_in_executor(None, eng.clips.usage))["bytes"]
+    errors = eng.mover.check(dest, eng.cfg["storage"]["clips_dir"], used)
+    if errors:
+        return web.json_response({"errors": errors}, status=422)
+    if eng.mover.request(dest) == "busy":
+        return web.json_response({"error": "a move is already requested or running", **eng.mover.status()}, status=409)
+    return web.json_response(eng.mover.status(), status=202)
+
+
 async def languages(req):
     return web.json_response({"languages": cm.available_languages(req.app["engine"].catalog_root)})
 
@@ -359,7 +378,7 @@ def make_app(engine, updater=None):
     app["updater"] = updater or Updater.from_env()
     p = VERSION_PREFIX
     app.add_routes([
-        web.get(f"{p}/health", health), web.get(f"{p}/update", update_status), web.post(f"{p}/update", update_start), web.get(f"{p}/languages", languages), web.post(f"{p}/token/rotate", rotate_token), web.get(f"{p}/storage", storage), web.get(f"{p}/catalog", catalog),
+        web.get(f"{p}/health", health), web.get(f"{p}/update", update_status), web.post(f"{p}/update", update_start), web.get(f"{p}/languages", languages), web.post(f"{p}/token/rotate", rotate_token), web.get(f"{p}/storage", storage), web.post(f"{p}/storage/move", storage_move), web.get(f"{p}/catalog", catalog),
         web.get(f"{p}/config", get_config), web.get(f"{p}/config/effective", get_config_effective), web.put(f"{p}/config", put_config), web.post(f"{p}/config/validate", validate_config),
         web.get(f"{p}/warnings", warnings), web.get(f"{p}/sources", sources), web.get(f"{p}/resolved", resolved),
         web.get(f"{p}/events", events), web.get(f"{p}/recommendations", recommendations), web.put(f"{p}/sources/{{sid}}/external", set_external), web.put(f"{p}/sources/{{sid}}/place", set_place), web.get(f"{p}/stats", stats),

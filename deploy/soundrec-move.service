@@ -1,0 +1,7 @@
+[Unit]
+Description=Move the clips of the sound recognition service to another folder
+Documentation=https://github.com/schawki/sound-recognition-ha
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/soundrec-move

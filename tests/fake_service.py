@@ -3,11 +3,11 @@ import asyncio
 import copy
 from types import SimpleNamespace
 
-from soundrec import advisor, catalog as cm, config as cfgmod, recommend, settings as st
-from custom_components.sound_recognition.api import CannotConnect, InvalidAuth, InvalidConfig, SoundRecError
+from soundrec import API_LEVEL, advisor, catalog as cm, config as cfgmod, recommend, settings as st
+from custom_components.sound_recognition.api import CannotConnect, InvalidAuth, InvalidConfig, SoundRecClient, SoundRecError
 
 CAT = st.Catalog(cm.load_raw())
-STATE = SimpleNamespace(update=None, health_extra={}, cfg=None, down=False, token="tok", handler=None, stop=None, status={}, events=[], feedback={}, pushed={}, clip_calls=[], places={}, storage=None, legacy=False)
+STATE = SimpleNamespace(update=None, health_extra={}, cfg=None, down=False, token="tok", handler=None, stop=None, status={}, events=[], feedback={}, pushed={}, clip_calls=[], places={}, storage=None, api_level=None, moved=None)
 
 
 def reset(cfg=None):
@@ -15,9 +15,10 @@ def reset(cfg=None):
     STATE.cfg = cfgmod._merge(cfgmod.DEFAULTS, cfg or {})
     STATE.cfg["api"]["token"] = STATE.token
     STATE.down, STATE.handler, STATE.stop, STATE.status, STATE.events, STATE.feedback, STATE.pushed, STATE.clip_calls, STATE.places = False, None, asyncio.Event(), {}, [], {}, {}, [], {}
-    STATE.update, STATE.health_extra, STATE.legacy = {"state": "idle", "capable": True}, {}, False
+    STATE.update, STATE.health_extra, STATE.api_level = {"state": "idle", "capable": True}, {}, API_LEVEL
     STATE.storage = {"path": "/var/lib/soundrec/clips", "clips": 69, "bytes": 25_000_000, "free_bytes": 6_000_000_000, "total_bytes": 20_000_000_000, "per_day_bytes": 3_000_000, "days_left": 2000.0,
-                     "max_gb": None, "min_free_gb": None, "paused": False, "auto_deleted": 0, "skipped": 0}
+                     "max_gb": None, "min_free_gb": None, "paused": False, "auto_deleted": 0, "skipped": 0, "moved_skipped": 0,
+                     "move": {"capable": True, "roots": ["/mnt", "/media"], "state": "idle", "message": "", "from": "", "to": "", "stalled": False, "log": ""}}
 
 
 class FakeClient:
@@ -33,7 +34,7 @@ class FakeClient:
     async def health(self):
         if STATE.down:
             raise CannotConnect("down")
-        return {"status": "ok", "version": "0.2.0", "api_level": 10, "commit": "abc1234", "release": "v0.2.0", "update": {"capable": STATE.update["capable"]}, **STATE.health_extra}
+        return {"status": "ok", "version": "0.2.0", "api_level": STATE.api_level, "commit": "abc1234", "release": "v0.2.0", "update": {"capable": STATE.update["capable"]}, **STATE.health_extra}
 
     async def update_status(self):
         self._check()
@@ -75,8 +76,6 @@ class FakeClient:
 
     async def get_config_effective(self):
         self._check()
-        if STATE.legacy:                       # a service older than API level 10 has no such route
-            return await self.get_config()
         c = st.fold(copy.deepcopy(STATE.cfg), CAT)
         c["api"]["token"] = "***"
         return c
@@ -151,6 +150,15 @@ class FakeClient:
         self._check()
         return STATE.storage
 
+    async def storage_move(self, path):
+        self._check()
+        errors = ["not_found"] if path.endswith("missing") else []
+        if errors:
+            raise InvalidConfig(errors)
+        STATE.storage = {**STATE.storage, "move": {"capable": True, "roots": ["/mnt"], "state": "requested", "message": "", "from": "", "to": "", "stalled": False, "log": ""}}
+        STATE.moved = path
+        return STATE.storage["move"]
+
     async def rotate_token(self):
         self._check()
         STATE.token = "new-" + STATE.token
@@ -163,3 +171,32 @@ class FakeClient:
     async def listen(self, lang, handler):
         STATE.handler = handler
         await STATE.stop.wait()
+
+
+# A service behind the integration: methods whose route is newer than STATE.api_level answer 404, like the real service would.
+# A route the real client tolerates ('fallback') runs the real client method, so its fallback is the real one.
+import json as _json
+import pathlib as _pl
+
+for _route, _e in _json.loads((_pl.Path(__file__).parent / "compat_routes.json").read_text())["routes"].items():
+    if not _e["client"] or not hasattr(FakeClient, _e["client"]):
+        continue
+
+    def _gate(name, route, since, tolerance):
+        original = getattr(FakeClient, name)
+
+        async def gated(self, *a, **k):
+            if since > STATE.api_level:
+                if tolerance == "fallback":
+                    return await getattr(SoundRecClient, name)(self, *a, **k)
+                raise SoundRecError(f"HTTP 404 on {route.split(' ', 1)[1]}")
+            return await original(self, *a, **k)
+        setattr(FakeClient, name, gated)
+    _gate(_e["client"], _route, _e["since"], _e.get("tolerance"))
+
+
+async def _no_such_route(self, method, path, **kw):
+    raise SoundRecError(f"HTTP 404 on {path}")
+
+
+FakeClient._request = _no_such_route

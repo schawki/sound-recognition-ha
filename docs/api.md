@@ -15,6 +15,7 @@ For developers. The service exposes a local HTTP/WebSocket API under `/api/v1`, 
 | `events/delete_clipless` | POST `{"filter": {...}, "dry_run": true}`: deletes the detections that have no clip and no verdict (marked or confirmed ones stay); returns the count |
 | `clips`, `clips/delete`, `clips/{path}` | List (filter by `source`, `mid`, `usage`, `since`, `until`, `feedback` = `false`, `good` or `unjudged`), delete (`ids` or `filter`, `dry_run`), download |
 | `storage` | GET: folder, size, free space, growth per day, days left, and the two limits (`storage.clips_max_gb`, `storage.clips_min_free_gb`); a clip missing because of them carries `clip_reason` `quota` or `disk_low` |
+| `storage/move` | POST `{path}`: asks the root helper to move the clips to another folder (API level 11). 202 with the state; 422 `{errors: [codes]}` when the folder cannot be used; 501 without helper; 409 when a move is already under way. `GET storage` carries `move` (`capable`, `roots`, `state`, `message`, `from`, `to`, `stalled`) and `moved_skipped`; a clip missing because of a move carries `clip_reason` `moving` |
 | `token/rotate` | POST: makes a new API token and returns it; the old one works for one more minute |
 | `ws` | Live events |
 

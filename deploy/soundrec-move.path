@@ -1,0 +1,9 @@
+[Unit]
+Description=Requests to move the clips of the sound recognition service
+
+[Path]
+PathExists=/var/lib/soundrec/update-request/move
+Unit=soundrec-move.service
+
+[Install]
+WantedBy=multi-user.target

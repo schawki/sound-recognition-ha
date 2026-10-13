@@ -22,18 +22,29 @@ La rétention en jours (même onglet) fonctionne comme avant : elle dit combien 
 
 ## Garder les clips sur un autre disque ou un NAS
 
-Le dossier est un réglage du service (`storage.clips_dir` dans `/etc/soundrec/config.yaml`) : les clips peuvent donc se trouver sur un autre disque, un NAS ou tout endroit que le conteneur voit. Home Assistant n'est pas un bon endroit : le service écrit les clips au moment de la détection et Home Assistant ne fait que les lire.
+<a id="moving-the-clips"></a>
 
-Avec le **conteneur Proxmox** (non privilégié), il faut d'abord donner l'endroit au conteneur :
+Le dossier est un réglage du service (`storage.clips_dir`) : les clips peuvent donc vivre sur un autre disque, un NAS ou tout endroit que la machine du service voit. Home Assistant n'est pas un bon endroit : le service écrit les clips au moment de la détection et Home Assistant ne fait que les lire.
 
-1. Sur l'hôte Proxmox, montez le disque ou le partage (comme pour Frigate) et créez un dossier pour les clips, par exemple `/mnt/stockage/soundrec-clips`.
-2. Dans le terminal du conteneur, lancez `id soundrec` pour connaître le numéro de l'utilisateur du service (par exemple 999). Sur l'hôte Proxmox, donnez le dossier à l'utilisateur numéro `100000 + ce numéro` (`chown -R 100999:100999 /mnt/stockage/soundrec-clips`) : un conteneur non privilégié décale ses numéros de 100000.
-3. Dans Proxmox : le conteneur → *Ressources* → *Ajouter* → *Point de montage*, ou `pct set <id> -mp0 /mnt/stockage/soundrec-clips,mp=/mnt/clips`.
-4. Dans `/etc/soundrec/config.yaml` du conteneur, mettez `storage: clips_dir: /mnt/clips`, déplacez les clips existants (`mv /var/lib/soundrec/clips/* /mnt/clips/`) et redémarrez le service (`systemctl restart soundrec`).
+### Dès le départ (Proxmox)
 
-Avec **Docker**, liez le dossier de votre choix au dossier des clips du conteneur (`-v /votre/dossier:/data/clips`).
+`create-lxc.sh` accepte un dossier de l'hôte Proxmox : `CLIPS_HOST=/mnt/storage/soundrec-clips bash deploy/create-lxc.sh`. Le dossier doit exister (montez d'abord le disque ou le partage, comme pour Frigate). Le script le monte dans le conteneur sous `/mnt/clips`, le donne au compte du service (un conteneur non privilégié décale ses numéros d'utilisateur de 100000, le script fait le calcul) et installe le service avec les clips à cet endroit. Sur une autre installation, `SOUNDREC_CLIPS=/votre/dossier bash deploy/install.sh` fait la même chose à la première installation.
 
-Un moyen guidé de déplacer les clips depuis le panneau est prévu dans une version ultérieure.
+### Plus tard, depuis Home Assistant
+
+Onglet *Réglages*, carte *Stockage*, **Déplacer les clips** :
+
+1. Rendez le nouvel endroit visible pour la machine du service (avec le conteneur Proxmox : montez-le sur l'hôte, puis ajoutez un point de montage au conteneur, `pct set <id> -mp0 /mnt/storage/soundrec-clips,mp=/mnt/clips`, et donnez le dossier au compte du service comme ci-dessus). Ce doit être un dossier **vide** sous `/mnt`, `/media` ou `/srv` (la carte liste les emplacements autorisés).
+2. Saisissez le dossier dans la carte et appuyez sur **Déplacer les clips…**. La carte demande de confirmer.
+3. Un petit assistant sur la machine du service copie les clips avec le compte du service, vérifie que la copie correspond, fait pointer le service sur le nouveau dossier et le redémarre. La carte montre l'avancement.
+
+À savoir :
+
+- **Rien n'est supprimé.** L'ancien dossier reste où il était, avec tous ses clips. Vérifiez que le nouvel endroit fonctionne, puis supprimez vous-même l'ancien dossier.
+- Pendant la copie, les détections continuent, mais **aucun nouveau clip n'est gardé** (l'historique dit « les clips étaient en cours de déplacement ») et aucun ancien clip n'est purgé.
+- La copie demande de la place : le nouvel endroit doit avoir la taille des clips plus 10 %. Si la copie ou la vérification échoue, ou si le service ne redémarre pas sur le nouveau dossier, le réglage précédent est rétabli et la carte dit pourquoi.
+- L'assistant n'accepte qu'un dossier existant, vide et réel (pas un lien) sous les emplacements autorisés, et écrit avec le compte du service : il ne peut donc jamais écrire là où le service lui-même ne le pourrait pas. Les emplacements autorisés s'étendent à l'installation avec `SOUNDREC_MOVE_ROOTS=/data:/backup`. Il est activé par défaut ; `SOUNDREC_REMOTE_MOVE=0 bash deploy/install.sh` le retire.
+- Avec **Docker**, la carte ne peut pas déplacer les clips : liez le dossier voulu au dossier des clips du conteneur (`-v /votre/dossier:/data/clips`) et copiez les clips une fois à la main.
 
 ## Changer le jeton
 

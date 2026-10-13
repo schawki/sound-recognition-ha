@@ -22,18 +22,29 @@ The retention in days (same tab) works as before: it says how long a clip may st
 
 ## Keeping the clips on another disk or a NAS
 
-The folder is a setting of the service (`storage.clips_dir` in `/etc/soundrec/config.yaml`), so the clips can live on another disk, a NAS or any place the container can see. Home Assistant is not a good place: the service writes the clips at the moment of the detection and Home Assistant only reads them.
+<a id="moving-the-clips"></a>
 
-With the **Proxmox container** (unprivileged), the place must first be given to the container:
+The folder is a setting of the service (`storage.clips_dir`), so the clips can live on another disk, a NAS or any place the machine of the service can see. Home Assistant is not a good place: the service writes the clips at the moment of the detection and Home Assistant only reads them.
 
-1. On the Proxmox host, mount the disk or the share (as for Frigate) and create a folder for the clips, for example `/mnt/storage/soundrec-clips`.
-2. In the shell of the container, run `id soundrec` to know the number of the service's user (for example 999). On the Proxmox host, give the folder to user number `100000 + that number` (`chown -R 100999:100999 /mnt/storage/soundrec-clips`): an unprivileged container shifts its numbers by 100000.
-3. In Proxmox: the container → *Resources* → *Add* → *Mount Point*, or `pct set <id> -mp0 /mnt/storage/soundrec-clips,mp=/mnt/clips`.
-4. In `/etc/soundrec/config.yaml` of the container, set `storage: clips_dir: /mnt/clips`, move the existing clips (`mv /var/lib/soundrec/clips/* /mnt/clips/`) and restart the service (`systemctl restart soundrec`).
+### From the start (Proxmox)
 
-With **Docker**, bind the folder you want to the clips folder of the container (`-v /your/folder:/data/clips`).
+`create-lxc.sh` takes a folder of the Proxmox host: `CLIPS_HOST=/mnt/storage/soundrec-clips bash deploy/create-lxc.sh`. The folder must exist (mount the disk or the share first, as for Frigate). The script mounts it in the container as `/mnt/clips`, gives it to the service account (an unprivileged container shifts its user numbers by 100000, the script does the sum) and installs the service with the clips there. On another installation, `SOUNDREC_CLIPS=/your/folder bash deploy/install.sh` does the same on a first install.
 
-A guided way to move the clips from the panel is planned for a later version.
+### Later, from Home Assistant
+
+*Settings* tab, *Storage* card, **Move the clips**:
+
+1. Make the new place visible to the machine of the service (with the Proxmox container: mount it on the host, then add a mount point to the container, `pct set <id> -mp0 /mnt/storage/soundrec-clips,mp=/mnt/clips`, and give the folder to the service account as above). It must be an **empty** folder under `/mnt`, `/media` or `/srv` (the card lists the allowed places).
+2. Type the folder in the card and press **Move the clips…**. The card asks you to confirm.
+3. A small helper on the service machine copies the clips as the service account, checks that the copy matches, points the service at the new folder and restarts it. The card shows the progress.
+
+What to know:
+
+- **Nothing is deleted.** The old folder stays where it was, with all its clips. Check that the new place works, then delete the old folder yourself.
+- During the copy the detections go on, but **no new clip is kept** (the history says "the clips were being moved") and no old clip is purged.
+- The copy needs room: the new place must have the size of the clips plus 10 %. If the copy or the check fails, or the service does not restart on the new folder, the previous setting is restored and the card says why.
+- The helper accepts only an existing, empty, real folder (no link) under the allowed places, and writes as the service account, so it can never write where the service itself could not. The allowed places can be extended at install time with `SOUNDREC_MOVE_ROOTS=/data:/backup`. It is on by default; `SOUNDREC_REMOTE_MOVE=0 bash deploy/install.sh` removes it.
+- With **Docker**, the card cannot move the clips: bind the folder you want to the clips folder of the container (`-v /your/folder:/data/clips`) and copy the clips once by hand.
 
 ## Changing the token
 

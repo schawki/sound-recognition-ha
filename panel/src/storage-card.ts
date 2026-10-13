@@ -24,10 +24,74 @@ export class StorageCard extends LitElement {
   @state() private saved = false;
   @state() private busy = false;
   @state() private failed = false;
+  @state() private moveTo = "";
+  @state() private moveConfirm = false;
+  @state() private moveErrors: string[] = [];
+  private poll = 0;
 
   connectedCallback(): void {
     super.connectedCallback();
     void this.load();
+  }
+
+  disconnectedCallback(): void {
+    super.disconnectedCallback();
+    window.clearInterval(this.poll);
+  }
+
+  /** While a move is requested or running, the figures are read again every few seconds (the service restarts at the end: a failed read is ignored). */
+  private watchMove(): void {
+    const going = this.info?.move && ["requested", "running"].includes(this.info.move.state);
+    if (going && !this.poll) {
+      this.poll = window.setInterval(() => void this.api.storage().then((i) => { this.info = i; this.watchMove(); }, () => undefined), 3000);
+    } else if (!going && this.poll) {
+      window.clearInterval(this.poll);
+      this.poll = 0;
+      void this.load();
+    }
+  }
+
+  private async startMove(): Promise<void> {
+    this.busy = true; this.moveErrors = [];
+    try {
+      const move = await this.api.storageMove(this.moveTo.trim());
+      this.moveConfirm = false;
+      if (this.info) this.info = { ...this.info, move };
+      this.watchMove();
+    } catch (err) {
+      const e = err as { code?: string; message?: string };
+      this.moveConfirm = false;
+      this.moveErrors = e.code === "invalid_path"
+        ? (e.message ?? "").split(",").map((c) => this.reason(c))
+        : [this.t("moveErr_other", { message: e.message ?? String(err) })];
+    } finally { this.busy = false; }
+  }
+
+  private reason(code: string): string {
+    const key = `moveErr_${code}` as Parameters<T>[0];
+    const known = ["not_absolute", "bad_characters", "not_found", "not_directory", "symlink", "same_folder", "nested", "outside_roots", "not_empty", "not_writable", "not_enough_space"];
+    return known.includes(code) ? this.t(key, { roots: (this.info?.move?.roots ?? []).join(", ") }) : this.t("moveErr_other", { message: code });
+  }
+
+  private moveSection(i: StorageInfo) {
+    const t = this.t, m = i.move, lang = this.language.startsWith("fr") ? "fr" : "en";
+    const guide = html`<a href=${`${GUIDE}.${lang}.md#moving-the-clips`} target="_blank" rel="noreferrer noopener">${t("storageGuide")}</a>`;
+    if (!m) return html`<h3>${t("moveTitle")}</h3><p class="dim" data-move-update>${t("moveNeedsUpdate")}</p>`;
+    if (!m.capable) return html`<h3>${t("moveTitle")}</h3><p class="dim" data-move-disabled>${t("moveNotEnabled")} ${guide}</p>`;
+    const going = m.state === "requested" || m.state === "running";
+    return html`<h3>${t("moveTitle")}</h3>
+      <p class="dim">${t("moveHelp", { roots: m.roots.join(", ") })} ${guide}</p>
+      ${going ? html`<p role="status" data-move-progress>${m.state === "requested" ? t("moveRequested") : m.message}</p>
+          ${m.stalled ? html`<p class="note error" data-move-stalled>${t("moveStalled")}</p>` : nothing}`
+        : html`${m.state === "done" ? html`<p class="ok" data-move-done>${t("moveDone", { message: m.message })}</p>` : nothing}
+          ${m.state === "failed" ? html`<p class="note error" data-move-failed>${t("moveFailed", { message: m.message })}</p>` : nothing}
+          <label class="row">${t("moveFolder")} <input type="text" name="move_to" class="wide" placeholder="/mnt/nas/clips" .value=${this.moveTo}
+            @input=${(e: Event) => { this.moveTo = (e.target as HTMLInputElement).value; this.moveConfirm = false; this.moveErrors = []; }} /></label>
+          ${this.moveErrors.map((e) => html`<p class="note error" role="alert" data-move-error>${e}</p>`)}
+          ${this.moveConfirm ? html`<div class="confirm" role="alertdialog" data-move-confirm><p>${t("moveConfirm", { size: this.size(i.bytes), path: this.moveTo.trim() })}</p>
+              <div class="buttons"><button class="primary" data-action="move-yes" ?disabled=${this.busy} @click=${() => void this.startMove()}>${t("moveYes")}</button>
+                <button data-action="move-cancel" @click=${() => (this.moveConfirm = false)}>${t("cancel")}</button></div></div>`
+            : html`<div class="buttons"><button data-action="move-start" ?disabled=${this.busy || !this.moveTo.trim()} @click=${() => { this.moveConfirm = true; this.moveErrors = []; }}>${t("moveButton")}</button></div>`}`}`;
   }
 
   private async load(): Promise<void> {
@@ -37,6 +101,7 @@ export class StorageCard extends LitElement {
       this.stopOn = info.min_free_gb != null; this.stopGb = info.min_free_gb != null ? String(info.min_free_gb) : "";
       this.delOn = info.max_gb != null; this.delGb = info.max_gb != null ? String(info.max_gb) : "";
       this.retentionDays = Number((cfg.defaults?.clips as { max_retention_days?: number } | undefined)?.max_retention_days ?? 30);
+      this.watchMove();
     } catch { this.failed = true; }
   }
 
@@ -85,7 +150,8 @@ export class StorageCard extends LitElement {
       ${this.limit(this.delOn, this.delGb, (v) => (this.delOn = v), (v) => (this.delGb = v), "storageAutoDelete", "storageAutoDeleteHelp", "del")}
       ${this.errors.map((e) => html`<p class="note error">${e}</p>`)}
       <div class="buttons"><button class="primary" data-action="save-storage" ?disabled=${this.busy} @click=${() => void this.save()}>${t("storageSave")}</button>
-        ${this.saved ? html`<span class="ok" role="status" data-storage-saved>${t("storageSaved")}</span>` : nothing}</div>`}
+        ${this.saved ? html`<span class="ok" role="status" data-storage-saved>${t("storageSaved")}</span>` : nothing}</div>
+      ${this.moveSection(i)}`}
     </details>`;
   }
 
@@ -100,6 +166,7 @@ export class StorageCard extends LitElement {
     button.primary { background: var(--primary-color); color: var(--text-primary-color, #fff); border-color: transparent; }
     button.danger { background: var(--error-color, #db4437); color: #fff; border-color: transparent; }
     .ok { color: var(--success-color, #43a047); } .note.error { color: var(--error-color, #db4437); } a { color: var(--primary-color); }
+    .row { display: flex; align-items: center; gap: 8px; margin: 10px 0 2px; flex-wrap: wrap; } .wide { width: min(420px, 100%); font: inherit; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--divider-color); background: var(--primary-background-color); color: var(--primary-text-color); }
     .confirm { border: 1px solid var(--warning-color, #ffa600); border-radius: 8px; padding: 6px 12px; margin: 8px 0; }
   `;
 }

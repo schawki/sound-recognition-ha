@@ -7,6 +7,9 @@
 #   SOUNDREC_ROOT (/opt/soundrec)  SOUNDREC_ETC (/etc/soundrec)  SOUNDREC_VAR (/var/lib/soundrec)  SOUNDREC_USER (soundrec)
 #   SOUNDREC_PORT (8765)  SOUNDREC_TZ (system time zone)  SKIP_APT=1  SKIP_SYSTEMD=1  MODEL_FILE=/path/to/yamnet.tflite
 #   SOUNDREC_REMOTE_UPDATE=0   do not install the helper that lets Home Assistant update the service (default 1)
+#   SOUNDREC_REMOTE_MOVE=0     do not install the helper that lets Home Assistant move the clips to another folder (default 1)
+#   SOUNDREC_CLIPS=/mnt/nas/clips   keep the clips there instead of $SOUNDREC_VAR/clips (first install only; later, move them from the panel)
+#   SOUNDREC_MOVE_ROOTS=/data:/backup   more folders under which the panel may move the clips (default: $SOUNDREC_VAR, /mnt, /media, /srv)
 set -euo pipefail
 
 MODEL_URL="${MODEL_URL:-https://raw.githubusercontent.com/larsyde/tflite-models-audioset-yamnet/master/yamnet.tflite}"
@@ -83,8 +86,14 @@ fi
 
 # ------------------------------------------------------------------------------------------------ configuration
 CONFIG="$ETC/config.yaml"
+CLIPS_WANTED="${SOUNDREC_CLIPS:-}"
+if [ -n "$CLIPS_WANTED" ]; then
+  [[ "$CLIPS_WANTED" =~ ^/[A-Za-z0-9._/@+-]+$ ]] || die "SOUNDREC_CLIPS must be an absolute path made of letters, digits and . _ / @ + - only"
+  CLIPS_WANTED="${CLIPS_WANTED%/}"
+fi
 if [ -f "$CONFIG" ]; then
   say "Keeping your existing configuration ($CONFIG)"
+  [ -z "$CLIPS_WANTED" ] || echo "  SOUNDREC_CLIPS is ignored on an existing installation: move the clips from Home Assistant (Settings tab, Storage)."
 else
   say "Writing a starter configuration ($CONFIG)"
   TZ_NAME="${SOUNDREC_TZ:-}"
@@ -99,12 +108,20 @@ api:
   # token: generated at the first start and written here
 $TZ_LINE
 storage:
-  clips_dir: $VAR/clips
+  clips_dir: ${CLIPS_WANTED:-$VAR/clips}
   db_path: $VAR/events.sqlite
 sources: []
 CFG
   chown "$USER_NAME:$USER_NAME" "$CONFIG"
   chmod 0640 "$CONFIG"
+fi
+
+# the folder of the clips, wherever the configuration puts it: it must exist and be writable by the service account
+CLIPS="$(sed -n 's/^[[:space:]]*clips_dir:[[:space:]]*"\{0,1\}\([^"#]*[^"# ]\).*/\1/p' "$CONFIG" | head -n1)"
+CLIPS="${CLIPS:-$VAR/clips}"
+install -d -m 0750 -o "$USER_NAME" -g "$USER_NAME" "$CLIPS" 2>/dev/null || mkdir -p "$CLIPS" 2>/dev/null || true
+if ! runuser -u "$USER_NAME" -- test -w "$CLIPS"; then
+  die "the service account ($USER_NAME, uid $(id -u "$USER_NAME")) cannot write in the clips folder $CLIPS. Give it that folder (chown). In an unprivileged Proxmox container the folder must belong, on the host, to the user this uid is mapped to (100000 + uid): see deploy/DEPLOY.md"
 fi
 
 # ------------------------------------------------------------------------------------------------ systemd
@@ -117,7 +134,12 @@ say "Installing and starting the systemd service"
 sed -e "s#^User=.*#User=$USER_NAME#" -e "s#^Group=.*#Group=$USER_NAME#" \
     -e "s#/opt/soundrec#$ROOT#g" -e "s#/etc/soundrec#$ETC#g" -e "s#/var/lib/soundrec#$VAR#g" \
     "$HERE/soundrec.service" > /etc/systemd/system/soundrec.service
-rm -rf /etc/systemd/system/soundrec.service.d
+DROPIN=/etc/systemd/system/soundrec.service.d
+rm -f "$DROPIN/no-sandbox.conf" "$DROPIN/clips-path.conf"
+case "$CLIPS" in "$VAR"|"$VAR"/*) ;; *)       # clips kept outside the data folder: the sandbox must let the service write there
+  mkdir -p "$DROPIN"
+  printf '[Service]\nReadWritePaths=%s\n' "$CLIPS" > "$DROPIN/clips-path.conf" ;;
+esac
 
 # Updates from Home Assistant: the service (unprivileged) only drops a request file; this root helper does the update.
 STATUS="$VAR-update"
@@ -126,7 +148,9 @@ if [ "${SOUNDREC_REMOTE_UPDATE:-1}" = "1" ] && [ -d "$REPO/.git" ]; then
   install -d -m 0755 -o root -g root "$STATUS"
   install -d -m 0755 -o "$USER_NAME" -g "$USER_NAME" "$VAR/update-request"
   install -m 0755 "$HERE/soundrec-update.sh" /usr/local/sbin/soundrec-update
+  MOVE_ROOTS="$VAR:/mnt:/media:/srv${SOUNDREC_MOVE_ROOTS:+:$SOUNDREC_MOVE_ROOTS}"
   { echo "REPO='$REPO'"; echo "REQUEST_DIR='$VAR/update-request'"; echo "STATUS_DIR='$STATUS'"
+    echo "CONFIG='$CONFIG'"; echo "SERVICE_USER='$USER_NAME'"; echo "MOVE_ROOTS='$MOVE_ROOTS'"
     for v in SOUNDREC_ROOT SOUNDREC_ETC SOUNDREC_VAR SOUNDREC_USER SOUNDREC_PORT SOUNDREC_TZ; do
       [ -n "${!v:-}" ] && echo "export $v='${!v}'"
     done; } > /etc/soundrec-updater.env
@@ -134,11 +158,26 @@ if [ "${SOUNDREC_REMOTE_UPDATE:-1}" = "1" ] && [ -d "$REPO/.git" ]; then
   sed -e "s#/var/lib/soundrec#$VAR#g" "$HERE/soundrec-update.path" > /etc/systemd/system/soundrec-update.path
   cp "$HERE/soundrec-update.service" /etc/systemd/system/soundrec-update.service
   touch "$STATUS/capable"
+  if [ "${SOUNDREC_REMOTE_MOVE:-1}" = "1" ]; then
+    say "Enabling the move of the clips from Home Assistant (disable with SOUNDREC_REMOTE_MOVE=0)"
+    install -m 0755 "$HERE/soundrec-move.sh" /usr/local/sbin/soundrec-move
+    echo "$MOVE_ROOTS" | tr ':' '\n' > "$STATUS/move-roots"
+    sed -e "s#/var/lib/soundrec#$VAR#g" "$HERE/soundrec-move.path" > /etc/systemd/system/soundrec-move.path
+    cp "$HERE/soundrec-move.service" /etc/systemd/system/soundrec-move.service
+    touch "$STATUS/move-capable"
+    systemctl daemon-reload
+    systemctl enable --now soundrec-move.path >/dev/null 2>&1 || true
+  else
+    systemctl disable --now soundrec-move.path >/dev/null 2>&1 || true
+    rm -f "$STATUS/move-capable" /etc/systemd/system/soundrec-move.path /etc/systemd/system/soundrec-move.service
+  fi
   systemctl daemon-reload
   systemctl enable --now soundrec-update.path >/dev/null 2>&1 || true
 else
   systemctl disable --now soundrec-update.path >/dev/null 2>&1 || true
   rm -f "$STATUS/capable" /etc/systemd/system/soundrec-update.path /etc/systemd/system/soundrec-update.service
+  systemctl disable --now soundrec-move.path >/dev/null 2>&1 || true
+  rm -f "$STATUS/move-capable" /etc/systemd/system/soundrec-move.path /etc/systemd/system/soundrec-move.service
 fi
 systemctl daemon-reload
 systemctl enable soundrec.service >/dev/null 2>&1

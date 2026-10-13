@@ -1,0 +1,111 @@
+{
+ "_comment": "Every route of the service and the client method that uses it, with the API level that introduced it. A route newer than MIN_API_LEVEL must say how the integration copes with a service that lacks it: 'fallback' (the client falls back, it is used at startup) or 'on_demand' (only called after a user action the panel offers only when the service supports it). tests/test_compat.py enforces this.",
+ "routes": {
+  "GET /health": {
+   "client": "health",
+   "since": 1
+  },
+  "GET /update": {
+   "client": "update_status",
+   "since": 2
+  },
+  "POST /update": {
+   "client": "update_start",
+   "since": 2
+  },
+  "GET /sources": {
+   "client": "sources",
+   "since": 1
+  },
+  "GET /warnings": {
+   "client": "warnings",
+   "since": 1
+  },
+  "GET /catalog": {
+   "client": "catalog",
+   "since": 1
+  },
+  "GET /config": {
+   "client": "get_config",
+   "since": 1
+  },
+  "GET /config/effective": {
+   "client": "get_config_effective",
+   "since": 10,
+   "tolerance": "fallback"
+  },
+  "PUT /config": {
+   "client": "put_config",
+   "since": 1
+  },
+  "POST /config/validate": {
+   "client": "validate_config",
+   "since": 1
+  },
+  "GET /events": {
+   "client": "events",
+   "since": 1
+  },
+  "GET /storage": {
+   "client": "storage",
+   "since": 9
+  },
+  "POST /token/rotate": {
+   "client": "rotate_token",
+   "since": 9
+  },
+  "GET /clips": {
+   "client": "clips",
+   "since": 3
+  },
+  "POST /clips/delete": {
+   "client": "delete_clips",
+   "since": 3
+  },
+  "GET /recommendations": {
+   "client": "recommendations",
+   "since": 2
+  },
+  "GET /stats": {
+   "client": "stats",
+   "since": 1
+  },
+  "POST /events/{}/feedback": {
+   "client": "event_feedback",
+   "since": 1
+  },
+  "POST /events/delete_clipless": {
+   "client": "delete_clipless",
+   "since": 8
+  },
+  "PUT /sources/{}/external": {
+   "client": "set_external",
+   "since": 2
+  },
+  "PUT /sources/{}/place": {
+   "client": "set_place",
+   "since": 4
+  },
+  "GET /resolved": {
+   "client": "resolved",
+   "since": 3
+  },
+  "GET /clips/{}": {
+   "client": "clip",
+   "since": 3
+  },
+  "GET /ws": {
+   "client": "listen",
+   "since": 1
+  },
+  "GET /languages": {
+   "client": null,
+   "since": 1
+  },
+  "POST /storage/move": {
+   "client": "storage_move",
+   "since": 11,
+   "tolerance": "on_demand"
+  }
+ }
+}

@@ -99,6 +99,13 @@
       { id: "d2", device_id: "d2", name: "Mic garage", host: "192.168.1.51", port: 7000, url: "tcp://192.168.1.51:7000", area_id: "" }].map((d) => ({ ...d, added: false, ignored: ig.includes(d.id) }));
     return { devices, pending: devices.filter((d) => !d.added && !d.ignored).length };
   };
+  const moveView = () => {
+    const mv = state.move || { state: "idle" };
+    if (mv.state === "requested" && mv.step++ >= 1) { mv.state = "running"; mv.step = 0; }
+    else if (mv.state === "running" && mv.step++ >= 1) { mv.state = "done"; }
+    return { capable: !q.get("nomove"), roots: ["/var/lib/soundrec", "/mnt", "/media", "/srv"], state: mv.state, stalled: false, log: "", from: "/var/lib/soundrec/clips", to: state.moveCalls ? state.moveCalls.at(-1) : "",
+      message: mv.state === "running" ? "Copying the clips" : mv.state === "done" ? "The clips are now in " + state.moveCalls.at(-1) + ". The old folder was kept." : "" };
+  };
   const calls = {
     "sound_recognition/update": () => updView(),
     "sound_recognition/update_install": () => { if (!U.capable) throw { code: "update_failed", message: "not enabled" }; state.installs = (state.installs || 0) + 1; U.installing = true; U.busy = 2; U.status = { state: "requested" }; const { busy, outcome, ...v } = U; return v; },
@@ -132,7 +139,13 @@
     "sound_recognition/recommendations": () => ({ recommendations: (state.recs || []).map(withApplied) }),
     "sound_recognition/event_feedback": (m) => { state.feedback = (state.feedback || []).concat([("good" in m) ? [m.event_id, "good", m.good] : [m.event_id, m.false]]); return { ok: true }; },
     "sound_recognition/events_delete_clipless": (m) => { state.cliplessCalls = (state.cliplessCalls || []).concat([[JSON.stringify(m.filter), m.dry_run]]); const n = state.clipless ?? 3; if (!m.dry_run) state.clipless = 0; return { count: n, dry_run: m.dry_run }; },
-    "sound_recognition/storage": () => { const c = (state.config.storage || {}); return { path: "/var/lib/soundrec/clips", clips: 69, bytes: 25000000, free_bytes: 6000000000, total_bytes: 20000000000, per_day_bytes: 3000000, days_left: 2000, max_gb: c.clips_max_gb ?? null, min_free_gb: c.clips_min_free_gb ?? null, paused: !!q.get("paused"), auto_deleted: q.get("paused") ? 4 : 0, skipped: 0 }; },
+    "sound_recognition/storage": () => { const c = (state.config.storage || {}); return { path: "/var/lib/soundrec/clips", clips: 69, bytes: 25000000, free_bytes: 6000000000, total_bytes: 20000000000, per_day_bytes: 3000000, days_left: 2000, max_gb: c.clips_max_gb ?? null, min_free_gb: c.clips_min_free_gb ?? null, paused: !!q.get("paused"), auto_deleted: q.get("paused") ? 4 : 0, skipped: 0, ...(q.get("old") ? {} : { move: moveView() }) }; },
+    "sound_recognition/storage_move": (m) => {
+      state.moveCalls = (state.moveCalls || []).concat([m.path]);
+      if (m.path.endsWith("missing")) throw { code: "invalid_path", message: "not_found,outside_roots" };
+      state.move = { state: "requested", step: 0 };
+      return moveView();
+    },
     "sound_recognition/connection": () => ({ host: "192.168.1.50", port: 8765, version: "0.15.0", connected: !q.get("down") }),
     "sound_recognition/token_rotate": () => { state.tokenChanges = (state.tokenChanges || 0) + 1; return { ok: true }; },
     "sound_recognition/config": () => JSON.parse(JSON.stringify(state.config)),

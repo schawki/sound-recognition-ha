@@ -1,4 +1,4 @@
-import type { UpdateInfo, Advice, HaArea, HaDevice, HaOpening, StructureInfo, Catalog, EsphomeState, ConnectionInfo, StorageInfo, Go2rtcStreams, Hass, HsPlace, LiveMessage, Overview, Recommendation, ServiceConfig, SoundEvent, ClipFilter, ClipsDeleted, ClipsPage, Stats, Validation } from "./types";
+import type { UpdateInfo, Advice, HaArea, HaDevice, HaOpening, StructureInfo, Catalog, EsphomeState, ConnectionInfo, MoveInfo, StorageInfo, Go2rtcStreams, Hass, HsPlace, LiveMessage, Overview, Recommendation, ServiceConfig, SoundEvent, ClipFilter, ClipsDeleted, ClipsPage, Stats, Validation } from "./types";
 
 export class PanelApi {
   constructor(private hass: Hass, public language: string) {}
@@ -27,6 +27,10 @@ export class PanelApi {
   }
   storage(): Promise<StorageInfo> {
     return this.hass.callWS({ type: "sound_recognition/storage" });
+  }
+  /** Asks the service to move the clips to another folder. Rejects with code `invalid_path` and the reasons (codes) separated by commas in `message`. */
+  storageMove(path: string): Promise<MoveInfo> {
+    return this.hass.callWS({ type: "sound_recognition/storage_move", path });
   }
   /** Changes the token between Home Assistant and the service; the new one is stored by the integration and never reaches the panel. */
   rotateToken(): Promise<unknown> {

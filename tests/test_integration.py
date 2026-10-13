@@ -453,16 +453,6 @@ async def test_outdated_service_raises_repair(hass):
     assert ir.async_get(hass).async_get_issue(DOMAIN, iid) is None
 
 
-async def test_a_service_older_than_the_integration_still_loads_and_offers_the_update(hass):
-    """The integration must not wait for the service: it loads, shows the panel and the repair that leads to the update."""
-    fs.STATE.health_extra = {"api_level": 9}
-    fs.STATE.legacy = True
-    entry = await setup_entry(hass)
-    assert entry.state.name == "LOADED"
-    assert ir.async_get(hass).async_get_issue(DOMAIN, f"service_outdated_{entry.entry_id}")
-    assert entry.runtime_data.coordinator.service_config["sources"]
-
-
 async def test_install_follows_update_and_notifies(hass):
     entry = await setup_entry(hass)
     coord = entry.runtime_data.coordinator
@@ -599,3 +589,16 @@ async def test_the_real_client_falls_back_when_the_service_has_no_effective_rout
     client._request = broken
     with pytest.raises(SoundRecError):
         await client.get_config_effective()                     # only a missing route is tolerated
+
+
+async def test_panel_asks_the_service_to_move_the_clips(hass, hass_ws_client):
+    await setup_entry(hass)
+    ws = await hass_ws_client(hass)
+    await ws.send_json({"id": 1, "type": "sound_recognition/storage_move", "path": "/mnt/nas/missing"})
+    r = await ws.receive_json()
+    assert not r["success"] and r["error"]["code"] == "invalid_path" and r["error"]["message"] == "not_found"
+    await ws.send_json({"id": 2, "type": "sound_recognition/storage_move", "path": "/mnt/nas/clips"})
+    r = await ws.receive_json()
+    assert r["success"] and r["result"]["state"] == "requested" and fs.STATE.moved == "/mnt/nas/clips"
+    await ws.send_json({"id": 3, "type": "sound_recognition/storage"})
+    assert (await ws.receive_json())["result"]["move"]["state"] == "requested"

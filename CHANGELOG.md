@@ -2,6 +2,13 @@
 
 Releases are tagged `vX.Y.Z`; the service updates itself from Home Assistant to the latest tag.
 
+## 0.17.0
+
+- **Move the clips from Home Assistant.** In *Settings → Storage*, type the new folder (another disk, a NAS share) and press *Move the clips…*: after your confirmation a small helper on the service machine copies the clips, checks the copy, points the service at the new folder and restarts it, with the progress shown in the card. **Nothing is deleted**: the old folder stays for you to remove. During the copy detections go on without keeping new clips. Details and limits (Docker excluded): [Storage of the clips](docs/storage.en.md#moving-the-clips).
+- **Clips elsewhere from the start.** `CLIPS_HOST=/mnt/storage/soundrec-clips bash deploy/create-lxc.sh` on Proxmox mounts the folder in the container and gives it to the service; `SOUNDREC_CLIPS` does the same with `install.sh`.
+- **The integration is tested against a service one release behind** (loads, panel, *Update* entity, panel commands), and every route of the service must say how the integration copes without it. This is what would have caught the problem of 0.16.0.
+- Service API level 11: update the service from Home Assistant after updating the integration (the panel says so until you do; the integration works meanwhile, only the *Move the clips* button waits for the new service).
+
 ## 0.16.1
 
 - **Fix: the panel could disappear after updating the integration before the service.** Version 0.16.0 asked the service for something only the new service knows, so with the old service it did not start: no sidebar shortcut, no *Update* button. It now starts with the old service and shows the "service outdated" banner, so the service can be updated from Home Assistant as usual. If you are in that situation, update the integration to 0.16.1 through HACS, restart Home Assistant, then use *Update now*.

@@ -10,6 +10,7 @@ from . import advisor, catalog as cm, config as cfgmod, recommend, settings as s
 from .audio import read_source
 from .classifier import YamnetClassifier
 from .clips import ClipStore
+from .mover import Mover
 from .detector import SourcePipeline
 from .store import EventStore
 
@@ -41,6 +42,7 @@ class Engine:
         os.makedirs(os.path.dirname(os.path.abspath(s["db_path"])), exist_ok=True)
         self.store = EventStore(s["db_path"])
         self.clips = ClipStore(s["clips_dir"])
+        self.mover = Mover.from_env()        # moving the clips to another folder: clips are neither written nor purged meanwhile
         self.pipes, self.tasks, self._src_cfg = {}, {}, {}
         self.subs = set()
         self._maint = None
@@ -136,6 +138,9 @@ class Engine:
             log.info("masked %s on %s (score %.2f < %.2f, %s)", ev["class"], sid, ev["score"], ev["threshold"], "+".join(ev["reasons"]))
             self._publish(ev)
         elif ev["type"] == "clip":
+            if self.mover.active():
+                self.store.set_reason(ev["id"], "moving")
+                return
             if self._check_free_space():
                 self.store.set_reason(ev["id"], "disk_low")
                 return
@@ -163,7 +168,7 @@ class Engine:
     def _enforce_quota(self):
         """Over `storage.clips_max_gb`: the oldest clips go first (the ones you judged last) until the clips are back to 90 % of the limit."""
         limit = (self.cfg["storage"].get("clips_max_gb") or 0) * 1e9
-        if not limit or self._clip_bytes is None or self._clip_bytes <= limit:
+        if self.mover.active() or not limit or self._clip_bytes is None or self._clip_bytes <= limit:
             return 0
         rows = self.store.clips()                                              # newest first
         order = sorted(rows, key=lambda r: (r["feedback"] is not None, r["ts"]))    # not judged first, oldest first
@@ -191,7 +196,8 @@ class Engine:
         s = self.cfg["storage"]
         return {**u, "per_day_bytes": per_day, "days_left": (free / per_day) if (free is not None and per_day) else None,
                 "max_gb": s.get("clips_max_gb"), "min_free_gb": s.get("clips_min_free_gb"), "paused": self._check_free_space(),
-                "auto_deleted": self.store.count_reason("quota"), "skipped": self.store.count_reason("disk_low")}
+                "auto_deleted": self.store.count_reason("quota"), "skipped": self.store.count_reason("disk_low"),
+                "moved_skipped": self.store.count_reason("moving"), "move": self.mover.status()}
 
     # ---------------------------------------------------------------- token
     def rotate_token(self):
@@ -289,7 +295,7 @@ class Engine:
         while True:
             try:
                 now = _now()
-                removed = self.clips.purge(now)
+                removed = [] if self.mover.active() else self.clips.purge(now)
                 self._clip_bytes = self.clips.usage()["bytes"]
                 self._check_free_space()
                 self._enforce_quota()

@@ -30,7 +30,10 @@ export interface ClipFilter { source?: string; mid?: string; usage?: string; sin
 export interface ClipsPage { clips: ClipRow[]; total: number; total_bytes: number; sounds: { mid: string; name: string; count: number }[]; disk: { clips: number; bytes: number; free_bytes: number | null } }
 export interface StorageInfo {
   path: string; clips: number; bytes: number; free_bytes: number | null; total_bytes: number | null; per_day_bytes: number | null; days_left: number | null;
-  max_gb: number | null; min_free_gb: number | null; paused: boolean; auto_deleted: number; skipped: number }
+  max_gb: number | null; min_free_gb: number | null; paused: boolean; auto_deleted: number; skipped: number;
+  moved_skipped?: number; move?: MoveInfo }
+/** The move of the clips to another folder: the helper installed on the service machine, and how far it went. Absent from a service older than API level 11. */
+export interface MoveInfo { capable: boolean; roots: string[]; state: "idle" | "requested" | "running" | "done" | "failed"; message: string; from: string; to: string; stalled: boolean; log: string }
 export interface ClipsDeleted { count: number; bytes: number; dry_run: boolean }
 
 export interface Overview {

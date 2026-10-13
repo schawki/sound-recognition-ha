@@ -2,6 +2,13 @@
 
 Les versions sont étiquetées `vX.Y.Z` ; le service se met à jour depuis Home Assistant vers la dernière étiquette.
 
+## 0.17.0
+
+- **Déplacer les clips depuis Home Assistant.** Dans *Réglages → Stockage*, saisissez le nouveau dossier (autre disque, partage NAS) et appuyez sur *Déplacer les clips…* : après votre confirmation, un petit assistant sur la machine du service copie les clips, vérifie la copie, fait pointer le service sur le nouveau dossier et le redémarre, l'avancement s'affichant dans la carte. **Rien n'est supprimé** : l'ancien dossier reste, à vous de le retirer. Pendant la copie les détections continuent sans garder de nouveaux clips. Détails et limites (Docker exclu) : [Stockage des clips](docs/storage.fr.md#moving-the-clips).
+- **Des clips ailleurs dès le départ.** `CLIPS_HOST=/mnt/storage/soundrec-clips bash deploy/create-lxc.sh` sur Proxmox monte le dossier dans le conteneur et le donne au service ; `SOUNDREC_CLIPS` fait de même avec `install.sh`.
+- **L'intégration est testée contre un service en retard d'une version** (chargement, panneau, entité *Update*, commandes du panneau), et chaque route du service doit dire comment l'intégration s'en passe. C'est ce qui aurait détecté le problème de la 0.16.0.
+- API du service niveau 11 : mettez le service à jour depuis Home Assistant après avoir mis à jour l'intégration (le panneau le signale tant que ce n'est pas fait ; l'intégration fonctionne en attendant, seul le bouton *Déplacer les clips* attend le nouveau service).
+
 ## 0.16.1
 
 - **Correction : le panneau pouvait disparaître quand on mettait à jour l'intégration avant le service.** La 0.16.0 demandait au service une information que seul le nouveau service connaît ; avec l'ancien service elle ne démarrait pas : plus de raccourci dans la barre latérale, plus de bouton *Mettre à jour*. Elle démarre maintenant avec l'ancien service et affiche le bandeau « service obsolète », ce qui permet de mettre le service à jour depuis Home Assistant comme d'habitude. Si vous êtes dans ce cas : mettez l'intégration à jour en 0.16.1 par HACS, redémarrez Home Assistant, puis utilisez *Mettre à jour*.

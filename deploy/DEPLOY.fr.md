@@ -62,6 +62,13 @@ Comment cela fonctionne, et ce que c'est autorisé à faire :
 
 Redémarrage après modification manuelle du YAML : `systemctl restart soundrec`.
 
+### Déplacer les clips depuis Home Assistant
+
+L'onglet *Réglages* (carte *Stockage*) peut déplacer les clips vers un autre dossier ; voir [Stockage des clips](../docs/storage.fr.md#moving-the-clips). Même principe que la mise à jour : le service sans privilège dépose seulement une demande (`/var/lib/soundrec/update-request/move`, qui porte un chemin de destination) ; un assistant root (`soundrec-move`, lancé par `soundrec-move.path`) fait le travail. Contrairement à l'assistant de mise à jour, il lit bien la destination dans la demande, donc il ne lui fait pas confiance : il revérifie selon des règles que le service ne peut pas changer (le fichier `/etc/soundrec-updater.env`, propriété de root : emplacements autorisés dans `MOVE_ROOTS`, par défaut `/var/lib/soundrec`, `/mnt`, `/media`, `/srv`), n'accepte qu'un dossier absolu, simple, existant et vide (ni lien, ni espace, ni `..`), copie avec le compte du service, vérifie la copie, modifie `clips_dir` dans la configuration, ajoute le dossier au bac à sable (`/etc/systemd/system/soundrec.service.d/clips-path.conf`, reconstruit par `install.sh` d'après la configuration) et redémarre le service. Il ne **supprime jamais** rien et rétablit la configuration précédente si le service ne revient pas. Avancement et journal : `/var/lib/soundrec-update/move.json` et `move.log`.
+
+- Première installation avec les clips ailleurs : `SOUNDREC_CLIPS=/mnt/clips bash deploy/install.sh`, ou `CLIPS_HOST=/mnt/storage/soundrec-clips bash deploy/create-lxc.sh` sur l'hôte Proxmox (point de montage et droits sont gérés).
+- `SOUNDREC_REMOTE_MOVE=0` retire l'assistant ; `SOUNDREC_MOVE_ROOTS=/data:/backup` ajoute des emplacements autorisés.
+
 ## Dépannage
 
 - Le service échoue avec `226/NAMESPACE` : l'installeur bascule déjà sur un réglage sans sandbox ; voir `journalctl -u soundrec`.

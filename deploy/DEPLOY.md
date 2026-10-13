@@ -62,6 +62,13 @@ How it works, and what it is allowed to do:
 
 Restart after editing the YAML by hand: `systemctl restart soundrec`.
 
+### Moving the clips from Home Assistant
+
+The *Settings* tab (*Storage* card) can move the clips to another folder; see [Storage of the clips](../docs/storage.en.md#moving-the-clips). Same principle as the update: the unprivileged service only drops a request (`/var/lib/soundrec/update-request/move`, which carries a destination path); a root helper (`soundrec-move`, started by `soundrec-move.path`) does the work. Unlike the update helper it does read the destination from the request, so it does not trust it: it re-checks on rules the service cannot change (the root-owned `/etc/soundrec-updater.env`: allowed places in `MOVE_ROOTS`, default `/var/lib/soundrec`, `/mnt`, `/media`, `/srv`), accepts only an absolute, plain, existing, empty folder (no link, no space, no `..`), copies as the service account, verifies the copy, edits `clips_dir` in the configuration, adds the folder to the sandbox (`/etc/systemd/system/soundrec.service.d/clips-path.conf`, rebuilt by `install.sh` from the configuration) and restarts the service. It **never deletes** anything and restores the previous configuration if the service does not come back. Progress and log: `/var/lib/soundrec-update/move.json` and `move.log`.
+
+- First install with the clips elsewhere: `SOUNDREC_CLIPS=/mnt/clips bash deploy/install.sh`, or `CLIPS_HOST=/mnt/storage/soundrec-clips bash deploy/create-lxc.sh` on the Proxmox host (mount point and permissions are handled).
+- `SOUNDREC_REMOTE_MOVE=0` removes the helper; `SOUNDREC_MOVE_ROOTS=/data:/backup` adds allowed places.
+
 ## Troubleshooting
 
 - Service fails with `226/NAMESPACE`: the installer already falls back to a drop-in without sandboxing; check `journalctl -u soundrec`.
