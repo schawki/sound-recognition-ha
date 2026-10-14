@@ -30,7 +30,7 @@ Le dossier est un réglage du service (`storage.clips_dir`) : les clips peuvent 
 
 `create-lxc.sh` accepte un dossier de l'hôte Proxmox : `CLIPS_HOST=/mnt/storage/soundrec-clips bash deploy/create-lxc.sh`. Le dossier doit exister (montez d'abord le disque ou le partage, comme pour Frigate). Le script le monte dans le conteneur sous `/mnt/clips`, le donne au compte du service (un conteneur non privilégié décale ses numéros d'utilisateur de 100000, le script fait le calcul) et installe le service avec les clips à cet endroit. Sur une autre installation, `SOUNDREC_CLIPS=/votre/dossier bash deploy/install.sh` fait la même chose à la première installation.
 
-### Plus tard, depuis Home Assistant
+### Sur une installation existante, depuis Home Assistant
 
 Onglet *Réglages*, carte *Stockage*, **Déplacer les clips** :
 
