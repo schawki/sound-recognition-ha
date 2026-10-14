@@ -31,6 +31,7 @@ class Engine:
             cfgmod.save(config_path, self.cfg)
             log.warning("generated an API token and saved it in %s", config_path)
         self.catalog = st.Catalog(cm.load_raw(catalog_root))
+        self.auto_gates = {}                  # source id -> automatic minimum volume in use (from the noise measurements)
         self.eff = st.fold(self.cfg, self.catalog)      # the configuration in effect: the presets of each source folded in
         self.places = {}                      # source id -> (environment, expires at), pushed by the integration
         errs = cfgmod.validate(self.cfg, self.catalog)
@@ -41,6 +42,8 @@ class Engine:
         os.makedirs(s["clips_dir"], exist_ok=True)
         os.makedirs(os.path.dirname(os.path.abspath(s["db_path"])), exist_ok=True)
         self.store = EventStore(s["db_path"])
+        self.auto_gates = {k: v[0] for k, v in self.store.auto_state().items() if v[0] is not None}
+        self._rebuild()
         self.clips = ClipStore(s["clips_dir"])
         self.mover = Mover.from_env()
         self.facts = conditions.Facts()        # states of Home Assistant entities used by the conditions (pushed by the integration)        # moving the clips to another folder: clips are neither written nor purged meanwhile
@@ -80,9 +83,13 @@ class Engine:
             return errs
         cfgmod.save(self.config_path, new_cfg)
         self.cfg = new_cfg
-        self.eff = st.fold(new_cfg, self.catalog)
+        self._rebuild()
         self._sync_sources()
         return []
+
+    def _rebuild(self):
+        """The configuration in effect: presets folded in, then the automatic minimum volumes of the sources that follow the measurements."""
+        self.eff = st.apply_auto_volume(st.fold(self.cfg, self.catalog), self.auto_gates)
 
     def _sync_sources(self):
         wanted = {s["id"]: s for s in self.eff["sources"] if s.get("enabled", True)}
@@ -249,6 +256,8 @@ class Engine:
         for s in self.cfg["sources"]:
             p = self.pipes.get(s["id"])
             base = {"id": s["id"], "name": s.get("name") or s["id"], "type": s["type"], "enabled": s.get("enabled", True)}
+            base["min_volume_dbfs"], base["min_volume_origin"] = self._gate_of(s["id"])
+            base["min_volume_auto"] = st.auto_enabled(self.cfg, s)
             if p:
                 base.update({k: p.state[k] for k in ("connected", "error", "level_dbfs", "below_gate", "active_classes",
                                                      "last_window", "windows", "inferences")})
@@ -262,6 +271,11 @@ class Engine:
             out.append(base)
         return out
 
+    def _gate_of(self, sid):
+        """(minimum volume, where it comes from) of a source at the level of the source, as in effect."""
+        src = next((x for x in self.eff.get("sources", []) if x["id"] == sid), None)
+        return st.source_gate(self.eff, src) if src else (None, "none")
+
     def warnings(self, lang="en", overrides=True):
         return advisor.compute(self.eff, lang, self.catalog_root, overrides)
 
@@ -274,17 +288,51 @@ class Engine:
         return True
 
     def noise(self):
-        """What was measured for each source and the minimum volume it suggests (never applied by the service)."""
+        """What was measured for each source and the minimum volume it suggests (the service only applies it to the sources set to automatic)."""
         days = self.cfg["storage"].get("noise_retention_days", 7)
         tz = self.cfg.get("timezone")
+        state = self.store.auto_state()
         out = []
         for s in self.cfg.get("sources", []):
             info = noisemod.summarize([tuple(r) for r in self.store.noise_rows(s["id"])], tz)
             p = self.pipes.get(s["id"])
+            gate, origin = self._gate_of(s["id"])
+            row = state.get(s["id"]) or (None, None, None)
             info.update({"id": s["id"], "name": s.get("name") or s["id"], "level_dbfs": None if p is None else p.state["level_dbfs"],
-                         "current_gate": s["min_volume_dbfs"] if "min_volume_dbfs" in s else (self.cfg.get("defaults") or {}).get("min_volume_dbfs")})
+                         "current_gate": gate, "gate_origin": origin,
+                         "auto": {"enabled": st.auto_enabled(self.cfg, s), "gate": row[0], "since": row[1], "checked": row[2],
+                                  "history": self.store.auto_history(s["id"])}})
             out.append(info)
-        return {"retention_days": days, "recording": days > 0, "sources": out}
+        return {"retention_days": days, "recording": days > 0, "step_db": st.AUTO_STEP_DB, "sources": out}
+
+    def _auto_volume(self, now):
+        """Once a day and per source set to automatic: looks at the suggestion and moves the minimum volume if it differs enough from the one in
+        use (never when there are not enough calm minutes yet). Returns True when a minimum volume changed."""
+        ts = now.timestamp()
+        state = self.store.auto_state()
+        base = st.fold(self.cfg, self.catalog)
+        changed = False
+        for s in self.cfg.get("sources", []):
+            sid = s["id"]
+            if not s.get("enabled", True) or not st.auto_enabled(self.cfg, s):
+                continue
+            if sid in state and ts - (state[sid][2] or 0) < st.AUTO_EVERY_S:
+                continue
+            self.store.auto_checked(sid, ts)
+            sug = noisemod.summarize([tuple(r) for r in self.store.noise_rows(sid)], self.cfg.get("timezone"))["suggestion"]
+            if sug["status"] != "ready":
+                continue
+            ref = self.auto_gates.get(sid)
+            if ref is None:
+                src = next(x for x in base["sources"] if x["id"] == sid)
+                ref = st.source_gate(base, src)[0]
+            if ref is not None and abs(sug["gate"] - ref) < st.AUTO_STEP_DB:
+                continue
+            self.store.auto_set(sid, sug["gate"], ts, ref)
+            self.auto_gates[sid] = sug["gate"]
+            log.info("automatic minimum volume of %s: %s -> %s dBFS", sid, ref, sug["gate"])
+            changed = True
+        return changed
 
     def delete_noise(self, source=None):
         return self.store.delete_noise(source)
@@ -329,6 +377,11 @@ class Engine:
                 days = self.cfg["storage"]["events_retention_days"]
                 self.store.purge((now - dt.timedelta(days=days)).timestamp(), now.isoformat())
                 self.store.purge_noise(int((now - dt.timedelta(days=self.cfg["storage"].get("noise_retention_days", 7))).timestamp() // 60))
+                self.store.auto_forget_except([x["id"] for x in self.cfg.get("sources", [])])
+                self.auto_gates = {k: v for k, v in self.auto_gates.items() if any(x["id"] == k for x in self.cfg.get("sources", []))}
+                if self._auto_volume(now):
+                    self._rebuild()
+                    self._sync_sources()
                 if removed:
                     log.info("purged %d expired clips", len(removed))
             except Exception:  # noqa: BLE001

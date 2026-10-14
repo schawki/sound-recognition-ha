@@ -56,7 +56,7 @@ const eases = (f: string, v: unknown, g: ClassBlock, c: CatalogClass): boolean =
   return true;
 };
 
-export interface PresetOrigin { sounds: Record<string, Record<string, string>>; fields: Record<string, string>; ids: string[] }
+export interface PresetOrigin { sounds: Record<string, Record<string, string>>; fields: Record<string, string>; ids: string[]; auto_volume?: boolean }
 
 /** The source as it is in effect: the presets listed on it (in order, the last one wins) fill in what the source does not set itself. */
 export function foldSource(cfg: ServiceConfig, src: SourceCfg, ctx: PresetCtx): SourceCfg {
@@ -97,8 +97,37 @@ export function foldSource(cfg: ServiceConfig, src: SourceCfg, ctx: PresetCtx): 
   return e;
 }
 
-export function resolveClass(cfg: ServiceConfig, srcIn: SourceCfg, c: CatalogClass, byKey: ByKey, ctx?: PresetCtx): Resolved {
+/** Whether the minimum volume of a source follows the noise measurements: the source says so, else the defaults, else no (manual). Port of settings.auto_enabled. */
+export const autoEnabled = (cfg: ServiceConfig, src: SourceCfg): boolean =>
+  ("min_volume_auto" in src ? src.min_volume_auto : cfg.defaults?.min_volume_auto ?? false) === true;
+
+/** The configuration with the automatic minimum volumes the service uses ({source id: gate}), so that what is shown is what applies.
+ *  Port of settings.apply_auto_volume: the gate is put on a copy of the source under `_auto_gate` and taken up by resolveClass after the presets. */
+export function withAutoVolume(cfg: ServiceConfig, gates: Record<string, number>): ServiceConfig {
+  if (!Object.keys(gates).length) return cfg;
+  return { ...cfg, sources: (cfg.sources ?? []).map((s) => (s.id in gates && autoEnabled(cfg, s) ? { ...s, _auto_gate: gates[s.id] } : s)) };
+}
+
+/** The minimum volume at the level of the source, and where it comes from (port of settings.source_gate). */
+export function sourceGate(cfg: ServiceConfig, srcIn: SourceCfg, ctx?: PresetCtx): [number | null, "auto" | "source" | "preset" | "defaults" | "none"] {
+  const ag = (srcIn as Record<string, unknown>)._auto_gate;
+  if (typeof ag === "number") return [ag, "auto"];
   const src = ctx ? foldSource(cfg, srcIn, ctx) : srcIn;
+  const origin = (src as Record<string, unknown>)._origin as PresetOrigin | undefined;
+  if ("min_volume_dbfs" in src && src.min_volume_dbfs != null) return [src.min_volume_dbfs, origin && "min_volume_dbfs" in origin.fields ? "preset" : "source"];
+  const d = cfg.defaults?.min_volume_dbfs;
+  return d != null ? [d, "defaults"] : [null, "none"];
+}
+
+export function resolveClass(cfg: ServiceConfig, srcIn: SourceCfg, c: CatalogClass, byKey: ByKey, ctx?: PresetCtx): Resolved {
+  let src = ctx ? foldSource(cfg, srcIn, ctx) : srcIn;
+  const ag = (srcIn as Record<string, unknown>)._auto_gate;
+  if (typeof ag === "number") {                           // the automatic gate fills the source level, after the presets
+    const o0 = (src as Record<string, unknown>)._origin as PresetOrigin | undefined;
+    const origin: PresetOrigin = { sounds: { ...(o0?.sounds ?? {}) }, fields: { ...(o0?.fields ?? {}) }, ids: [...(o0?.ids ?? [])], auto_volume: true };
+    delete origin.fields.min_volume_dbfs;
+    src = { ...src, min_volume_dbfs: ag, _origin: origin };
+  }
   const dflt = cfg.defaults ?? {};
   const g: ClassBlock = indexBlocks(cfg.classes, byKey)[c.mid] ?? {};
   const sc: ClassBlock = indexBlocks(src.classes as ClassBlocks | undefined, byKey)[c.mid] ?? {};
@@ -162,6 +191,7 @@ export function resolveClass(cfg: ServiceConfig, srcIn: SourceCfg, c: CatalogCla
   if (origin) {                                            // a value that came from a preset says so
     for (const f of Object.keys(origin.sounds[c.mid] ?? {})) if (why[f] === "source_class") why[f] = "preset";
     if ("min_volume_dbfs" in origin.fields && why.min_volume_dbfs === "source") why.min_volume_dbfs = "preset";
+    if (origin.auto_volume && why.min_volume_dbfs === "source") why.min_volume_dbfs = "auto";
   }
   out.provenance = why;
   return out as unknown as Resolved;

@@ -14,6 +14,9 @@ export class NoiseAssistant extends LitElement {
   @property() sourceId = "";
   /** The value of the field, to draw the current line on the chart. */
   @property() value = "";
+  @property() language = "en";
+  /** Whether the minimum volume of the source follows the measurements (the form says so, saved or not). */
+  @property({ type: Boolean }) autoOn = false;
   @state() private info: NoiseSource | null = null;
   @state() private recording = true;
   @state() private unavailable = false;
@@ -24,6 +27,7 @@ export class NoiseAssistant extends LitElement {
     if (!this.sourceId) return;
     this.api.noise().then((n) => {
       this.recording = n.recording;
+      this.step = n.step_db ?? 3;
       this.info = n.sources.find((s) => s.id === this.sourceId) ?? null;
     }, () => { this.unavailable = true; });
   }
@@ -43,6 +47,26 @@ export class NoiseAssistant extends LitElement {
     </svg><small class="dim">${this.t("noiseChart")}</small>`;
   }
 
+  private when(ts: number | null): string {
+    return ts == null ? "" : new Date(ts * 1000).toLocaleString(this.language, { dateStyle: "medium", timeStyle: "short" });
+  }
+
+  /** What the service does for a source set to automatic: the value in use, what is waited for, and the last changes. */
+  private autoBlock(n: NoiseSource) {
+    const t = this.t, sg = n.suggestion, a = n.auto;
+    const hist = a?.history ?? [];
+    return html`<div data-noise="auto">
+      <p class="big" data-noise="auto-state">${a && a.gate != null ? t("noiseAutoInUse", { gate: a.gate, when: this.when(a.since) })
+        : sg.status === "not_enough" ? t("noiseAutoWaiting", { have: Math.floor(sg.minutes / 60), need: Math.round((sg.needed ?? 360) / 60) })
+        : t("noiseAutoNext", { gate: sg.gate ?? 0, step: this.step })}</p>
+      <p class="dim">${t("noiseAutoHow", { step: this.step })}</p>
+      ${hist.length ? html`<details data-noise="auto-history"><summary>${t("noiseAutoHistory")}</summary><ul>${hist.map((h) => html`<li>${this.when(h.ts)} : ${h.old == null ? "—" : h.old} → ${h.new} dBFS</li>`)}</ul></details>` : nothing}
+      ${sg.status === "ready" ? html`${this.chart(n, sg.gate ?? 0)}` : nothing}
+    </div>`;
+  }
+
+  private step = 3;
+
   protected render() {
     const t = this.t;
     if (this.unavailable) return nothing;
@@ -53,7 +77,7 @@ export class NoiseAssistant extends LitElement {
     return html`<div class="box" data-noise="assistant">
       <strong>${t("noiseTitle")}</strong>
       <p class="dim">${t("noiseIntro")}</p>
-      ${!this.recording ? html`<p class="dim" data-noise="off">${t("noiseOff")}</p>` : sg.status === "not_enough"
+      ${!this.recording ? html`<p class="dim" data-noise="off">${t("noiseOff")}</p>` : this.autoOn ? this.autoBlock(n) : sg.status === "not_enough"
         ? html`<p data-noise="progress">${t("noiseProgress", { have: Math.floor(sg.minutes / 60), need: Math.round((sg.needed ?? 360) / 60) })}</p>`
         : html`<p class="big" data-noise="ready">${t("noiseReady", { gate: sg.gate ?? 0 })}</p>
           <p class="dim">${t("noiseWhy", { quiet: sg.quiet_dbfs ?? 0, typical: sg.typical_dbfs ?? 0, loud: sg.loud_dbfs ?? 0, margin: sg.margin_db ?? 0 })}</p>
@@ -62,7 +86,7 @@ export class NoiseAssistant extends LitElement {
           <div class="row"><button type="button" data-action="use-gate" @click=${() => { this.used = true; this.dispatchEvent(new CustomEvent("gate-chosen", { detail: sg.gate, bubbles: true, composed: true })); }}>${t("noiseUse")}</button>
             ${this.used ? html`<span class="ok" role="status">${t("noiseUsed")}</span>` : nothing}</div>`}
       ${n.level_dbfs != null ? html`<p class="dim" data-noise="now">${t("noiseNow", { level: n.level_dbfs })}</p>` : nothing}
-      <p class="dim">${t("noiseManual")}</p>
+      <p class="dim">${this.autoOn ? t("noiseManualFromAuto") : t("noiseManual")}</p>
     </div>`;
   }
 

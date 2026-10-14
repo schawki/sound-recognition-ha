@@ -259,6 +259,8 @@ def validate(cfg, catalog: Catalog):
     d = cfg["defaults"]
     if d.get("min_volume_dbfs") is not None and not _num(d["min_volume_dbfs"], -90, 0):
         errs.append("defaults.min_volume_dbfs must be between -90 and 0 (or null)")
+    if "min_volume_auto" in d and not isinstance(d["min_volume_auto"], bool):
+        errs.append("defaults.min_volume_auto must be true or false")
     _check_schedule(d.get("schedule", {"mode": "continuous"}), "defaults.schedule", errs)
     if "condition" in d:
         conditions.validate(d["condition"], "defaults.condition", errs)
@@ -308,6 +310,8 @@ def validate(cfg, catalog: Catalog):
             errs.append(f"{w}.threshold_offset must be between -1 and 1")
         if "min_volume_dbfs" in s and s["min_volume_dbfs"] is not None and not _num(s["min_volume_dbfs"], -90, 0):
             errs.append(f"{w}.min_volume_dbfs must be between -90 and 0")
+        if "min_volume_auto" in s and not isinstance(s["min_volume_auto"], bool):
+            errs.append(f"{w}.min_volume_auto must be true or false")
         if "schedule" in s:
             _check_schedule(s["schedule"], f"{w}.schedule", errs)
         if "condition" in s:

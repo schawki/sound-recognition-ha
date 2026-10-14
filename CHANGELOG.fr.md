@@ -2,6 +2,12 @@
 
 Les versions sont étiquetées `vX.Y.Z` ; le service se met à jour depuis Home Assistant vers la dernière étiquette.
 
+## 0.20.0
+
+- **Le volume minimum en cours est désormais visible.** Dans la liste des sources, chaque ligne indique le volume minimum en cours et qui l'a réglé : *automatique*, *réglé à la main*, *d'un préréglage* ou *par défaut*. Le tableau par source des réglages d'un son montre la même valeur.
+- **Volume minimum automatique (facultatif).** Chaque source peut laisser le service suivre toute seule les mesures de bruit : *Qui règle le volume minimum* → *Automatique* (ou *Suivre la valeur par défaut*, avec le défaut activé dans *Réglages → Valeurs par défaut* pour toutes les sources d'un coup). Le manuel reste le défaut. Une fois par jour, le service applique la suggestion, seulement après 6 heures de calme et seulement si elle diffère d'au moins 3 dB de la valeur en cours ; la valeur saisie à la main n'est jamais écrasée et sert de nouveau si vous revenez à *Manuel*. Le formulaire de la source montre la valeur en cours et les derniers changements. Voir [Assistant de bruit](docs/noise-assistant.fr.md#mode-automatique).
+- Niveau d'API du service 14 : mettez le service à jour depuis Home Assistant après avoir mis à jour l'intégration. Avec un service plus ancien, le réglage est enregistré mais sans effet, et la liste montre les valeurs de la configuration.
+
 ## 0.19.0
 
 - **Assistant de bruit.** Sous *Volume minimum* dans le formulaire d'une source, le service mesure désormais le niveau ambiant de la pièce (un chiffre par minute, jamais d'audio) et, après 6 heures de calme, **suggère un volume minimum** : le niveau de la pièce au repos plus 6 dB, jamais au-dessus de -50 dBFS pour qu'une alarme lointaine soit encore entendue. Un graphique montre le niveau calme selon l'heure de la journée. *Utiliser cette valeur* remplit seulement le champ ; **vous pouvez toujours taper votre propre valeur**, qui l'emporte, et rien n'est gardé tant que vous n'enregistrez pas la source. Voir [Assistant de bruit](docs/noise-assistant.fr.md).

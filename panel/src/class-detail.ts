@@ -3,7 +3,7 @@ import { property, state } from "lit/decorators.js";
 import type { PanelApi } from "./api";
 import { clone, getBlock, putBlock } from "./classes";
 import type { Key, T } from "./i18n";
-import { presetCtxFor, resolveClass, type ByKey } from "./resolve";
+import { presetCtxFor, resolveClass, withAutoVolume, type ByKey } from "./resolve";
 import { cellsToWindows, hoursPerWeek, windowsToCells } from "./schedule";
 import type { Advice, Catalog, CatalogClass, ClassBlock, Condition, Resolved, ServiceConfig, SourceCfg } from "./types";
 import "./schedule-grid";
@@ -45,6 +45,7 @@ export class ClassDetail extends LitElement {
   @state() private condition: Condition | null = null;
   @state() private condChoice: "inherit" | "none" | "own" = "inherit";
   @state() private warnings: Advice[] = [];
+  @state() private autoGates: Record<string, number> = {};     // minimum volumes the service sets by itself on the sources set to automatic
   private timer?: number;
   private seq = 0;
 
@@ -102,7 +103,15 @@ export class ClassDetail extends LitElement {
     return this.cfg.sources ?? [];
   }
 
-  private resolveFor(cfg: ServiceConfig, src: SourceCfg): Resolved {
+  connectedCallback(): void {
+    super.connectedCallback();
+    this.api.noise().then((n) => {
+      this.autoGates = Object.fromEntries(n.sources.filter((x) => x.auto?.gate != null).map((x) => [x.id, x.auto!.gate as number]));
+    }, () => undefined);
+  }
+
+  private resolveFor(cfgIn: ServiceConfig, src: SourceCfg): Resolved {
+    const cfg = withAutoVolume(cfgIn, this.autoGates);
     return resolveClass(cfg, (cfg.sources ?? []).find((s) => s.id === src.id) ?? src, this.cls, this.byKey, presetCtxFor(this.catalog, cfg));
   }
 

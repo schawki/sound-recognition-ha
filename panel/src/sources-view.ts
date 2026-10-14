@@ -2,7 +2,7 @@ import { LitElement, css, html, nothing } from "lit";
 import { property, state } from "lit/decorators.js";
 import { repeat } from "lit/directives/repeat.js";
 import type { PanelApi } from "./api";
-import type { T } from "./i18n";
+import type { Key, T } from "./i18n";
 import { cellsToWindows, hoursPerWeek, windowsToCells } from "./schedule";
 import { groupAdvice, type NoticeItem } from "./advice-group";
 import type { Advice, EsphomeDevice, EsphomeState, HsPlace, SeparationType, StructureInfo, Catalog, Environment, Go2rtcStreams, HaArea, HaDevice, HaOpening, ServiceConfig, SourceCfg } from "./types";
@@ -12,7 +12,8 @@ import "./noise-assistant";
 import "./structure-plan";
 import { ESPHOME_YAML } from "./esphome-yaml";
 import { RETENTION_CATEGORIES, RET_KEYS, retBlock, retForm } from "./retention";
-import type { Condition, RetentionCategory } from "./types";
+import type { Condition, NoiseSource, RetentionCategory } from "./types";
+import { presetCtxFor, sourceGate } from "./resolve";
 import { allPresets, findPreset, presetLines, soundName } from "./presets";
 
 const TYPES: [string, "typeRtsp" | "typeGo2rtc" | "typeAlsa" | "typeEsphome" | "typeFile"][] = [
@@ -30,7 +31,7 @@ interface Row { key: number; name: string; url: string }
 interface Form {
   id: string; isNew: boolean; name: string; type: string; url: string; enabled: boolean;
   rows: Row[]; picked: Record<string, string>;
-  offset: string; minVolume: string; scheduled: boolean; cells: boolean[]; condition: Condition | null;
+  offset: string; minVolume: string; minVolumeAuto: "" | "yes" | "no"; scheduled: boolean; cells: boolean[]; condition: Condition | null;
   clipsAllowed: boolean; clipsMaxDays: string; ret: Record<RetentionCategory, string>;
   environment: string; adaptive: boolean; adaptiveMax: string; presets: string[];
   password: string;
@@ -75,6 +76,7 @@ export class SourcesView extends LitElement {
   @state() private devs: HaDevice[] = [];
   @state() private hsPlace: HsPlace | null = null;
   @state() private structure: StructureInfo | null = null;
+  @state() private noiseBy: Record<string, NoiseSource> = {};     // what the service measures and applies per source (absent from an older service)
   private devsFor = "";
   @property({ attribute: false }) focusSource: string | null = null;   // set when Settings sends the user to one source: opens its form, then says it did
   @property({ type: Boolean }) wantEsp = false;                  // set by the panel banner: opens the form on "ESP32 microphone", then says it did
@@ -94,8 +96,17 @@ export class SourcesView extends LitElement {
       void this.api.areas().then((a) => { this.areas = a; }, () => undefined);
       void this.api.openings().then((o) => { this.openings = o; }, () => undefined);
       void this.api.structure().then((x) => { this.structure = x; }, () => undefined);
+      void this.loadNoise();
     } catch {
       this.loadError = true;
+    }
+  }
+
+  private async loadNoise(): Promise<void> {
+    try {
+      this.noiseBy = Object.fromEntries((await this.api.noise()).sources.map((n) => [n.id, n]));
+    } catch {
+      this.noiseBy = {};
     }
   }
 
@@ -183,7 +194,7 @@ export class SourcesView extends LitElement {
     return {
       id: s.id, isNew: false, name: s.name ?? s.id, type: s.type, url: s.url, enabled: s.enabled !== false, rows: [], picked: {},
       offset: s.threshold_offset == null ? "" : String(s.threshold_offset),
-      minVolume: s.min_volume_dbfs == null ? "" : String(s.min_volume_dbfs),
+      minVolume: s.min_volume_dbfs == null ? "" : String(s.min_volume_dbfs), minVolumeAuto: s.min_volume_auto === true ? "yes" : s.min_volume_auto === false ? "no" : "",
       scheduled: sched?.mode === "scheduled", cells: windowsToCells(sched?.windows ?? []), condition: s.condition ?? null,
       clipsAllowed: s.clips?.allowed !== false, clipsMaxDays: s.clips?.max_retention_days == null ? "" : String(s.clips.max_retention_days),
       ret: retForm(s.clips?.retention_by_category),
@@ -195,7 +206,7 @@ export class SourcesView extends LitElement {
   }
 
   private blankForm(): Form {
-    return { id: "", isNew: true, name: "", type: lastType, url: "", enabled: true, rows: [newRow()], picked: {}, offset: "", minVolume: "", scheduled: false, cells: new Array(336).fill(false), condition: null, clipsAllowed: true, clipsMaxDays: "", ret: retForm(undefined), environment: "", adaptive: false, adaptiveMax: "", password: "", area: "", devEnabled: false, devMax: "", devExclude: [], devInclude: "", presets: [] };
+    return { id: "", isNew: true, name: "", type: lastType, url: "", enabled: true, rows: [newRow()], picked: {}, offset: "", minVolume: "", minVolumeAuto: "", scheduled: false, cells: new Array(336).fill(false), condition: null, clipsAllowed: true, clipsMaxDays: "", ret: retForm(undefined), environment: "", adaptive: false, adaptiveMax: "", password: "", area: "", devEnabled: false, devMax: "", devExclude: [], devInclude: "", presets: [] };
   }
 
   /** Applies the form on a copy of the stored source, so fields the form does not know (class settings, advice) are kept. */
@@ -207,6 +218,7 @@ export class SourcesView extends LitElement {
     if (Number.isFinite(off) && off !== 0) s.threshold_offset = off; else delete s.threshold_offset;
     const vol = parseFloat(f.minVolume);
     if (f.minVolume.trim() !== "" && Number.isFinite(vol)) s.min_volume_dbfs = vol; else delete s.min_volume_dbfs;
+    if (f.minVolumeAuto === "yes") s.min_volume_auto = true; else if (f.minVolumeAuto === "no") s.min_volume_auto = false; else delete s.min_volume_auto;
     const windows = f.scheduled ? cellsToWindows(f.cells) : null;
     if (f.scheduled && windows && windows.length) {
       const untouched = existing?.schedule?.mode === "scheduled" && JSON.stringify(windowsToCells(existing.schedule.windows ?? [])) === JSON.stringify(f.cells);
@@ -271,6 +283,7 @@ export class SourcesView extends LitElement {
       }
       await this.api.save(candidate);
       this.config = candidate;
+      void this.loadNoise();
       const ids = new Set(Array.isArray(focus) ? focus : [focus]);
       const advice = check.warnings.filter((w: Advice) => ids.has(w.source));
       this.notice = { text: this.t("saved"), items: await this.noticeItems(advice, [...ids], next), sources: ids.size };
@@ -375,7 +388,18 @@ export class SourcesView extends LitElement {
     const t = this.t;
     const sched = s.schedule?.mode === "scheduled" ? t("scheduleSummaryWeek", { h: hoursPerWeek(windowsToCells(s.schedule.windows ?? [])) }) : t("scheduleSummaryContinuous");
     const clips = s.clips?.allowed === false ? t("clipsOff") : s.clips?.max_retention_days != null ? t("clipsOn", { d: s.clips.max_retention_days }) : t("clipsDefault");
-    return `${sched} · ${clips}${s.condition ? ` · ${t("condSummary")}` : ""}`;
+    return `${sched} · ${clips}${s.condition ? ` · ${t("condSummary")}` : ""}${this.volumeSummary(s)}`;
+  }
+
+  /** The minimum volume in use on the source and where it comes from, so that a value set by the assistant is not invisible. */
+  private volumeSummary(s: SourceCfg): string {
+    const t = this.t, n = this.noiseBy[s.id];
+    let v: number | null, how: string;
+    if (n && n.gate_origin) { v = n.current_gate; how = n.gate_origin; }
+    else if (this.config) { [v, how] = sourceGate(this.config, s, this.catalog ? presetCtxFor(this.catalog, this.config) : undefined); }
+    else return "";
+    if (v == null) return "";
+    return ` · ${t("volSummary", { v })} (${t(`volHow_${how}` as Key)})`;
   }
 
   render() {
@@ -386,6 +410,20 @@ export class SourcesView extends LitElement {
       ${this.notice ? this.renderNotice(this.notice) : nothing}
       ${this.form ? this.renderForm(this.form) : this.renderList()}
     `;
+  }
+
+  /** Minimum volume of a source: the value, who sets it (default / automatic / by hand), and the noise assistant. */
+  private renderVolume(f: Form) {
+    const t = this.t;
+    const defAuto = this.config?.defaults?.min_volume_auto === true;
+    const on = f.minVolumeAuto === "yes" || (f.minVolumeAuto === "" && defAuto);
+    return html`
+      <label>${t("minVolume")}<input name="minVolume" type="number" step="1" min="-90" max="0" .value=${f.minVolume} @input=${(e: Event) => this.set("minVolume", (e.target as HTMLInputElement).value)} /><small>${on ? t("minVolumeAutoHelp") : t("minVolumeHelp")}</small></label>
+      <label>${t("volMode")}<select name="minVolumeAuto" .value=${f.minVolumeAuto} @change=${(e: Event) => this.set("minVolumeAuto", (e.target as HTMLSelectElement).value as Form["minVolumeAuto"])}>
+        <option value="" ?selected=${f.minVolumeAuto === ""}>${t("volModeInherit", { mode: defAuto ? t("volModeAuto") : t("volModeManual") })}</option>
+        <option value="yes" ?selected=${f.minVolumeAuto === "yes"}>${t("volModeAuto")}</option>
+        <option value="no" ?selected=${f.minVolumeAuto === "no"}>${t("volModeManual")}</option></select><small>${t("volModeHelp")}</small></label>
+      <sr-noise-assistant style="grid-column: 1 / -1" .api=${this.api} .t=${t} .sourceId=${f.isNew ? "" : f.id} .value=${f.minVolume} .language=${this.language} .autoOn=${on} @gate-chosen=${(e: CustomEvent<number>) => this.set("minVolume", String(e.detail))}></sr-noise-assistant>`;
   }
 
   private renderNotice(n: NonNullable<typeof this.notice>) {
@@ -636,8 +674,7 @@ export class SourcesView extends LitElement {
         <label class="inline"><input type="checkbox" name="enabled" .checked=${f.enabled} @change=${(e: Event) => this.set("enabled", (e.target as HTMLInputElement).checked)} />${t("enabled")}</label>
         <div class="two">
           <label>${t("thresholdOffset")}<input name="offset" type="number" step="0.01" min="-1" max="1" .value=${f.offset} @input=${(e: Event) => this.set("offset", (e.target as HTMLInputElement).value)} /><small>${t("thresholdOffsetHelp")}</small></label>
-          <label>${t("minVolume")}<input name="minVolume" type="number" step="1" min="-90" max="0" .value=${f.minVolume} @input=${(e: Event) => this.set("minVolume", (e.target as HTMLInputElement).value)} /><small>${t("minVolumeHelp")}</small></label>
-          <sr-noise-assistant style="grid-column: 1 / -1" .api=${this.api} .t=${t} .sourceId=${f.isNew ? "" : f.id} .value=${f.minVolume} @gate-chosen=${(e: CustomEvent<number>) => this.set("minVolume", String(e.detail))}></sr-noise-assistant>
+          ${this.renderVolume(f)}
         </div>
         <fieldset>
           <legend>${t("listenMode")}</legend>
@@ -667,8 +704,7 @@ export class SourcesView extends LitElement {
         <label class="inline"><input type="checkbox" name="enabled" .checked=${f.enabled} @change=${(e: Event) => this.set("enabled", (e.target as HTMLInputElement).checked)} />${t("enabled")}</label>
         <div class="two">
           <label>${t("thresholdOffset")}<input name="offset" type="number" step="0.01" min="-1" max="1" .value=${f.offset} @input=${(e: Event) => this.set("offset", (e.target as HTMLInputElement).value)} /><small>${t("thresholdOffsetHelp")}</small></label>
-          <label>${t("minVolume")}<input name="minVolume" type="number" step="1" min="-90" max="0" .value=${f.minVolume} @input=${(e: Event) => this.set("minVolume", (e.target as HTMLInputElement).value)} /><small>${t("minVolumeHelp")}</small></label>
-          <sr-noise-assistant style="grid-column: 1 / -1" .api=${this.api} .t=${t} .sourceId=${f.isNew ? "" : f.id} .value=${f.minVolume} @gate-chosen=${(e: CustomEvent<number>) => this.set("minVolume", String(e.detail))}></sr-noise-assistant>
+          ${this.renderVolume(f)}
         </div>
         <fieldset>
           <legend>${t("listenMode")}</legend>

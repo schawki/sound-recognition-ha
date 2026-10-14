@@ -24,6 +24,7 @@ export class SettingsView extends LitElement {
   @state() private structure: StructureInfo | null = null;
   @state() private ignored: EsphomeDevice[] = [];
   @state() private minVolume = "";
+  @state() private volumeAuto = false;
   @state() private clipsAllowed = true;
   @state() private maxDays = "";
   @state() private defaultsSaved = false;
@@ -51,6 +52,7 @@ export class SettingsView extends LitElement {
     if (cfg.status === "fulfilled") {
       const d = cfg.value.defaults ?? {};
       this.minVolume = d.min_volume_dbfs == null ? "" : String(d.min_volume_dbfs);
+      this.volumeAuto = d.min_volume_auto === true;
       this.clipsAllowed = d.clips?.allowed !== false;
       this.maxDays = d.clips?.max_retention_days == null ? "" : String(d.clips.max_retention_days);
       this.boost = String((cfg.value.analysis as { context_boost?: number } | undefined)?.context_boost ?? 0.15);
@@ -77,6 +79,7 @@ export class SettingsView extends LitElement {
       const defaults = { ...(cfg.defaults ?? {}) };
       const vol = Number(this.minVolume.replace(",", "."));
       defaults.min_volume_dbfs = this.minVolume.trim() === "" || !Number.isFinite(vol) ? null : vol;
+      if (this.volumeAuto) defaults.min_volume_auto = true; else delete defaults.min_volume_auto;
       const clips = { ...(defaults.clips ?? {}), allowed: this.clipsAllowed };
       const days = Number(this.maxDays.replace(",", "."));
       if (this.maxDays.trim() !== "" && Number.isFinite(days)) clips.max_retention_days = days; else delete clips.max_retention_days;
@@ -152,6 +155,9 @@ export class SettingsView extends LitElement {
       <label class="row">${t("defaultsVolume")} <input type="number" name="min_volume" min="-90" max="0" step="1" .value=${this.minVolume}
         @input=${(e: Event) => { this.minVolume = (e.target as HTMLInputElement).value; this.defaultsSaved = false; }} /> dBFS</label>
       <small class="dim">${t("defaultsVolumeHelp")}</small>
+      <label class="row"><input type="checkbox" name="min_volume_auto" .checked=${this.volumeAuto}
+        @change=${(e: Event) => { this.volumeAuto = (e.target as HTMLInputElement).checked; this.defaultsSaved = false; }} /> ${t("defaultsVolumeAuto")}</label>
+      <small class="dim">${t("defaultsVolumeAutoHelp")}</small>
       <label class="row"><input type="checkbox" name="clips_allowed" .checked=${this.clipsAllowed}
         @change=${(e: Event) => { this.clipsAllowed = (e.target as HTMLInputElement).checked; this.defaultsSaved = false; }} /> ${t("defaultsClips")}</label>
       <label class="row">${t("defaultsMaxDays")} <input type="number" name="max_days" min="0" step="1" .value=${this.maxDays}

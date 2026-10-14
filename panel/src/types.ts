@@ -106,7 +106,7 @@ export interface PresetDef {
 export interface SourceCfg {
   presets?: string[];
   id: string; name?: string; type: string; url: string; enabled?: boolean; threshold_offset?: number;
-  min_volume_dbfs?: number | null; schedule?: Schedule; condition?: Condition | null; clips?: ClipsCfg;
+  min_volume_dbfs?: number | null; min_volume_auto?: boolean; schedule?: Schedule; condition?: Condition | null; clips?: ClipsCfg;
   environment?: string; adaptive?: { enabled?: boolean; max_offset?: number };
   area?: string; devices?: { enabled?: boolean; max_offset?: number; exclude?: string[]; include?: string[] };
   advice?: Record<string, AdviceSetting>; applied_advice?: AppliedAdvice[];
@@ -128,7 +128,7 @@ export interface HaOpening { entity_id: string; name: string; area_id: string | 
 export interface HaDevice { entity_id: string; name: string; domain: string; state: string; available: boolean; has_volume: boolean; duplicate_of: string | null; area_id: string; area: string; weight: number }
 export interface HsPlace { described: boolean; environment: string | null; room_type: string; room: string | null }
 export interface ServiceConfig {
-  advice?: Record<string, AdviceSetting>; presets?: PresetDef[]; sources?: SourceCfg[]; classes?: ClassBlocks; defaults?: { min_volume_dbfs?: number | null; schedule?: Schedule; clips?: ClipsCfg }; [extra: string]: unknown }
+  advice?: Record<string, AdviceSetting>; presets?: PresetDef[]; sources?: SourceCfg[]; classes?: ClassBlocks; defaults?: { min_volume_dbfs?: number | null; min_volume_auto?: boolean; schedule?: Schedule; condition?: Condition | null; clips?: ClipsCfg }; [extra: string]: unknown }
 export interface Validation { errors: string[]; warnings: Advice[] }
 
 export interface EsphomeDevice { id?: string; device_id: string; name: string; host: string; port: number; url: string; area_id: string; added?: boolean; ignored?: boolean }
@@ -150,5 +150,8 @@ export interface NoiseSuggestion {
 export interface NoiseSource {
   id: string; name: string; minutes: number; calm_minutes: number; bytes: number; since: number | null; until: number | null;
   level_dbfs: number | null; current_gate: number | null; hourly: (number | null)[]; suggestion: NoiseSuggestion;
+  /** Absent from a service older than API level 14. `gate_origin`: where the minimum volume in use comes from. */
+  gate_origin?: "auto" | "source" | "preset" | "defaults" | "none";
+  auto?: { enabled: boolean; gate: number | null; since: number | null; checked: number | null; history: { ts: number; old: number | null; new: number }[] };
 }
-export interface NoiseInfo { retention_days: number; recording: boolean; sources: NoiseSource[] }
+export interface NoiseInfo { retention_days: number; recording: boolean; step_db?: number; sources: NoiseSource[] }

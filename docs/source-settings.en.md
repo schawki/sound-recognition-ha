@@ -18,7 +18,7 @@ Strongest first: **source × class** > **class (user)** > **source** > **default
 | `enabled` | A disabled source disables everything. Otherwise source × class, then class, then off. |
 | `threshold` | Source × class value is **absolute** (the source offset is ignored). Otherwise class value (or catalog suggestion) **plus the source's `threshold_offset`**, clamped to 0.05–0.99. |
 | `min_duration_s`, `cooldown_s`, `pre_roll_s`, `post_roll_s` | Source × class, then class, then catalog suggestion. |
-| `min_volume_dbfs` | Explicit source × class wins. Otherwise the **stricter (higher) of** the class gate and the source/default gate. |
+| `min_volume_dbfs` | Explicit source × class wins. Otherwise the **stricter (higher) of** the class gate and the source/default gate. A source (or the defaults) with `min_volume_auto: true` takes its source-level gate from the noise measures, see [Noise assistant](noise-assistant.en.md#automatic-mode). |
 | `schedule` | Source × class, then class, then source, then defaults, then continuous. |
 | `clip_retention_days` | Source × class, then class, then the source's `clips.retention_by_category`, then the global `defaults.clips.retention_by_category`, then the catalog (0 for conversations); **capped** by the source and global `max_retention_days`; forced to 0 if the source has `clips.allowed: false`. |
 

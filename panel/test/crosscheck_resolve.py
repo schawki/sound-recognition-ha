@@ -40,6 +40,8 @@ for _ in range(600):
     if rnd.random() < 0.4: src["threshold_offset"] = rnd.choice([-0.2, 0.1, 0.5])
     if rnd.random() < 0.4: src["min_volume_dbfs"] = rnd.choice([-70, -35])
     if rnd.random() < 0.3: src["enabled"] = False
+    if rnd.random() < 0.4: src["min_volume_auto"] = rnd.random() < 0.7
+    if rnd.random() < 0.3: cfg.setdefault("defaults", {})["min_volume_auto"] = rnd.random() < 0.5
     if rnd.random() < 0.3: src["clips"] = rnd.choice([{"allowed": False}, {"max_retention_days": 3}, {"allowed": True}, {"retention_by_category": rcat()}])
     if rnd.random() < 0.3: src["condition"] = {"rules": [{"people": "someone_home"}], "match": "any"}
     if rnd.random() < 0.3: src["schedule"] = {"mode": "scheduled", "windows": [{"days": ["tue"], "from": "01:00", "to": "02:00"}]}
@@ -53,8 +55,9 @@ for _ in range(600):
             pool += [p["id"] for p in cfg["presets"]]
         src["presets"] = rnd.sample(pool, rnd.choice([1, 2, 3]))
     c = rnd.choice(picks + [x for x in classes if x["audioset_name"] in ("Baby cry, infant cry", "Bark", "Television", "Smoke detector, smoke alarm")][:2])
-    exp = st.resolve(st.fold(cfg, CAT), CAT, "s", c["mid"])
-    cases.append({"cfg": cfg, "mid": c["mid"], "expected": exp})
+    gates = {"s": rnd.choice([-85, -69, -55])} if rnd.random() < 0.7 else {}        # what the service measured for this source, if anything
+    exp = st.resolve(st.apply_auto_volume(st.fold(cfg, CAT), gates), CAT, "s", c["mid"])
+    cases.append({"cfg": cfg, "gates": gates, "mid": c["mid"], "expected": exp})
 
 tmp = tempfile.mkdtemp()
 json.dump({"classes": classes, "presets": merged["presets"], "cases": cases}, open(os.path.join(tmp, "cases.json"), "w"))
@@ -62,12 +65,13 @@ script = f"""
 import {{ build }} from "esbuild";
 import {{ readFileSync }} from "node:fs";
 await build({{ entryPoints: ["src/resolve.ts"], bundle: true, format: "esm", outfile: "{tmp}/resolve.mjs", logLevel: "silent" }});
-const {{ resolveClass, buildByKey, presetCtx }} = await import("{tmp}/resolve.mjs");
+const {{ resolveClass, buildByKey, presetCtx, withAutoVolume }} = await import("{tmp}/resolve.mjs");
 const data = JSON.parse(readFileSync("{tmp}/cases.json", "utf8"));
 const byKey = buildByKey(data.classes), byMid = new Map(data.classes.map((c) => [c.mid, c]));
 let bad = 0;
 for (const k of data.cases) {{
-  const got = resolveClass(k.cfg, k.cfg.sources[0], byMid.get(k.mid), byKey, presetCtx(data.presets, k.cfg.presets, data.classes));
+  const cfg = withAutoVolume(k.cfg, k.gates);
+  const got = resolveClass(cfg, cfg.sources[0], byMid.get(k.mid), byKey, presetCtx(data.presets, k.cfg.presets, data.classes));
   if (JSON.stringify(sortKeys(got)) !== JSON.stringify(sortKeys(k.expected))) {{ if (bad++ < 3) console.log("MISMATCH", JSON.stringify(k.cfg), k.mid, "\\n got", JSON.stringify(got), "\\n exp", JSON.stringify(k.expected)); }}
 }}
 function sortKeys(o) {{ return Array.isArray(o) || o === null || typeof o !== "object" ? o : Object.fromEntries(Object.keys(o).sort().map((x) => [x, sortKeys(o[x])])); }}

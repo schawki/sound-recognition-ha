@@ -25,6 +25,8 @@ class EventStore:
             reasons TEXT)""")
         self.db.execute("CREATE INDEX IF NOT EXISTS ix_masked_ts ON masked(ts)")
         self.db.execute("""CREATE TABLE IF NOT EXISTS noise(source TEXT, minute INTEGER, level REAL, event INTEGER, PRIMARY KEY(source, minute))""")
+        self.db.execute("""CREATE TABLE IF NOT EXISTS auto_gate(source TEXT PRIMARY KEY, gate REAL, since REAL, checked REAL)""")
+        self.db.execute("""CREATE TABLE IF NOT EXISTS auto_gate_log(ts REAL, source TEXT, old REAL, new REAL)""")
         self.db.commit()
 
     def add(self, ev):
@@ -63,6 +65,40 @@ class EventStore:
     def purge_noise(self, before_minute):
         with self.lock:
             self.db.execute("DELETE FROM noise WHERE minute < ?", (before_minute,))
+            self.db.commit()
+
+    # ---- automatic minimum volume: the value in use per source, and the last changes
+    def auto_state(self):
+        """{source: (gate or None, since, checked)}."""
+        with self.lock:
+            return {r[0]: (r[1], r[2], r[3]) for r in self.db.execute("SELECT source, gate, since, checked FROM auto_gate")}
+
+    def auto_checked(self, source, ts):
+        with self.lock:
+            self.db.execute("INSERT INTO auto_gate(source, gate, since, checked) VALUES(?,NULL,NULL,?) "
+                            "ON CONFLICT(source) DO UPDATE SET checked=excluded.checked", (source, ts))
+            self.db.commit()
+
+    def auto_set(self, source, gate, ts, old):
+        with self.lock:
+            self.db.execute("INSERT INTO auto_gate(source, gate, since, checked) VALUES(?,?,?,?) "
+                            "ON CONFLICT(source) DO UPDATE SET gate=excluded.gate, since=excluded.since, checked=excluded.checked", (source, gate, ts, ts))
+            self.db.execute("INSERT INTO auto_gate_log VALUES(?,?,?,?)", (ts, source, old, gate))
+            self.db.execute("DELETE FROM auto_gate_log WHERE source=? AND ts NOT IN (SELECT ts FROM auto_gate_log WHERE source=? ORDER BY ts DESC LIMIT 20)",
+                            (source, source))
+            self.db.commit()
+
+    def auto_history(self, source, n=5):
+        with self.lock:
+            return [{"ts": r[0], "old": r[1], "new": r[2]} for r in
+                    self.db.execute("SELECT ts, old, new FROM auto_gate_log WHERE source=? ORDER BY ts DESC LIMIT ?", (source, n))]
+
+    def auto_forget_except(self, sources):
+        """Drops what belongs to sources that no longer exist."""
+        with self.lock:
+            ph = ",".join("?" * len(sources)) or "''"
+            self.db.execute(f"DELETE FROM auto_gate WHERE source NOT IN ({ph})", list(sources))
+            self.db.execute(f"DELETE FROM auto_gate_log WHERE source NOT IN ({ph})", list(sources))
             self.db.commit()
 
     def set_clip(self, event_id, rel, expires):

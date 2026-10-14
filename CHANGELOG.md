@@ -2,6 +2,12 @@
 
 Releases are tagged `vX.Y.Z`; the service updates itself from Home Assistant to the latest tag.
 
+## 0.20.0
+
+- **The minimum volume in use is now visible.** In the list of the sources, each line says the minimum volume in use and who set it: *automatic*, *set by hand*, *from a preset* or *default*. The per-sound table of a sound's settings shows the same value.
+- **Automatic minimum volume (optional).** Each source can let the service follow the noise measures by itself: *Who sets the minimum volume* → *Automatic* (or *Follow the default*, with the default turned on in *Settings → Default values* for every source at once). Manual stays the default. Once a day the service applies the suggestion, only after 6 hours of calm and only when it differs from the value in use by at least 3 dB; the value typed by hand is never overwritten and is used again if you go back to *Manual*. The source form shows the value in use and the last changes. See [Noise assistant](docs/noise-assistant.en.md#automatic-mode).
+- Service API level 14: update the service from Home Assistant after updating the integration. With an older service the setting is saved but has no effect, and the list shows the values of the configuration.
+
 ## 0.19.0
 
 - **Noise assistant.** Under *Minimum volume* in the form of a source, the service now measures the ambient level of the room (one number per minute, never audio) and, after 6 hours of calm, **suggests a minimum volume**: the level of the room at rest plus 6 dB, never above -50 dBFS so that a distant alarm is still heard. A chart shows the quiet level by hour of the day. *Use this value* only fills the field; **you can always type your own value**, which wins, and nothing is kept until you save the source. See [Noise assistant](docs/noise-assistant.en.md).

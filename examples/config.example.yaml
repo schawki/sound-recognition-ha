@@ -10,6 +10,7 @@ storage: {clips_dir: /data/clips, db_path: /data/events.sqlite, ring_seconds: 30
 
 defaults:
   min_volume_dbfs: -60            # gate on the loudness of the 0.96 s window; null disables the gate
+  min_volume_auto: false          # true: the service adjusts the gate itself, once a day, from the noise measures (a source can say otherwise)
   schedule: {mode: continuous}    # continuous = listen 24/7 (the explicit "continuous monitoring" option)
   clips: {allowed: true, max_retention_days: 30}
   # Days to keep the clips of each kind of sound (0 = none), here or per source. Conversations default to 0: nothing is recorded unless you decide it.

@@ -169,6 +169,48 @@ def fold(cfg, catalog):
     return out
 
 
+# ---------------------------------------------------------------------------------------------------------------- automatic minimum volume
+AUTO_STEP_DB = 3              # the automatic minimum volume only moves when the new suggestion differs from the one in use by at least this much
+AUTO_EVERY_S = 24 * 3600      # and is looked at once a day
+
+
+def auto_enabled(cfg, src):
+    """Whether the minimum volume of a source follows the noise measurements: the source says so, else the defaults, else no (manual)."""
+    return (src["min_volume_auto"] if "min_volume_auto" in src else (cfg.get('defaults') or {}).get('min_volume_auto', False)) is True
+
+
+def apply_auto_volume(cfg, gates):
+    """The configuration in effect with the automatic minimum volumes in place: {source id: gate} for the sources that follow the measurements.
+    Like a preset, it only fills the source level; a gate set for one sound on a source (source x class) still wins. A copy is returned."""
+    if not gates:
+        return cfg
+    out = dict(cfg)
+    srcs = []
+    for s in cfg.get('sources') or []:
+        if s.get('id') in gates and auto_enabled(cfg, s):
+            e = copy.deepcopy(s)
+            e['min_volume_dbfs'] = gates[s['id']]
+            origin = e.get('_origin') or {'sounds': {}, 'fields': {}, 'ids': []}
+            origin['fields'].pop('min_volume_dbfs', None)
+            origin['auto_volume'] = True
+            e['_origin'] = origin
+            s = e
+        srcs.append(s)
+    out['sources'] = srcs
+    return out
+
+
+def source_gate(cfg, src):
+    """(minimum volume, where it comes from) at the level of the source: auto | source | preset | defaults | none."""
+    origin = src.get('_origin') or {}
+    if 'min_volume_dbfs' in src:
+        if origin.get('auto_volume'):
+            return src['min_volume_dbfs'], 'auto'
+        return src['min_volume_dbfs'], ('preset' if 'min_volume_dbfs' in (origin.get('fields') or {}) else 'source')
+    v = (cfg.get('defaults') or {}).get('min_volume_dbfs')
+    return v, ('defaults' if v is not None else 'none')
+
+
 def resolve(cfg, catalog, source_id, cls_key):
     c = catalog.get(cls_key)
     mid = c['mid']
@@ -253,6 +295,8 @@ def resolve(cfg, catalog, source_id, cls_key):
                 why[f] = 'preset'
         if 'min_volume_dbfs' in origin['fields'] and why.get('min_volume_dbfs') == 'source':
             why['min_volume_dbfs'] = 'preset'
+        if origin.get('auto_volume') and why.get('min_volume_dbfs') == 'source':
+            why['min_volume_dbfs'] = 'auto'
     out['provenance'] = why
     return out
 

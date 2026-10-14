@@ -18,7 +18,7 @@ Du plus fort au plus faible : **source × classe** > **classe (utilisateur)** > 
 | `enabled` | Une source désactivée désactive tout. Sinon source × classe, puis classe, puis désactivé. |
 | `threshold` | La valeur source × classe est **absolue** (le décalage de la source est ignoré). Sinon valeur de la classe (ou suggestion du catalogue) **plus le `threshold_offset` de la source**, bornée entre 0,05 et 0,99. |
 | `min_duration_s`, `cooldown_s`, `pre_roll_s`, `post_roll_s` | Source × classe, puis classe, puis suggestion du catalogue. |
-| `min_volume_dbfs` | Une valeur explicite source × classe l'emporte. Sinon **la plus stricte (la plus haute)** entre le seuil de la classe et celui de la source ou des défauts. |
+| `min_volume_dbfs` | Une valeur explicite source × classe l'emporte. Sinon **la plus stricte (la plus haute)** entre le seuil de la classe et celui de la source ou des défauts. Une source (ou les défauts) avec `min_volume_auto: true` prend son seuil au niveau de la source dans les mesures de bruit, voir [Assistant de bruit](noise-assistant.fr.md#mode-automatique). |
 | `schedule` | Source × classe, puis classe, puis source, puis défauts, puis continu. |
 | `clip_retention_days` | Source × classe, puis classe, puis `clips.retention_by_category` de la source, puis `defaults.clips.retention_by_category` global, puis catalogue (0 pour les conversations) ; **plafonnée** par `max_retention_days` de la source et global ; forcée à 0 si la source a `clips.allowed: false`. |
 

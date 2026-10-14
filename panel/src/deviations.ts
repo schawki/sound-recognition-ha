@@ -6,7 +6,8 @@ export function deviations(s: SourceCfg, t: T, envs: Environment[]): string[] {
   const out: string[] = [];
   if (s.enabled === false) out.push(t("devDisabled"));
   if (s.threshold_offset) out.push(t("devSensitivity", { v: `${s.threshold_offset > 0 ? "+" : ""}${s.threshold_offset}` }));
-  if (s.min_volume_dbfs != null) out.push(t("devVolume", { v: s.min_volume_dbfs }));
+  if (s.min_volume_auto === true) out.push(t("devVolumeAuto"));
+  else if (s.min_volume_dbfs != null) out.push(t("devVolume", { v: s.min_volume_dbfs }));
   if (s.schedule?.mode === "scheduled") out.push(t("devSchedule"));
   if (s.condition) out.push(t("devCondition"));
   if (s.clips?.allowed === false) out.push(t("devClipsOff"));
