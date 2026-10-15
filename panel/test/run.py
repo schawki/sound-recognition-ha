@@ -1071,6 +1071,19 @@ with sync_playwright() as p:
     ok(pg.locator("li.advice[data-rule=detonations_fireworks] button[data-action=apply]").count() == 0, "advice: the warning says it is applied right after the click")
     pg.close()
 
+    # a source that listens to nothing: one advice, with the preset of its room as the button
+    pg = new("?nothing=1", "light", 1200, 900)
+    pg.wait_for_selector("sound-recognition-live .card")
+    pg.click("button[data-tab=advice]")
+    pg.wait_for_selector("sound-recognition-advice li.advice")
+    ok(pg.locator("li.advice[data-rule=listens_to_nothing][data-status=todo]").count() == 1 and pg.locator("li.advice[data-rule=suggest_preset]").count() == 0, "advice: a source that listens to nothing is one advice, not a warning plus the same recommendation")
+    ok("listens to no sound" in text(pg, "li.advice[data-rule=listens_to_nothing]")[0] and "Television, Radio, Music" in text(pg, "li.advice[data-rule=listens_to_nothing]")[0], "advice: it names the sounds the room's preset proposes")
+    pg.locator("li.advice[data-rule=listens_to_nothing] button[data-action=apply]").click()
+    pg.wait_for_selector("li.advice[data-rule=listens_to_nothing][data-status=applied]", state="attached", timeout=8000)
+    g = next(x for x in pg.evaluate("window.__state.saves.at(-1)")["sources"] if x["id"] == "garden")
+    ok(g["presets"] == ["room_living_tv"], "advice: the button adds the preset of the room to the source and nothing else")
+    pg.close()
+
     # each advice says why, what its button changes and where it stands; an applied one can be undone
     pg = new("", "light", 1200, 900)
     pg.wait_for_selector("sound-recognition-live .card")

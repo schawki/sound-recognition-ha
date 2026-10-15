@@ -1,7 +1,21 @@
 """Warnings about the selected classes: close classes, risky combinations, per-source settings."""
 from . import catalog as cat_mod
 from . import settings as st
-from .config import advice_entry
+from .config import LISTENS_NOTHING, advice_entry
+
+NEW_SOURCE_GRACE_S = 3600     # a source added less than this ago is given time to be set up before it is said to listen to nothing
+SHOWN_SOUNDS = 6
+
+TEXTS = {
+    "en": {
+        "listens_nothing_place": "« {source} » is on but listens to no sound, so it detects nothing. For {environment}, the preset « {preset} » proposes: {classes}.",
+        "listens_nothing_unknown": "« {source} » is on but listens to no sound, so it detects nothing. Tell the panel what kind of place it is in to get sounds proposed, or choose the sounds yourself.",
+    },
+    "fr": {
+        "listens_nothing_place": "« {source} » est activée mais n'écoute aucun son, donc elle ne détecte rien. Pour {environment}, le préréglage « {preset} » propose : {classes}.",
+        "listens_nothing_unknown": "« {source} » est activée mais n'écoute aucun son, donc elle ne détecte rien. Indiquez dans le panneau le type de pièce pour que des sons vous soient proposés, ou choisissez les sons vous-même.",
+    },
+}
 
 
 class _Safe(dict):
@@ -75,8 +89,37 @@ def _apply_overrides(cfg, catalog, out):
     return final
 
 
-def compute(cfg, lang="en", root=None, overrides=True):
-    """List of warnings: {rule, kind, level, source, classes (mids), safety, message}."""
+def _listens_nothing(src, lang, merged, catalog, places, ages):
+    """The warning for a source that is on but listens to no sound, with the preset of its kind of room as the way out (None when it does not apply)."""
+    sid = src["id"]
+    if ages is not None and ages.get(sid, 0) < NEW_SOURCE_GRACE_S:
+        return None
+    txt = {**TEXTS["en"], **TEXTS.get(lang, {})}
+    sname = src.get("name") or sid
+    envs = {e["id"]: e for e in merged["environments"]}
+    env = envs.get(src.get("environment") or (places or {}).get(sid))
+    preset = next((q for q in merged.get("presets", []) if env and q.get("place") == env["id"]), None)
+    names = {c["mid"]: c["name"] for c in merged["classes"]}
+    row = {"rule": LISTENS_NOTHING, "kind": "auto", "level": "warning", "source": sid, "classes": [], "applied": False, "choices": []}
+    if preset is None:
+        return {**row, "message": txt["listens_nothing_unknown"].format(source=sname), "apply": None}
+    sounds = []
+    for key, blk in preset["sounds"].items():
+        try:
+            mid = catalog.get(key)["mid"]
+        except KeyError:
+            continue
+        if (blk or {}).get("enabled", True) and mid in names:
+            sounds.append(names[mid])
+    shown = ", ".join(sounds[:SHOWN_SOUNDS]) + (f" (+{len(sounds) - SHOWN_SOUNDS})" if len(sounds) > SHOWN_SOUNDS else "")
+    return {**row, "apply": {"source": sid, "add_presets": [preset["id"]]},
+            "message": txt["listens_nothing_place"].format(source=sname, environment=env["name"], preset=preset["name"], classes=shown)}
+
+
+def compute(cfg, lang="en", root=None, overrides=True, places=None, ages=None):
+    """List of warnings: {rule, kind, level, source, classes (mids), safety, message}.
+    `places` ({source: kind of room}, deduced by the integration) and `ages` ({source: seconds since it was first seen}) only matter for
+    the warning about a source that listens to nothing: the first names the sounds to propose, the second leaves a new source time to be set up."""
     merged = cat_mod.load_lang(lang, root)
     raw = cat_mod.load_raw(root)
     catalog = st.Catalog(raw)
@@ -95,6 +138,10 @@ def compute(cfg, lang="en", root=None, overrides=True):
             if r["enabled"]:
                 res[mid] = r
         enabled = set(res)
+        if not enabled:
+            row = _listens_nothing(src, lang, merged, catalog, places, ages)
+            if row:
+                out.append(row)
 
         def add(rule, kind, level, classes, message, fix=None, keep=None):
             row = {"rule": rule, "kind": kind, "level": level, "source": sid, "classes": list(classes), "message": message,

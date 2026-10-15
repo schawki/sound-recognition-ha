@@ -541,6 +541,35 @@ async def test_an_advice_with_a_gesture_is_fixable_and_the_flow_applies_it(hass,
     assert advice_issues(hass, "detonations_fireworks") == []                              # applied: the alert is gone
 
 
+async def test_a_source_that_listens_to_nothing_raises_a_repair_the_flow_fixes_with_the_room_preset(hass, hass_client):
+    fs.STATE.cfg["classes"] = {}
+    fs.STATE.cfg["sources"][0].update(classes={}, environment="kitchen")
+    entry = await setup_entry(hass)
+    mine = [i for i in advice_issues(hass, "listens_to_nothing") if "kitchen" in i.issue_id]
+    (issue,) = mine
+    assert issue.is_fixable and issue.data["apply"]["add_presets"] == ["room_kitchen"] and issue.translation_key == "advice_fixable"
+    assert "listens to no sound" in issue.translation_placeholders["message"] and "Smoke detector" in issue.translation_placeholders["message"]
+    http = await hass_client()
+    resp = await http.post("/api/repairs/issues/fix", json={"handler": DOMAIN, "issue_id": issue.issue_id})
+    flow = await resp.json()
+    assert flow["step_id"] == "confirm" and flow["description_placeholders"]["source"] == "Kitchen"
+    assert not fs.STATE.cfg["sources"][0].get("presets")                                   # nothing changes before the confirmation
+    resp = await http.post(f"/api/repairs/issues/fix/{flow['flow_id']}", json={})
+    assert (await resp.json())["type"] == "create_entry"
+    assert fs.STATE.cfg["sources"][0]["presets"] == ["room_kitchen"]
+    await hass.async_block_till_done()
+    assert not [i for i in advice_issues(hass, "listens_to_nothing") if "kitchen" in i.issue_id]
+
+
+async def test_a_source_that_listens_to_nothing_and_has_no_room_is_a_plain_alert(hass):
+    fs.STATE.cfg["classes"] = {}
+    fs.STATE.cfg["sources"][0].update(classes={})
+    fs.STATE.cfg["sources"][0].pop("environment", None)
+    await setup_entry(hass)
+    (issue,) = [i for i in advice_issues(hass, "listens_to_nothing") if "kitchen" in i.issue_id]
+    assert not issue.is_fixable and "what kind of place" in issue.translation_placeholders["message"]
+
+
 async def test_a_warning_without_a_gesture_stays_a_plain_alert(hass):
     fs.STATE.cfg["sources"][0]["clips"] = {"allowed": True}
     fs.STATE.cfg["classes"]["Shatter"] = {"enabled": True, "min_volume_dbfs": -30}

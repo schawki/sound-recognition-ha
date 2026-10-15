@@ -38,6 +38,8 @@ export function buildItems(warnings: Advice[], recs: Recommendation[], cfg: Serv
       apply: w.apply ?? null, applied: !!w.applied || done.has(key), advice: w, choices: w.choices ?? [], changes: w.apply ?? null, undo: null, at: null });
   }
   recs.forEach((r) => {
+    // a source that listens to nothing is told so with the preset of its room: the recommendation offering the same preset is that advice, once
+    if (items.some((i) => i.rule === "listens_to_nothing" && i.source === r.source && r.apply?.add_presets?.some((id) => i.apply?.add_presets?.includes(id)))) return;
     const key = `rec|${r.rule}|${r.source}|${[...r.classes].sort().join(",")}`;
     items.push({ key, kind: "recommendation", rule: r.rule, source: r.source, classes: r.classes, level: r.level, message: r.message, safety: false,
       apply: r.apply, applied: !!r.applied || done.has(key), advice: null, choices: [], changes: r.apply, undo: null, at: null });

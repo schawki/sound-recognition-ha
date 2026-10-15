@@ -144,9 +144,12 @@ def _check_devices(s, w, errs):
             errs.append(f"{w}.devices.{key} must be a list of entity ids")
 
 
+LISTENS_NOTHING = "listens_to_nothing"       # advice raised by the advisor itself (its text depends on the room), so not in the catalog
+
+
 def advice_rule_ids(catalog):
     raw = catalog.raw
-    return {x["id"] for k in ("groups", "rules", "auto_rules") for x in raw.get(k, [])}
+    return {x["id"] for k in ("groups", "rules", "auto_rules") for x in raw.get(k, [])} | {LISTENS_NOTHING}
 
 
 def _check_class_block(b, where, errs):

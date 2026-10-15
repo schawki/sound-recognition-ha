@@ -63,6 +63,7 @@ Une *classe de sécurité* est une classe recommandée comme alerte (`interest: 
 |---|---|---|
 | `schedule_gap_safety` | attention | Le planning de la source a des trous et une classe de sécurité n'a pas de planning propre. |
 | `volume_gate_safety` | attention | Le volume minimum effectif dépasse −40 dBFS sur une classe de sécurité. |
+| `listens_to_nothing` | attention | La source est activée mais aucun son n'y est activé (après une heure) ; propose le préréglage de son type de pièce. Voir [Conseils](advice.fr.md#une-source-nécoute-aucun-son). |
 | `clip_source_disallowed` | info | Les clips sont désactivés sur la source alors que la classe en conserverait. |
 
 Les textes sont dans `catalog/i18n/*.yaml` (`auto_rules`) ; l'interface regroupe les avertissements identiques entre classes.

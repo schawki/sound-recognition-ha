@@ -66,7 +66,7 @@ class FakeClient:
 
     async def warnings(self, lang, overrides=True):
         self._check()
-        return advisor.compute(STATE.cfg, lang, overrides=overrides)
+        return advisor.compute(st.fold(copy.deepcopy(STATE.cfg), CAT), lang, overrides=overrides)       # the service advises on the configuration in effect (presets folded in)
 
     async def catalog(self, lang):
         self._check()

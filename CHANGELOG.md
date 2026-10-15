@@ -2,6 +2,11 @@
 
 Releases are tagged `vX.Y.Z`; the service updates itself from Home Assistant to the latest tag.
 
+## 0.21.0
+
+- **A source that listens to nothing is now reported.** A source that is on but has no sound enabled detects nothing while it still uses the machine. The *Advice* tab and Home Assistant *Repairs* now say so, one hour after the service first sees the source (so that a new source can be set up first). When the kind of place is known, the message names the **sounds proposed for that kind of room** (from its preset) and *Apply* / *Fix* adds the preset after your confirmation; otherwise it asks you to choose the type of place or the sounds, and guesses nothing. Nothing is enabled without you; it can be hidden for a source that is off on purpose. See [Advice](docs/advice.en.md#a-source-that-listens-to-nothing).
+- No new service API level: the advice goes through the existing route, so with an older service it simply does not appear.
+
 ## 0.20.0
 
 - **The minimum volume in use is now visible.** In the list of the sources, each line says the minimum volume in use and who set it: *automatic*, *set by hand*, *from a preset* or *default*. The per-sound table of a sound's settings shows the same value.

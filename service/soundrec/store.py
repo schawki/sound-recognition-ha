@@ -27,6 +27,7 @@ class EventStore:
         self.db.execute("""CREATE TABLE IF NOT EXISTS noise(source TEXT, minute INTEGER, level REAL, event INTEGER, PRIMARY KEY(source, minute))""")
         self.db.execute("""CREATE TABLE IF NOT EXISTS auto_gate(source TEXT PRIMARY KEY, gate REAL, since REAL, checked REAL)""")
         self.db.execute("""CREATE TABLE IF NOT EXISTS auto_gate_log(ts REAL, source TEXT, old REAL, new REAL)""")
+        self.db.execute("CREATE TABLE IF NOT EXISTS source_seen(source TEXT PRIMARY KEY, first_seen REAL)")
         self.db.commit()
 
     def add(self, ev):
@@ -100,6 +101,16 @@ class EventStore:
             self.db.execute(f"DELETE FROM auto_gate WHERE source NOT IN ({ph})", list(sources))
             self.db.execute(f"DELETE FROM auto_gate_log WHERE source NOT IN ({ph})", list(sources))
             self.db.commit()
+
+    # ---- when each source was first seen by the service (advice about a new source waits a little, see advisor.NEW_SOURCE_GRACE_S)
+    def seen(self, sources, ts):
+        """Notes the sources not seen before as first seen at ts; returns {source: first seen}. Sources that no longer exist are forgotten."""
+        with self.lock:
+            self.db.executemany("INSERT OR IGNORE INTO source_seen VALUES(?,?)", [(x, ts) for x in sources])
+            ph = ",".join("?" * len(sources)) or "''"
+            self.db.execute(f"DELETE FROM source_seen WHERE source NOT IN ({ph})", list(sources))
+            self.db.commit()
+            return {r[0]: r[1] for r in self.db.execute("SELECT source, first_seen FROM source_seen")}
 
     def set_clip(self, event_id, rel, expires):
         with self.lock:

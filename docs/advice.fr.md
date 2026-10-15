@@ -35,6 +35,16 @@ Le filtre **Source** en haut affiche une source ou toutes.
 
 Appliquer un conseil ne boucle jamais : un conseil appliqué ne revient pas à cause de son propre changement (un test le vérifie sur toutes les règles).
 
+## Une source qui n'écoute aucun son
+
+Une source activée mais **sans aucun son activé** ne détecte rien tout en utilisant la machine. Sound Recognition le signale (règle `listens_to_nothing`, niveau *attention*) :
+
+- dans l'onglet **Conseils**, et dans les **Réparations** de Home Assistant pour que les administrateurs le voient ;
+- il attend **une heure après que le service a vu la source pour la première fois**, pour qu'une nouvelle source puisse être réglée sans avertissement entre-temps (la vérification faite à l'enregistrement d'une source n'est pas retardée) ;
+- si le type de pièce est connu (réglé sur la source, ou déduit de Home Structure et de la zone), le message nomme les **sons proposés pour ce type de pièce**, tirés de son préréglage, et **Appliquer** (dans le panneau, ou *Corriger* dans les Réparations, après confirmation) ajoute le préréglage à la source. Si vous préférez choisir, cochez les sons un par un dans l'onglet *Sons*, en partant de la liste proposée ;
+- si le type de pièce est inconnu, le message le dit et rien n'est deviné : choisissez le type de pièce dans le formulaire de la source, ou les sons vous-même ;
+- rien n'est jamais activé sans vous, et le conseil disparaît dès qu'un son est actif. Pour une source désactivée volontairement, **masquez**-le comme n'importe quel conseil (*Affichage*), pour cette source seulement si vous le souhaitez.
+
 ## D'où viennent les conseils
 
 Les conseils sont écrits dans le **catalogue** neutre en langue (`catalog/catalog.yaml`), pas dans le code, pour pouvoir être relus et traduits :

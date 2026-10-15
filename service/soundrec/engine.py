@@ -277,7 +277,9 @@ class Engine:
         return st.source_gate(self.eff, src) if src else (None, "none")
 
     def warnings(self, lang="en", overrides=True):
-        return advisor.compute(self.eff, lang, self.catalog_root, overrides)
+        seen = self.store.seen([x["id"] for x in self.cfg.get("sources", [])], _now().timestamp())
+        now = _now().timestamp()
+        return advisor.compute(self.eff, lang, self.catalog_root, overrides, self.active_places(), {k: now - v for k, v in seen.items()})
 
     def set_external(self, sid, offset, reasons, detail, ttl_s):
         """Offset pushed by the integration for one source. Returns False when the source is not running."""

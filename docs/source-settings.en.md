@@ -64,6 +64,7 @@ A *safety class* is a class recommended as an alert (`interest: monitor`) whose 
 | `schedule_gap_safety` | warning | The source schedule has gaps and a safety class has no schedule of its own. |
 | `volume_gate_safety` | warning | The effective minimum volume is above −40 dBFS on a safety class. |
 | `clip_source_disallowed` | info | Clips are disabled on the source while the class would keep clips. |
+| `listens_to_nothing` | warning | The source is on but no sound is enabled on it (after one hour); proposes the preset of its kind of room. See [Advice](advice.en.md#a-source-that-listens-to-nothing). |
 
 Texts are in `catalog/i18n/*.yaml` (`auto_rules`); the UI groups identical warnings across classes.
 

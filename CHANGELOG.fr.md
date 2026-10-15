@@ -2,6 +2,11 @@
 
 Les versions sont étiquetées `vX.Y.Z` ; le service se met à jour depuis Home Assistant vers la dernière étiquette.
 
+## 0.21.0
+
+- **Une source qui n'écoute aucun son est désormais signalée.** Une source activée mais sans aucun son activé ne détecte rien tout en utilisant la machine. L'onglet *Conseils* et les *Réparations* de Home Assistant le disent maintenant, une heure après que le service a vu la source pour la première fois (pour qu'une nouvelle source puisse d'abord être réglée). Quand le type de pièce est connu, le message nomme les **sons proposés pour ce type de pièce** (d'après son préréglage) et *Appliquer* / *Corriger* ajoute le préréglage après votre confirmation ; sinon il vous invite à choisir le type de pièce ou les sons, et ne devine rien. Rien n'est activé sans vous ; on peut le masquer pour une source désactivée volontairement. Voir [Conseils](docs/advice.fr.md#une-source-nécoute-aucun-son).
+- Pas de nouveau niveau d'API du service : le conseil passe par la route existante, donc avec un service plus ancien il n'apparaît simplement pas.
+
 ## 0.20.0
 
 - **Le volume minimum en cours est désormais visible.** Dans la liste des sources, chaque ligne indique le volume minimum en cours et qui l'a réglé : *automatique*, *réglé à la main*, *d'un préréglage* ou *par défaut*. Le tableau par source des réglages d'un son montre la même valeur.

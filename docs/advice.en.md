@@ -35,6 +35,16 @@ The **Source** filter at the top shows one source or all of them.
 
 Applying advice never loops: an advice you applied does not come back because of its own change (this is checked by a test over every rule).
 
+## A source that listens to nothing
+
+A source that is on but has **no sound enabled** detects nothing while it still uses the machine. Sound Recognition says so (rule `listens_to_nothing`, level *warning*):
+
+- in the **Advice** tab, and in Home Assistant **Repairs** so that the administrators see it;
+- it waits **one hour after the service first sees the source**, so that a new source can be set up without a warning in the meantime (the check made when you save a source is not delayed);
+- if the kind of place is known (set on the source, or deduced from Home Structure and the area), the message names the **sounds proposed for that kind of room**, taken from its preset, and **Apply** (in the panel or with *Fix* in Repairs, after a confirmation) adds the preset to the source. If you prefer to choose, pick the sounds one by one in the *Sounds* tab, starting from the proposed list;
+- if the kind of place is unknown, the message says so and nothing is guessed: choose the type of place in the source form, or the sounds yourself;
+- nothing is ever enabled without you, and the advice disappears as soon as a sound is on. For a source that is off on purpose, **hide** it like any other advice (*Display*), for that source only if you wish.
+
 ## Where the advice comes from
 
 The advice is written in the language-neutral **catalog** (`catalog/catalog.yaml`), not in the code, so that it can be reviewed and translated:

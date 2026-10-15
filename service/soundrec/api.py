@@ -142,7 +142,7 @@ async def validate_config(req):
     cand = cfgmod._merge(cfgmod.DEFAULTS, body)
     eng.restore_secrets(cand)
     errs = cfgmod.validate(cand, eng.catalog)
-    return web.json_response({"errors": errs, "warnings": [] if errs else advisor.compute(st.fold(cand, eng.catalog), _lang(req), eng.catalog_root)})
+    return web.json_response({"errors": errs, "warnings": [] if errs else advisor.compute(st.fold(cand, eng.catalog), _lang(req), eng.catalog_root, places=eng.active_places())})
 
 
 async def warnings(req):
